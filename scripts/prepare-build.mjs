@@ -13,12 +13,15 @@ if (/localhost|127\.0\.0\.1/i.test(siteUrl)) {
   );
 }
 
-for (const dir of [".next-build", ".next", "out"]) {
-  try {
-    rmSync(join(rootDir, dir), { recursive: true, force: true });
-  } catch {
-    // ignore
+// Skip aggressive cache wipe on Vercel — build must output to .next
+if (!process.env.VERCEL) {
+  for (const dir of [".next", "out"]) {
+    try {
+      rmSync(join(rootDir, dir), { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
   }
 }
 
-console.log("Prepare build: dynamic app — no static pre-generation.");
+console.log("Prepare build: dynamic app ready.");

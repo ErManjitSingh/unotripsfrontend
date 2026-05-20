@@ -6,7 +6,7 @@ import type { NextConfig } from "next";
  * Deploy: `npm run build` && `npm run start`
  */
 const nextConfig: NextConfig = {
-  distDir: process.env.NODE_ENV === "production" ? ".next-build" : ".next",
+  /** Default `.next` — required for Vercel and `next start`. */
   transpilePackages: ["swiper"],
   images: {
     unoptimized: true,
