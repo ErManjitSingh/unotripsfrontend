@@ -1,27 +1,32 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Poppins } from "next/font/google";
+import { Dancing_Script, Roboto } from "next/font/google";
+import { AppProviders } from "@/components/providers/app-providers";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { HERO_SLIDES, SITE } from "@/lib/constants";
 import "./globals.css";
 
-const inter = Inter({
+const dancingScript = Dancing_Script({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-dancing-script",
   display: "swap",
 });
 
-const poppins = Poppins({
-  weight: ["400", "500", "600", "700", "800"],
+/**
+ * EaseMyTrip holidays (easemytrip.com/holidays) — primary UI is Roboto / system sans.
+ * @see https://www.easemytrip.com/holidays/
+ */
+const roboto = Roboto({
   subsets: ["latin"],
-  variable: "--font-poppins",
+  weight: ["300", "400", "500", "700", "900"],
+  variable: "--font-roboto",
   display: "swap",
 });
 
 const siteUrl = SITE.url;
 const defaultTitle =
-  "Best Tour Packages in India | Affordable Holiday Packages | Wanderlux Voyages";
+  "Best Tour Packages in India | Luxury Travel Experiences | UNO Trips";
 const defaultDescription =
-  "Book premium India and international tour packages with curated stays, private transfers, and 24/7 concierge. Luxury honeymoons, family holidays, and bespoke itineraries.";
+  "Luxury curated travel across India and beyond — hand-picked stays, clear pricing, and 24×7 support. Himalayan escapes, Kerala backwaters, international holidays.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -36,7 +41,7 @@ export const metadata: Metadata = {
     "luxury travel India",
     "honeymoon packages",
     "custom itineraries",
-    "Wanderlux Voyages",
+    "UNO Trips",
     "Rajasthan tour",
     "Europe packages",
     "Maldives honeymoon",
@@ -81,7 +86,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0D4C92",
+  themeColor: "#EA580C",
   width: "device-width",
   initialScale: 1,
 };
@@ -92,10 +97,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
-      <body className="min-h-screen font-sans">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${dancingScript.variable} ${roboto.variable}`}
+    >
+      <body className="min-h-screen font-sans" suppressHydrationWarning>
         <JsonLd />
-        {children}
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

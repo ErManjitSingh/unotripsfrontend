@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
-import { CalendarDays, Clock } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import type { BlogPost } from "@/lib/constants";
+import { BlogPreviewCarousel } from "@/components/home/blog-preview-carousel";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,73 +12,47 @@ export type BlogPreviewProps = {
 
 export function BlogPreview({ posts, className }: BlogPreviewProps) {
   return (
-    <section id="blog" className={cn("bg-white py-16 sm:py-20 lg:py-24", className)}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">
+    <section
+      id="blog"
+      className={cn(
+        "relative overflow-hidden bg-gradient-to-b from-white via-orange-50/30 to-white py-10 sm:py-12 lg:py-16",
+        className,
+      )}
+    >
+      <div
+        className="pointer-events-none absolute -left-24 top-10 h-64 w-64 rounded-full bg-primary/10 blur-3xl"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute -right-16 bottom-0 h-72 w-72 rounded-full bg-sky-200/30 blur-3xl"
+        aria-hidden
+      />
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-2xl">
+            <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-primary">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
               Travel journal
             </p>
-            <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+            <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl lg:text-[2.65rem] lg:leading-tight">
               Guides for smarter holidays
             </h2>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600 sm:text-base">
-              SEO-first longform from our destination editors — practical, opinionated,
-              and always written for real travelers.
+            <p className="mt-3 text-sm leading-relaxed text-slate-600 sm:text-base">
+              Destination tips, seasonal advice, and itinerary ideas — swipe through our latest
+              stories. Three featured reads at a glance, with more just a slide away.
             </p>
           </div>
-          <Button variant="outline" asChild className="self-start rounded-full">
+          <Button
+            variant="outline"
+            asChild
+            className="self-start rounded-full border-primary/30 bg-white/80 px-6 shadow-sm backdrop-blur hover:border-primary hover:bg-primary hover:text-white"
+          >
             <Link href="/blog">View all articles</Link>
           </Button>
         </div>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          {posts.map((post, index) => (
-            <article
-              key={post.id}
-              className="group flex flex-col overflow-hidden rounded-3xl border border-slate-100 bg-surface shadow-glass transition hover:-translate-y-1 hover:shadow-lift"
-            >
-              <Link href={`/blog/${post.slug}`} className="relative block aspect-[16/10] overflow-hidden">
-                <Image
-                  src={post.coverImage}
-                  alt={post.title}
-                  fill
-                  className="object-cover transition duration-700 group-hover:scale-105"
-                  sizes="(max-width: 1024px) 100vw, 33vw"
-                  priority={index === 0}
-                  loading={index === 0 ? "eager" : "lazy"}
-                />
-                <span className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary shadow-sm backdrop-blur">
-                  Featured
-                </span>
-              </Link>
-              <div className="flex flex-1 flex-col p-6">
-                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                  <span className="inline-flex items-center gap-1">
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    {post.publishedAt}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    {post.readMinutes} min read
-                  </span>
-                </div>
-                <h3 className="mt-3 font-display text-lg font-semibold text-ink group-hover:text-primary">
-                  <Link href={`/blog/${post.slug}`}>{post.title}</Link>
-                </h3>
-                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">
-                  {post.excerpt}
-                </p>
-                <Link
-                  href={`/blog/${post.slug}`}
-                  className="mt-4 text-sm font-semibold text-primary hover:underline"
-                >
-                  Read story
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
+        <BlogPreviewCarousel posts={posts} />
       </div>
     </section>
   );

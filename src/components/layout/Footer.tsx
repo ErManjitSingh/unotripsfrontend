@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone } from "lucide-react";
 import { FOOTER_COLUMNS, SITE } from "@/lib/constants";
+import { siteTelHref } from "@/lib/site-contact";
+import { cn } from "@/lib/utils";
 
 export type FooterProps = {
   className?: string;
@@ -8,28 +10,30 @@ export type FooterProps = {
 
 export function Footer({ className }: FooterProps) {
   return (
-    <footer id="contact" className={className}>
+    <footer id="contact" className={cn("w-full min-w-0", className)}>
       <div className="border-t border-slate-100 bg-ink text-slate-100">
-        <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
+        <div className="mx-auto grid w-full max-w-none gap-10 px-5 py-14 sm:px-8 md:grid-cols-2 lg:grid-cols-4 lg:px-12 xl:px-16">
           <div>
             <p className="font-display text-xl font-semibold lowercase text-white">
-              wanderlux
+              {SITE.name.toLowerCase()}
             </p>
             <p className="mt-3 text-sm leading-relaxed text-slate-300">
               {SITE.tagline}
             </p>
             <div className="mt-5 space-y-2 text-sm text-slate-300">
-              <p className="flex items-center gap-2">
+              <a href={siteTelHref()} className="flex items-center gap-2 hover:text-white">
                 <Phone className="h-4 w-4 text-accent" />
                 {SITE.phone}
-              </p>
-              <p className="flex items-center gap-2">
+              </a>
+              <a href={`mailto:${SITE.email}`} className="flex items-center gap-2 hover:text-white">
                 <Mail className="h-4 w-4 text-accent" />
                 {SITE.email}
-              </p>
+              </a>
               <p className="flex items-start gap-2">
-                <MapPin className="mt-0.5 h-4 w-4 text-accent" />
-                Connaught Place, New Delhi, India
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
+                <span>
+                  <span className="font-medium text-slate-200">Address:</span> {SITE.address}
+                </span>
               </p>
             </div>
           </div>
@@ -81,8 +85,8 @@ export function Footer({ className }: FooterProps) {
             </div>
           </div>
         </div>
-        <div className="border-t border-white/10 py-6 text-center text-xs text-slate-400">
-          © {new Date().getFullYear()} {SITE.name}. Crafted for discerning travelers.
+        <div className="border-t border-white/10 px-5 py-6 text-center text-xs text-slate-400 sm:px-8 lg:px-12">
+          © <span suppressHydrationWarning>{new Date().getFullYear()}</span> {SITE.name}. Crafted for discerning travelers.
         </div>
       </div>
     </footer>

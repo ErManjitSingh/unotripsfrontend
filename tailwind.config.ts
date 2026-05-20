@@ -10,9 +10,11 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        primary: "#0D4C92",
-        accent: "#FF7A00",
-        surface: "#F8FAFC",
+        /** UNO logo: warm orange — CTAs, links, focus */
+        primary: "#EA580C",
+        /** UNO logo: gold */
+        accent: "#F59E0B",
+        surface: "#FFFBF7",
         ink: "#0F172A",
         success: "#16A34A",
         border: "hsl(var(--border))",
@@ -26,18 +28,46 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
-        display: ["var(--font-poppins)", "system-ui", "sans-serif"],
+        /** Matches EaseMyTrip holidays UI (Roboto-first). @see https://www.easemytrip.com/holidays/ */
+        sans: [
+          "var(--font-roboto)",
+          "Roboto",
+          "Helvetica Neue",
+          "Helvetica",
+          "Arial",
+          "sans-serif",
+        ],
+        display: [
+          "var(--font-roboto)",
+          "Roboto",
+          "Helvetica Neue",
+          "Helvetica",
+          "Arial",
+          "sans-serif",
+        ],
+        /** Banner script line only. */
+        script: ["var(--font-dancing-script)", "cursive"],
+        /** Alias — same as `sans` (legacy `font-ease` classes). */
+        ease: [
+          "var(--font-roboto)",
+          "Roboto",
+          "Helvetica Neue",
+          "Helvetica",
+          "Arial",
+          "sans-serif",
+        ],
       },
       boxShadow: {
         glass: "0 8px 32px rgba(15, 23, 42, 0.08)",
-        lift: "0 20px 40px -12px rgba(13, 76, 146, 0.25)",
+        lift: "0 20px 40px -12px rgba(234, 88, 12, 0.22)",
       },
       backgroundImage: {
         "hero-gradient":
-          "linear-gradient(135deg, #0D4C92 0%, #2563EB 55%, #0D4C92 100%)",
+          "linear-gradient(135deg, #0b1f36 0%, #1c1917 42%, #9a3412 78%, #ea580c 100%)",
         "accent-sweep":
-          "linear-gradient(90deg, #FF7A00, #FFB347, #FF7A00)",
+          "linear-gradient(90deg, #FBBF24, #F97316, #EA580C)",
+        "brand-banner":
+          "linear-gradient(135deg, #0b1f36 0%, #431407 36%, #c2410c 68%, #f59e0b 100%)",
       },
       keyframes: {
         "gradient-x": {

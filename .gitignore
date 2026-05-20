@@ -9,7 +9,11 @@
 
 # next.js
 /.next/
+/.next-build/
 /out/
+
+# editor local history (slows TypeScript if scanned)
+.history/
 
 # production
 /build

@@ -1,7 +1,4 @@
-"use client";
-
 import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import type { TravelCategory } from "@/lib/constants";
@@ -16,10 +13,8 @@ export function TravelCategories({
   categories,
   className,
 }: TravelCategoriesProps) {
-  const reduceMotion = useReducedMotion();
-
   return (
-    <section className={cn("bg-white py-16 sm:py-20 lg:py-24", className)}>
+    <section className={cn("bg-white py-8 sm:py-10 lg:py-12", className)}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
@@ -36,16 +31,11 @@ export function TravelCategories({
           </div>
         </div>
 
-        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {categories.map((c, i) => (
-            <motion.div
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {categories.map((c) => (
+            <div
               key={c.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 22 }}
-              whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-40px" }}
-              transition={{ delay: reduceMotion ? 0 : 0.06 * i }}
-              whileHover={reduceMotion ? undefined : { y: -6 }}
-              className="group relative overflow-hidden rounded-3xl border border-slate-100 bg-ink shadow-glass"
+              className="group relative overflow-hidden rounded-3xl border border-slate-100 bg-ink shadow-glass transition-transform motion-safe:hover:-translate-y-1.5"
             >
               <div className="relative aspect-[16/11]">
                 <Image
@@ -73,7 +63,7 @@ export function TravelCategories({
                   </Link>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

@@ -1,22 +1,8 @@
-import { SITE } from "@/lib/constants";
+import { FAQ_ITEMS, SITE } from "@/lib/constants";
 
-const faqEntities = [
-  {
-    question: "Do you offer fully customized itineraries?",
-    answer:
-      "Yes. Our travel designers build bespoke routes, pacing, and hotel tiers around your dates, budget, and interests.",
-  },
-  {
-    question: "Is visa assistance included with international packages?",
-    answer:
-      "We coordinate documentation checklists and partner with trusted visa facilitators. Fees charged by embassies or third parties are billed separately.",
-  },
-  {
-    question: "What is your cancellation policy?",
-    answer:
-      "Policies vary by airline, hotel, and season. Your quote includes a clear schedule of refundable vs non-refundable components before you confirm.",
-  },
-];
+function siteTelephoneForSchema(): string {
+  return SITE.phone.replace(/\s/g, "");
+}
 
 export function JsonLd() {
   const travelAgency = {
@@ -25,18 +11,18 @@ export function JsonLd() {
     name: SITE.name,
     description: SITE.tagline,
     url: SITE.url,
-    telephone: SITE.phone,
+    telephone: siteTelephoneForSchema(),
     email: SITE.email,
     priceRange: "$$$",
     address: {
       "@type": "PostalAddress",
+      streetAddress: SITE.address,
+      addressLocality: "Shimla",
+      addressRegion: "Himachal Pradesh",
+      postalCode: "171006",
       addressCountry: "IN",
     },
-    sameAs: [
-      "https://www.instagram.com/",
-      "https://www.facebook.com/",
-      "https://www.linkedin.com/",
-    ],
+    sameAs: [SITE.url],
   };
 
   const breadcrumb = {
@@ -55,7 +41,7 @@ export function JsonLd() {
   const faq = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: faqEntities.map((item) => ({
+    mainEntity: FAQ_ITEMS.map((item) => ({
       "@type": "Question",
       name: item.question,
       acceptedAnswer: {

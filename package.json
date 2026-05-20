@@ -3,11 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true});\"",
+    "dev": "next dev --turbo",
+    "dev:webpack": "next dev",
+    "clean": "node -e \"const fs=require('fs');['.next','.next-build','node_modules/.cache'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true});}catch(e){}});\"",
+    "fetch:blog-slugs": "node scripts/fetch-blog-slugs.mjs",
+    "fetch:package-catalog": "node scripts/fetch-package-catalog.mjs",
+    "prebuild": "node scripts/prepare-build.mjs",
     "build": "next build",
-    "rebuild": "npm run clean && npm run build",
+    "build:safe": "npm run clean && next build",
+    "rebuild": "npm run build:safe",
     "start": "next start",
+    "start:clean": "npm run rebuild && next start",
     "lint": "next lint"
   },
   "dependencies": {
@@ -20,7 +26,6 @@
     "lucide-react": "^0.468.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
-    "react-countup": "^6.5.3",
     "react-dom": "^19.0.0",
     "swiper": "^11.1.15",
     "tailwind-merge": "^2.6.0",

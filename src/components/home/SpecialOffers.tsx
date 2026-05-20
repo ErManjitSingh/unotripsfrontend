@@ -1,7 +1,4 @@
-"use client";
-
 import Link from "next/link";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -13,17 +10,11 @@ export function SpecialOffers({ className }: SpecialOffersProps) {
   return (
     <section id="honeymoon" className={cn("px-4 sm:px-6 lg:px-8", className)}>
       <div className="mx-auto max-w-7xl overflow-hidden rounded-[2rem] border border-white/10 shadow-lift">
-        <motion.div
-          className="relative bg-[length:200%_200%] px-6 py-12 sm:px-10 sm:py-14 lg:px-14"
-          style={{
-            backgroundImage:
-              "linear-gradient(135deg,#0D4C92 0%,#2563EB 35%,#0D4C92 65%,#2563EB 100%)",
-          }}
-          animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
-          transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
+        <div
+          className="relative animate-gradient-x bg-brand-banner bg-[length:200%_200%] px-6 py-6 sm:px-10 sm:py-7 lg:px-14"
         >
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.22),transparent_55%)]" />
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="max-w-2xl text-white">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
                 Limited suites · Honeymoon & anniversary
@@ -55,7 +46,7 @@ export function SpecialOffers({ className }: SpecialOffersProps) {
               </Button>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );
