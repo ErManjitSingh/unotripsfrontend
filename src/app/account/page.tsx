@@ -47,7 +47,7 @@ export default function AccountPage() {
 
         <Navbar variant="ease" easeActiveNavId="hotels" />
 
-        <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12 lg:py-14">
+        <div className="relative mx-auto w-full max-w-[1320px] px-3 py-8 sm:px-4 sm:py-12 lg:px-6 lg:py-14">
           <AccountDashboard onLogout={handleLogout} />
         </div>
       </main>

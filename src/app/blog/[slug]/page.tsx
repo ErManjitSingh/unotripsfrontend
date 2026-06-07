@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { BlogPostDetail } from "@/components/blog/blog-post-detail";
 import { getBlogPost } from "@/lib/blog-api";
-
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ slug: string }> };

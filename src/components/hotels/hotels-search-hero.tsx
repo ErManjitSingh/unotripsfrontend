@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { ShieldCheck } from "lucide-react";
+import { HotelSearchLoadingOverlay } from "@/components/hotels/hotel-search-loading-overlay";
 import {
   addDaysToIso,
   HotelDateField,
@@ -18,8 +20,11 @@ import {
 import {
   hotelResultsHref,
   matchHotelDestinationFromList,
+  slugifyCityName,
   type HotelDestinationOption,
+  type HotelSortOption,
 } from "@/lib/hotels-catalog";
+import { fetchHotelDestinations } from "@/services/hotels";
 import { PARTNER_PORTAL_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { HotelsHeroSkeleton } from "@/components/hotels/hotels-page-skeleton";
@@ -73,6 +78,30 @@ export function HotelsSearchHero({
   const [lastMinute, setLastMinute] = useState(false);
   const [lowestPrice, setLowestPrice] = useState(true);
   const [bannerLoaded, setBannerLoaded] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const { data: fetchedDestinations } = useQuery({
+    queryKey: ["hotels", "search-destinations"],
+    queryFn: async () => {
+      const list = await fetchHotelDestinations();
+      return list.map((d) => ({
+        slug: d.slug,
+        city: d.city,
+        state: d.state,
+        country: d.country,
+      }));
+    },
+    enabled: destinations.length === 0,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const effectiveDestinations = destinations.length > 0 ? destinations : (fetchedDestinations ?? []);
+
+  useEffect(() => {
+    if (defaultCity) setCity(defaultCity);
+    if (defaultCountry) setCountry(defaultCountry);
+    if (defaultSlug) setSelectedSlug(defaultSlug);
+  }, [defaultCity, defaultCountry, defaultSlug]);
 
   useEffect(() => {
     const img = new window.Image();
@@ -123,22 +152,41 @@ export function HotelsSearchHero({
   const handleSearch = () => {
     setSearchError(null);
 
-    const slug =
-      selectedSlug ||
-      matchHotelDestinationFromList(city, destinations)?.slug ||
-      "";
-
-    if (!slug) {
-      setSearchError("Please select a city from the list");
+    const trimmedCity = city.trim();
+    if (!trimmedCity) {
+      setSearchError("Please enter a city or hotel location");
       return;
     }
 
+    if (!checkInIso) {
+      setSearchError("Please select check-in date");
+      return;
+    }
+
+    if (!checkOutIso || checkOutIso <= checkInIso) {
+      setSearchError("Check-out must be after check-in");
+      return;
+    }
+
+    const matched = matchHotelDestinationFromList(trimmedCity, effectiveDestinations);
+    const slug = selectedSlug || matched?.slug || slugifyCityName(trimmedCity);
+
+    if (matched && !selectedSlug) {
+      setSelectedSlug(matched.slug);
+      setCountry(matched.country);
+    }
+
+    const sort: HotelSortOption | undefined = lowestPrice ? "price-low" : undefined;
+
+    setIsSearching(true);
     router.push(
       hotelResultsHref(slug, {
         check_in: checkInIso,
         check_out: checkOutIso,
         rooms,
         guests,
+        last_minute: lastMinute || undefined,
+        sort,
       }),
     );
   };
@@ -164,7 +212,7 @@ export function HotelsSearchHero({
             );
           const match = matchHotelDestinationFromList(
             resolvedCity,
-            destinations,
+            effectiveDestinations,
           );
           if (match) {
             setCity(match.city);
@@ -200,6 +248,7 @@ export function HotelsSearchHero({
 
   return (
     <section
+      id="hotel-search"
       className={cn(
         "relative isolate min-h-[240px] overflow-x-hidden overflow-y-visible px-3 pb-9 pt-5 sm:min-h-[260px] sm:px-4 sm:pb-10 sm:pt-6",
         className,
@@ -234,7 +283,7 @@ export function HotelsSearchHero({
         </div>
       ) : null}
 
-      <div className="relative z-10 mx-auto w-full max-w-[1180px]">
+      <div className="relative z-10 mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
         <p className="mb-4 text-right text-[17px] font-semibold leading-snug text-white sm:mb-5 sm:text-xl md:text-[22px] md:font-bold">
           Same hotel, Cheapest price. Guaranteed!
         </p>
@@ -242,18 +291,25 @@ export function HotelsSearchHero({
         <form
           className="relative z-20 w-full overflow-visible rounded-xl bg-white shadow-[0_10px_40px_-10px_rgba(0,0,0,0.25)] sm:rounded-2xl"
           role="search"
+          aria-busy={isSearching}
           onSubmit={(e) => {
             e.preventDefault();
-            handleSearch();
+            if (!isSearching) handleSearch();
           }}
         >
-          <div className="flex w-full flex-col overflow-visible sm:flex-row sm:items-stretch">
+          {isSearching ? <HotelSearchLoadingOverlay /> : null}
+          <div
+            className={cn(
+              "flex w-full flex-col overflow-visible sm:flex-row sm:items-stretch",
+              isSearching && "pointer-events-none select-none opacity-60",
+            )}
+          >
             <div className="flex w-full min-w-0 flex-1 flex-col overflow-visible sm:flex-row sm:items-stretch">
               <HotelLocationField
                 className={fieldDivider}
                 city={city}
                 country={country}
-                destinations={destinations}
+                destinations={effectiveDestinations}
                 nearMeActive={nearMeActive}
                 nearMeLoading={nearMeLoading}
                 nearMeError={nearMeError}
@@ -295,9 +351,10 @@ export function HotelsSearchHero({
 
             <button
               type="submit"
-              className="flex h-[52px] w-full shrink-0 items-center justify-center bg-[#EF6614] text-[15px] font-bold tracking-[0.06em] text-white transition-colors hover:bg-[#E65100] sm:h-auto sm:min-h-[76px] sm:w-[128px] sm:flex-none sm:px-0 lg:w-[136px]"
+              disabled={isSearching}
+              className="flex h-[52px] w-full shrink-0 items-center justify-center bg-[#EF6614] text-[15px] font-bold tracking-[0.06em] text-white transition-colors hover:bg-[#E65100] disabled:cursor-wait disabled:opacity-90 sm:h-auto sm:min-h-[76px] sm:w-[128px] sm:flex-none sm:px-0 lg:w-[136px]"
             >
-              SEARCH
+              {isSearching ? "Searching…" : "SEARCH"}
             </button>
           </div>
         </form>

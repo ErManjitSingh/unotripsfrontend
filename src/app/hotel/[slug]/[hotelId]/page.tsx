@@ -5,7 +5,6 @@ import { HotelDetailView } from "@/components/hotels/hotel-detail-view";
 import { getHotelDetailBundle } from "@/lib/hotels-api";
 import { parseHotelCitySlug } from "@/lib/hotels-catalog";
 import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
-
 export const dynamic = "force-dynamic";
 
 type PageProps = {
@@ -42,6 +41,8 @@ export default async function HotelDetailPage({ params }: PageProps) {
         policies={bundle.policies}
         apiReviews={bundle.reviews}
         similarHotels={bundle.similarHotels}
+        nearbyAttractions={bundle.nearbyAttractions}
+        photoCategories={bundle.photoCategories}
       />
     </Suspense>
   );

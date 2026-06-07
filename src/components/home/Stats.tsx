@@ -29,7 +29,7 @@ export function Stats({ className }: StatsProps) {
       />
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-white via-white/92 to-white" />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
         <div className="grid gap-8 rounded-[2rem] border border-slate-100 bg-white/80 p-8 shadow-glass backdrop-blur-xl sm:grid-cols-2 sm:p-10 lg:grid-cols-4">
           {STATS.map((s) => (
             <div key={s.id} className="text-center">

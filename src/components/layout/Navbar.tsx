@@ -10,6 +10,7 @@ import { EaseMenuIcon } from "@/components/layout/ease-menu-icon";
 import { AuthNavActions } from "@/components/auth/auth-nav-actions";
 import { PARTNER_PORTAL_URL, SITE } from "@/lib/constants";
 import type { EaseMenuIconId } from "@/lib/ease-menu-sprite";
+import { PAGE_CONTAINER_CLASS, PAGE_MARGIN_X_CLASS, PAGE_MAX_WIDTH_CLASS } from "@/lib/page-gutter";
 import { TRAVEL_HOME_BRAND, TRAVEL_HOME_LOGO_SRC } from "@/lib/travel-home-brand";
 import { cn } from "@/lib/utils";
 
@@ -96,8 +97,8 @@ export function Navbar({
 
     return (
       <header className="sticky top-0 z-50 w-full border-b border-[#EEEEEE] bg-white text-[#212121] antialiased">
-        <div className="mx-auto flex max-w-[1320px] flex-col">
-          <div className="flex h-[68px] min-h-[68px] max-h-[72px] items-center gap-2 px-3 sm:h-[72px] sm:min-h-[72px] sm:max-h-[72px] sm:gap-3 sm:px-4 lg:px-6">
+        <div className={cn("mx-auto flex w-full flex-col", PAGE_MAX_WIDTH_CLASS)}>
+          <div className={cn("flex h-[68px] min-h-[68px] max-h-[72px] items-center gap-2 sm:h-[72px] sm:min-h-[72px] sm:max-h-[72px] sm:gap-3", PAGE_MARGIN_X_CLASS)}>
             <Link href="/" className="flex shrink-0 items-center">
               <span className="relative block h-9 w-[108px] shrink-0 sm:h-10 sm:w-[124px]">
                 <Image
@@ -212,7 +213,7 @@ export function Navbar({
 
           {open ? (
             <div className="border-t border-[#EEEEEE] bg-white px-4 py-4 lg:hidden">
-              <div className="mx-auto flex max-w-[1200px] flex-col gap-3">
+              <div className={cn("mx-auto flex w-full flex-col gap-3", PAGE_MAX_WIDTH_CLASS, PAGE_MARGIN_X_CLASS)}>
                 <Link
                   href={LIST_PROPERTY_CTA.href}
                   target="_blank"
@@ -256,7 +257,9 @@ export function Navbar({
     >
       <div
         className={cn(
-          "mx-auto flex max-w-[1400px] items-center gap-2 px-3 sm:gap-4 sm:px-6 lg:px-8",
+          "mx-auto flex w-full items-center gap-2 sm:gap-4",
+          PAGE_MAX_WIDTH_CLASS,
+          PAGE_MARGIN_X_CLASS,
           isOverlay && "pointer-events-auto",
         )}
       >
@@ -307,7 +310,7 @@ export function Navbar({
               : "border-slate-200 bg-white",
           )}
         >
-          <div className="mx-auto flex max-w-[1400px] flex-col gap-4">
+          <div className={cn("mx-auto flex w-full flex-col gap-4", PAGE_MAX_WIDTH_CLASS, PAGE_MARGIN_X_CLASS)}>
             <div className="flex items-center justify-between gap-2">
               {inrBlock}
             </div>

@@ -1,16 +1,17 @@
 "use client";
 
 import { MapPin, Star } from "lucide-react";
-import type { HotelCity, HotelListing } from "@/lib/hotels-catalog";
+import type { HotelCity, HotelListing, HotelPhotoCategory } from "@/lib/hotels-catalog";
 import { cn } from "@/lib/utils";
 
 type HotelDetailAboutProps = {
   hotel: HotelListing;
   city: HotelCity;
+  photoCategories?: HotelPhotoCategory[];
   className?: string;
 };
 
-export function HotelDetailAbout({ hotel, city, className }: HotelDetailAboutProps) {
+export function HotelDetailAbout({ hotel, city, photoCategories, className }: HotelDetailAboutProps) {
   const description =
     hotel.description?.trim() ||
     `Stay at ${hotel.name} in ${hotel.area}, ${city.name}.`;
@@ -32,11 +33,39 @@ export function HotelDetailAbout({ hotel, city, className }: HotelDetailAboutPro
             {hotel.address?.trim() || `${city.name}, ${hotel.state}`}
           </span>
         </p>
+        {hotel.tags.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {hotel.tags.map((tag) => (
+              <span
+                key={tag}
+                className="rounded border border-[#e0e0e0] bg-[#fafafa] px-2 py-0.5 text-[11px] font-medium text-[#616161]"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       <p className="mt-4 whitespace-pre-line text-[13px] leading-relaxed text-[#424242]">
         {description}
       </p>
+
+      {photoCategories && photoCategories.length > 0 ? (
+        <div className="mt-5 border-t border-[#eee] pt-4">
+          <h3 className="text-[13px] font-bold text-[#212121]">Photo gallery</h3>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {photoCategories.map((cat) => (
+              <li
+                key={cat.category}
+                className="rounded-md border border-[#e0e0e0] bg-[#fafafa] px-3 py-1.5 text-[12px] text-[#424242]"
+              >
+                {cat.label} ({cat.images.length})
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

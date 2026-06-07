@@ -14,7 +14,7 @@ export function TrendingTours({ tours, className }: TrendingToursProps) {
       id="packages"
       className={cn("bg-white py-16 sm:py-20 lg:py-24", className)}
     >
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">

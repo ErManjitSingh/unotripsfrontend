@@ -38,6 +38,7 @@ import {
   type HotelBookingQueryParams,
   type HotelCity,
   type HotelListing,
+  type HotelPhotoCategory,
   type HotelRoomType,
 } from "@/lib/hotels-catalog";
 import { cn, formatInrAmount } from "@/lib/utils";
@@ -49,6 +50,8 @@ type HotelDetailViewProps = {
   policies?: string[];
   apiReviews?: ApiReview[];
   similarHotels?: HotelListing[];
+  nearbyAttractions?: string[];
+  photoCategories?: HotelPhotoCategory[];
 };
 
 function parseBookingContextFromParams(
@@ -145,9 +148,9 @@ function DetailSearchStrip({
   );
 
   return (
-    <section className="border-b border-[#90caf9] bg-[#e3f2fd] px-3 py-3 sm:px-4 lg:px-6">
+    <section className="border-b border-[#90caf9] bg-[#e3f2fd] py-3">
       <form
-        className="mx-auto flex max-w-[1180px] flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-0"
+        className="mx-auto flex w-full max-w-[1320px] flex-col gap-2 px-3 sm:flex-row sm:items-stretch sm:gap-0 sm:px-4 lg:px-6"
         onSubmit={(e) => {
           e.preventDefault();
           if (isEditing) handleApply();
@@ -398,18 +401,6 @@ function BookingCard({
           </Link>
         ) : null}
       </div>
-
-      <div className="rounded-lg border border-[#e0e0e0] bg-white p-3 shadow-sm">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-[#757575]">Bank Offers</p>
-        <div className="mt-2 space-y-2">
-          <p className="text-[12px] leading-snug text-[#424242]">
-            <span className="font-semibold text-[#212121]">10% off</span> up to ₹750 on HDFC cards
-          </p>
-          <p className="text-[12px] leading-snug text-[#424242]">
-            <span className="font-semibold text-[#212121]">Flat ₹400 off</span> on ICICI Net Banking
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
@@ -421,6 +412,8 @@ export function HotelDetailView({
   policies,
   apiReviews,
   similarHotels = [],
+  nearbyAttractions = [],
+  photoCategories = [],
 }: HotelDetailViewProps) {
   const searchParams = useSearchParams();
   const listingHref = hotelHref(city.slug);
@@ -502,7 +495,7 @@ export function HotelDetailView({
           onApply={handleApplySearch}
         />
 
-        <div className="mx-auto max-w-[1180px] px-3 py-4 sm:px-4 sm:py-5 lg:px-6">
+        <div className="mx-auto w-full max-w-[1320px] px-3 py-4 sm:px-4 sm:py-5 lg:px-6">
           <nav
             className="mb-3 flex flex-wrap items-center gap-1 text-[12px] text-[#2196F3]"
             aria-label="Breadcrumb"
@@ -598,6 +591,8 @@ export function HotelDetailView({
               bookingContext={bookingContext}
               policies={policies}
               apiReviews={apiReviews}
+              nearbyAttractions={nearbyAttractions}
+              photoCategories={photoCategories}
               activeTab={activeTab}
               onTabChange={handleTabChange}
               onRoomPhotoClick={openPhotoBySrc}

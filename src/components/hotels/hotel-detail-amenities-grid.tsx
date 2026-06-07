@@ -5,6 +5,7 @@ import {
   ArrowUpDown,
   Bell,
   Car,
+  Check,
   Coffee,
   Dumbbell,
   Flame,
@@ -22,65 +23,73 @@ import {
   Wifi,
   Wine,
 } from "lucide-react";
-import type { HotelListing } from "@/lib/hotels-catalog";
+import type { HotelListing, HotelRoomType } from "@/lib/hotels-catalog";
 import { cn } from "@/lib/utils";
 
-type AmenityItem = {
-  label: string;
-  icon: LucideIcon;
-};
+function amenityIcon(label: string): LucideIcon {
+  const key = label.toLowerCase();
+  if (/wifi|wi-fi|internet/.test(key)) return Wifi;
+  if (/park/.test(key)) return ParkingCircle;
+  if (/restaurant|dining|food/.test(key)) return Utensils;
+  if (/gym|fitness/.test(key)) return Dumbbell;
+  if (/spa|massage/.test(key)) return Sparkles;
+  if (/bar|lounge/.test(key)) return Wine;
+  if (/coffee|caf/.test(key)) return Coffee;
+  if (/laundry|iron/.test(key)) return Shirt;
+  if (/doctor|medical/.test(key)) return Stethoscope;
+  if (/ac|air.?condition|heater|therm/.test(key)) return Thermometer;
+  if (/lift|elevator/.test(key)) return ArrowUpDown;
+  if (/cctv|camera|security/.test(key)) return Video;
+  if (/fire/.test(key)) return Flame;
+  if (/game/.test(key)) return Gamepad2;
+  if (/taxi|transfer|car|pick/.test(key)) return Car;
+  if (/airport|plane/.test(key)) return Plane;
+  if (/desk|reception|front/.test(key)) return Bell;
+  if (/travel|tour|map/.test(key)) return MapPin;
+  if (/news/.test(key)) return Newspaper;
+  if (/room service|service/.test(key)) return Bell;
+  return Check;
+}
 
-const DETAIL_AMENITIES: AmenityItem[] = [
-  { label: "Restaurant", icon: Utensils },
-  { label: "Gym", icon: Dumbbell },
-  { label: "Spa", icon: Sparkles },
-  { label: "Bar", icon: Wine },
-  { label: "Free Wi-Fi", icon: Wifi },
-  { label: "Newspaper", icon: Newspaper },
-  { label: "Parking", icon: ParkingCircle },
-  { label: "Luggage Storage", icon: Shirt },
-  { label: "Heater-on request", icon: Thermometer },
-  { label: "Front Desk", icon: Bell },
-  { label: "Ironing facilities", icon: Shirt },
-  { label: "Room service", icon: Bell },
-  { label: "Doctor on call", icon: Stethoscope },
-  { label: "Travel Desk", icon: MapPin },
-  { label: "Central AC", icon: Thermometer },
-  { label: "Fire Extinguishers", icon: Flame },
-  { label: "Paid Pick up/drop", icon: Car },
-  { label: "CCTV", icon: Video },
-  { label: "Coffee Shop", icon: Coffee },
-  { label: "Elevator", icon: ArrowUpDown },
-  { label: "Massage Centre", icon: Sparkles },
-  { label: "Games Room", icon: Gamepad2 },
-  { label: "Laundry", icon: Shirt },
-  { label: "Taxi service", icon: Car },
-  { label: "Airport Transfer", icon: Plane },
-];
+function titleCaseAmenity(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
 
 type HotelDetailAmenitiesGridProps = {
   hotel: HotelListing;
+  roomTypes?: HotelRoomType[];
   className?: string;
 };
 
-export function HotelDetailAmenitiesGrid({ hotel, className }: HotelDetailAmenitiesGridProps) {
-  const extra =
-    hotel.amenityMoreCount > 0
-      ? [{ label: `+ ${hotel.amenityMoreCount} more amenities`, icon: Sparkles }]
-      : [];
+export function HotelDetailAmenitiesGrid({ hotel, roomTypes, className }: HotelDetailAmenitiesGridProps) {
+  const roomAmenities = (roomTypes ?? []).flatMap((r) => r.amenities ?? []);
+  const combined = [...hotel.amenities, ...roomAmenities].map(titleCaseAmenity);
+  const unique = [...new Set(combined.filter(Boolean))];
 
-  const items = [...DETAIL_AMENITIES, ...extra];
+  if (unique.length === 0) {
+    return (
+      <div className={cn("p-5 sm:p-6", className)}>
+        <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-[#212121]">Amenities</h2>
+        <p className="mt-4 text-[13px] text-[#757575]">Amenity details for this property are not listed yet.</p>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("p-5 sm:p-6", className)}>
       <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-[#212121]">Amenities</h2>
+      <p className="mt-1 text-[12px] text-[#757575]">
+        {unique.length} amenit{unique.length === 1 ? "y" : "ies"} from property &amp; room listings
+      </p>
       <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {items.map((item) => {
-          const Icon = item.icon;
+        {unique.map((label) => {
+          const Icon = amenityIcon(label);
           return (
-            <div key={item.label} className="flex items-center gap-2 text-[12px] text-[#424242] sm:text-[13px]">
+            <div key={label} className="flex items-center gap-2 text-[12px] text-[#424242] sm:text-[13px]">
               <Icon className="h-4 w-4 shrink-0 text-[#9E9E9E]" strokeWidth={1.75} aria-hidden />
-              <span className="leading-snug">{item.label}</span>
+              <span className="leading-snug">{label}</span>
             </div>
           );
         })}

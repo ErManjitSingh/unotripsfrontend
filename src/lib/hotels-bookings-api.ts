@@ -25,10 +25,21 @@ export type CreateBookingPayload = {
   rooms?: number;
   guest: GuestInfoPayload;
   payment_method_nonce?: string | null;
+  meal_plan?: string | null;
+  meal_plan_label?: string | null;
+  meal_plan_price?: number;
 };
 
 export type BookingWithOrder = UserBooking & {
   razorpay_order_id?: string | null;
+  guest?: GuestInfoPayload;
+  amount_breakdown?: {
+    room_total?: number;
+    taxes?: number;
+    meal_plan_total?: number;
+    discount?: number;
+    grand_total?: number;
+  };
 };
 
 export function isIncompleteBookingStatus(status: string): boolean {
@@ -52,6 +63,16 @@ export function isIncompleteBookingStatus(status: string): boolean {
 export function isConfirmedBookingStatus(status: string): boolean {
   const s = status.toLowerCase();
   return s === "confirmed" || s === "completed" || s === "paid";
+}
+
+export async function fetchHotelBookingById(
+  accessToken: string,
+  bookingId: string,
+): Promise<BookingWithOrder> {
+  return apiDataWithAuth<BookingWithOrder>(
+    `/v1/bookings/${encodeURIComponent(bookingId)}`,
+    accessToken,
+  );
 }
 
 export async function createHotelBooking(

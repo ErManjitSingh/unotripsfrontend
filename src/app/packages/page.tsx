@@ -1,6 +1,8 @@
 import { PackageListingView } from "@/components/packages/package-listing-view";
 import { getTourCatalog } from "@/lib/packages";
 
+export const dynamic = "force-dynamic";
+
 export default async function PackagesPage() {
   const packages = await getTourCatalog();
   const featured = packages[0];
@@ -15,16 +17,16 @@ export default async function PackagesPage() {
     fromCity: "New Delhi",
   } as const;
 
-  if (!featured) {
+  if (!packages.length) {
     return (
       <PackageListingView
         featured={{
-          id: "fallback",
-          title: "Packages",
+          id: "empty",
+          title: "Holiday Tour Packages",
           image: heroImage,
           durationNights: 0,
           durationDays: 0,
-          rating: 4.8,
+          rating: 0,
           reviewCount: 0,
           priceINR: 0,
         }}

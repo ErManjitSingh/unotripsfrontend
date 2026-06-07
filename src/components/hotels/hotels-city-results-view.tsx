@@ -72,21 +72,33 @@ type HotelsCityResultsViewProps = {
   city: HotelCity;
   hotels: HotelListing[];
   destinations?: HotelDestinationOption[];
+  initialCheckIn?: string;
+  initialCheckOut?: string;
+  initialRooms?: number;
+  initialGuests?: number;
+  initialLastMinute?: boolean;
+  initialSort?: HotelSortOption;
 };
 
 export function HotelsCityResultsView({
   city: initialCity,
   hotels: initialHotels,
   destinations = [],
+  initialCheckIn,
+  initialCheckOut,
+  initialRooms,
+  initialGuests,
+  initialLastMinute = false,
+  initialSort = "popularity",
 }: HotelsCityResultsViewProps) {
   const [city, setCity] = useState(initialCity);
   const [hotels, setHotels] = useState(initialHotels);
   const [searching, setSearching] = useState(false);
   const [filters, setFilters] =
     useState<HotelFiltersState>(EMPTY_HOTEL_FILTERS);
-  const [sort, setSort] = useState<HotelSortOption>("popularity");
+  const [sort, setSort] = useState<HotelSortOption>(initialSort);
   const [searchQuery, setSearchQuery] = useState("");
-  const [lastMinuteOnly, setLastMinuteOnly] = useState(false);
+  const [lastMinuteOnly, setLastMinuteOnly] = useState(initialLastMinute);
 
   const filtered = useMemo(() => {
     let list = applyFilters(hotels, filters);
@@ -174,6 +186,8 @@ export function HotelsCityResultsView({
           check_out: payload.check_out,
           rooms: payload.rooms,
           guests: payload.guests,
+          last_minute: lastMinuteOnly || undefined,
+          sort: sort !== "popularity" ? sort : undefined,
         }),
       );
 
@@ -198,7 +212,7 @@ export function HotelsCityResultsView({
           />
         </Suspense>
 
-        <div className="mx-auto max-w-[1180px] px-3 py-4 sm:px-4 sm:py-5 lg:px-6">
+        <div className="mx-auto w-full max-w-[1320px] px-3 py-4 sm:px-4 sm:py-5 lg:px-6">
           {/* Breadcrumb + search + sort */}
           <div className="flex flex-col gap-3 border-b border-[#e0e0e0] bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
             <nav

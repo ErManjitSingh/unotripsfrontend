@@ -67,8 +67,7 @@ export function BlogPostDetail({ post, related }: BlogPostDetailProps) {
       <header className="relative">
         <div
           className={cn(
-            "relative mx-auto max-w-7xl pt-4 sm:pt-6",
-            PAGE_MARGIN_X_CLASS,
+            "relative mx-auto w-full max-w-[1320px] px-3 pt-4 sm:px-4 sm:pt-6 lg:px-6",
           )}
         >
           <Link
@@ -182,8 +181,7 @@ export function BlogPostDetail({ post, related }: BlogPostDetailProps) {
       {/* Body */}
       <div
         className={cn(
-          "relative mx-auto max-w-7xl pb-12 pt-8 sm:pb-16 sm:pt-10",
-          PAGE_MARGIN_X_CLASS,
+          "relative mx-auto w-full max-w-[1320px] px-3 pb-12 pt-8 sm:px-4 sm:pb-16 sm:pt-10 lg:px-6",
         )}
       >
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -264,7 +262,7 @@ export function BlogPostDetail({ post, related }: BlogPostDetailProps) {
             className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent"
             aria-hidden
           />
-          <div className={cn("mx-auto max-w-7xl", PAGE_MARGIN_X_CLASS)}>
+          <div className={cn("mx-auto w-full max-w-[1320px]", PAGE_MARGIN_X_CLASS)}>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.25em] text-primary">

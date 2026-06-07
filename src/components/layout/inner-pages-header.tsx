@@ -99,7 +99,7 @@ export function InnerPagesHeader({ searchHint = "Europe", className }: InnerPage
 
   return (
     <header className={cn("sticky top-0 z-[100] w-full border-b border-white/10 bg-[#0b1f36] text-white shadow-md", className)}>
-      <div className="mx-auto flex max-w-[1400px] flex-nowrap items-center gap-2 overflow-x-auto px-3 py-2.5 sm:gap-3 sm:px-5 sm:py-3 lg:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="mx-auto flex w-full max-w-[1320px] flex-nowrap items-center gap-2 overflow-x-auto px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 lg:px-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <Link
           href="/"
           className="relative flex h-8 w-[118px] shrink-0 items-center py-0.5 sm:h-9 sm:w-[138px] md:h-10 md:w-[158px]"

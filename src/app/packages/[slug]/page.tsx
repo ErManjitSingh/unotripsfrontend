@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { PackageDetailView } from "@/components/packages/package-detail-view";
-import { getTourBySlug, getTourCatalog } from "@/lib/packages";
-
+import { getTourBySlug, getRelatedPackages } from "@/lib/packages";
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -27,9 +26,7 @@ export default async function PackageDetailPage({ params }: Props) {
   const tour = await getTourBySlug(slug);
   if (!tour) notFound();
 
-  const catalog = await getTourCatalog();
-  const id = tour.slug ?? tour.id;
-  const similar = catalog.filter((p) => (p.slug ?? p.id) !== id).slice(0, 8);
+  const similar = await getRelatedPackages(tour, 8);
 
   return <PackageDetailView tour={tour} similar={similar} />;
 }

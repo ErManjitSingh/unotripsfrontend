@@ -150,8 +150,7 @@ async function fetchBlogList(
   let res: Response | null = null;
   try {
     res = await fetch(`${root}/api/v1/blog/posts?${params}`, {
-      cache: process.env.NODE_ENV === "development" ? undefined : "force-cache",
-      next: process.env.NODE_ENV === "development" ? { revalidate: 1800 } : undefined,
+      cache: "no-store",
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(API_FETCH_TIMEOUT_MS),
     });
@@ -175,7 +174,7 @@ async function fetchBlogBySlug(
     res = await fetch(
       `${root}/api/v1/blog/posts/${encodeURIComponent(slug)}`,
       {
-        next: { revalidate: 1800 },
+        cache: "no-store",
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(API_FETCH_TIMEOUT_MS),
       },

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Building2, Calendar, Users } from "lucide-react";
+import { HotelSearchLoadingOverlay } from "@/components/hotels/hotel-search-loading-overlay";
 import {
   addDaysToIso,
   formatHotelDateFromIso,
@@ -295,7 +296,7 @@ export function HotelsResultsSearchStrip({
         {!bannerLoaded ? <div className="absolute inset-0 bg-[#1a1a1a]" aria-hidden /> : null}
       </div>
 
-      <div className="relative z-10 mx-auto max-w-[1180px]">
+      <div className="relative z-10 mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
         <h1 className="text-center text-xl font-bold text-white drop-shadow-sm sm:text-2xl md:text-[26px]">
           Hotels in {city.name}
         </h1>
@@ -303,12 +304,19 @@ export function HotelsResultsSearchStrip({
         <form
           className="relative z-10 mt-4 w-full overflow-visible rounded-xl bg-white shadow-[0_8px_32px_-8px_rgba(0,0,0,0.35)] sm:mt-5 sm:rounded-2xl"
           role="search"
+          aria-busy={searching}
           onSubmit={(e) => {
             e.preventDefault();
-            if (isEditing) void handleSubmitSearch();
+            if (isEditing && !searching) void handleSubmitSearch();
           }}
         >
-          <div className="flex w-full flex-col sm:flex-row sm:items-stretch">
+          {searching ? <HotelSearchLoadingOverlay /> : null}
+          <div
+            className={cn(
+              "flex w-full flex-col sm:flex-row sm:items-stretch",
+              searching && "pointer-events-none select-none opacity-60",
+            )}
+          >
             <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-stretch">
               {isEditing ? (
                 <HotelLocationField

@@ -67,6 +67,22 @@
     pointer-events: none;
   }
 
+  .handpicked-hotels-swiper .swiper-button-next,
+  .handpicked-hotels-swiper .swiper-button-prev {
+    top: 32%;
+    color: #ea580c;
+    border-color: rgba(234, 88, 12, 0.2);
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .handpicked-hotels-swiper .swiper-button-next:hover,
+  .handpicked-hotels-swiper .swiper-button-prev:hover {
+    transform: scale(1.06);
+    box-shadow: 0 8px 24px rgba(234, 88, 12, 0.22);
+  }
+
   .blog-preview-swiper .swiper-button-next,
   .blog-preview-swiper .swiper-button-prev {
     width: 2.75rem;

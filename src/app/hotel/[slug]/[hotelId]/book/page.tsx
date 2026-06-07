@@ -5,7 +5,6 @@ import { HotelTravellersView } from "@/components/hotels/hotel-travellers-view";
 import { getHotelDetailBundle } from "@/lib/hotels-api";
 import { parseHotelCitySlug } from "@/lib/hotels-catalog";
 import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
-
 export const dynamic = "force-dynamic";
 
 type PageProps = {
@@ -27,7 +26,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 function TravellersFallback() {
   return (
     <main className="min-h-screen bg-[#f5f5f5] px-3 py-12">
-      <div className="mx-auto max-w-[1180px] space-y-4">
+      <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6 space-y-4">
         <div className="h-10 animate-pulse rounded bg-white" />
         <div className="h-48 animate-pulse rounded-lg bg-white" />
         <div className="h-64 animate-pulse rounded-lg bg-white" />

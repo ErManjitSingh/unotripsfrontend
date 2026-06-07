@@ -10,6 +10,7 @@ import {
   TestimonialsSection,
   TrendingToursSection,
 } from "@/components/home/home-async-sections";
+import { HomeHotelsSection } from "@/components/home/home-hotels-section";
 import {
   BlogPreviewSectionSkeleton,
   SummerEscapesSkeleton,
@@ -25,7 +26,8 @@ import { Newsletter } from "@/components/home/Newsletter";
 import { FaqSection } from "@/components/home/faq-section";
 import { TRAVEL_CATEGORIES } from "@/lib/constants";
 import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
-import { PAGE_MARGIN_X_CLASS } from "@/lib/page-gutter";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Rajasthan Tour Packages | UNO Trips — India Holidays",
@@ -53,12 +55,15 @@ export default function HomePage() {
             </Suspense>
             <HeroPromoBanner />
           </div>
-          <div className={PAGE_MARGIN_X_CLASS}>
+          <div>
             <Suspense fallback={<SummerEscapesSkeleton />}>
               <SummerEscapesWithCounts />
             </Suspense>
             <Suspense fallback={<TrendingToursSectionSkeleton />}>
               <TrendingToursSection />
+            </Suspense>
+            <Suspense fallback={<SummerEscapesSkeleton />}>
+              <HomeHotelsSection />
             </Suspense>
             <WhyChooseUs />
             <div className="py-5 sm:py-6">

@@ -21,6 +21,13 @@ const HOP_BY_HOP = new Set([
   "content-length",
 ]);
 
+/** Node fetch (undici) rejects upstream requests that carry Expect — breaks POST e.g. guest OTP. */
+const STRIP_REQUEST_HEADERS = new Set([
+  ...HOP_BY_HOP,
+  "expect",
+  "accept-encoding",
+]);
+
 function devLog(...args: unknown[]) {
   if (process.env.NODE_ENV === "development") {
     console.debug("[api/hotels]", ...args);
@@ -44,7 +51,7 @@ function forwardRequestHeaders(req: NextRequest): Headers {
   const headers = new Headers();
   req.headers.forEach((value, key) => {
     const lower = key.toLowerCase();
-    if (HOP_BY_HOP.has(lower)) return;
+    if (STRIP_REQUEST_HEADERS.has(lower)) return;
     headers.set(key, value);
   });
   if (!headers.has("accept")) {

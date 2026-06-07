@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getDestinationBySlug } from "@/lib/cms-api";
 import { DestinationPageContent } from "./destination-page-content";
-
 export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ slug: string }> };

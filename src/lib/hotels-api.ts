@@ -8,6 +8,7 @@ import {
   type HotelBookingSelection,
   type HotelCity,
   type HotelListing,
+  type HotelPhotoCategory,
   type HotelRoomRatePlan,
   type HotelRoomType,
 } from "@/lib/hotels-catalog";
@@ -18,6 +19,18 @@ export type ApiEnvelope<T> = {
   data: T;
   message?: string | null;
   request_id: string;
+};
+
+export type ApiPhotoCategory = {
+  category: string;
+  label: string;
+  images: string[];
+};
+
+export type ApiMealPlans = {
+  breakfast?: number;
+  lunch?: number;
+  dinner?: number;
 };
 
 export type ApiHotel = {
@@ -43,6 +56,7 @@ export type ApiHotel = {
   is_featured: boolean;
   is_verified: boolean;
   collection_type: string | null;
+  photo_categories?: ApiPhotoCategory[];
 };
 
 export type ApiRoomType = {
@@ -56,9 +70,14 @@ export type ApiRoomType = {
   amenities: string[];
   images: string[];
   price_per_night: number;
+  partner_net_price?: number;
   original_price: number | null;
   available: boolean;
   available_count: number;
+  meal_plans?: ApiMealPlans;
+  price_is_for_dates?: boolean;
+  total_price?: number | null;
+  nightly_breakdown?: { date: string; price: number }[];
 };
 
 export type ApiHotelPolicies = {
@@ -141,8 +160,83 @@ export type HotelDetailBundle = {
   policies: string[];
   reviews: ApiReview[];
   nearbyAttractions: string[];
+  photoCategories: HotelPhotoCategory[];
   similarHotels: HotelListing[];
 };
+
+function roomTaxes(price: number): number {
+  return Math.round(price * 0.12);
+}
+
+function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
+  const basePrice = Math.round(room.price_per_night);
+  const originalBase = Math.round(room.original_price ?? basePrice + Math.max(400, basePrice * 0.2));
+
+  const makePlan = (
+    suffix: string,
+    packageName: string,
+    mealBenefits: string[],
+    mealCost: number,
+    showBestValueBadge?: boolean,
+  ): HotelRoomRatePlan => {
+    const price = basePrice + mealCost;
+    const originalPrice = originalBase + mealCost;
+    return {
+      id: `${room.id}-${suffix}`,
+      packageName,
+      benefits: mealBenefits,
+      roomBasePrice: basePrice,
+      mealAddOn: mealCost,
+      originalPrice,
+      price,
+      taxes: roomTaxes(price),
+      discountAmount: Math.max(0, originalPrice - price),
+      nonRefundable: false,
+      couponCode: "UNOHOTELS",
+      showBestValueBadge,
+    };
+  };
+
+  const plans: HotelRoomRatePlan[] = [
+    makePlan("ep", "Room Only (EP)", ["No meals included"], 0),
+  ];
+
+  const mp = room.meal_plans;
+  if (!mp) return plans;
+
+  const breakfast = Math.round(mp.breakfast ?? 0);
+  const lunch = Math.round(mp.lunch ?? 0);
+  const dinner = Math.round(mp.dinner ?? 0);
+
+  if (breakfast > 0) {
+    plans.push(
+      makePlan("cp", "With Breakfast (CP)", [`Breakfast included — ₹${breakfast}/night`], breakfast),
+    );
+  }
+  if (breakfast > 0 && dinner > 0) {
+    plans.push(
+      makePlan(
+        "map",
+        "Half Board (MAP)",
+        [`Breakfast — ₹${breakfast}/night`, `Dinner — ₹${dinner}/night`],
+        breakfast + dinner,
+        true,
+      ),
+    );
+  }
+  if (breakfast > 0 && lunch > 0 && dinner > 0) {
+    plans.push(
+      makePlan(
+        "ap",
+        "Full Board (AP)",
+        [`Breakfast — ₹${breakfast}/night`, `Lunch — ₹${lunch}/night`, `Dinner — ₹${dinner}/night`],
+        breakfast + lunch + dinner,
+      ),
+    );
+  }
+
+  return plans;
+}
 
 function ratingLabel(score: number): string {
   if (score >= 4.5) return "Excellent";
@@ -169,12 +263,22 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T | null> 
   return result.data;
 }
 
+function collectHotelImages(h: ApiHotel): string[] {
+  const fromList = (h.images ?? []).map((u) => u.trim()).filter(Boolean);
+  const fromCategories = (h.photo_categories ?? []).flatMap((c) =>
+    (c.images ?? []).map((u) => u.trim()).filter(Boolean),
+  );
+  const unique = [...new Set([...fromList, ...fromCategories])];
+  if (unique.length > 0) return unique;
+  if (h.thumbnail_url?.trim()) return [h.thumbnail_url.trim()];
+  return [];
+}
+
 export function mapApiHotelToListing(h: ApiHotel): HotelListing {
   const citySlug = citySlugFromName(h.city);
   const price = Math.round(h.starting_price);
   const original = Math.round(price * 1.15);
-  const images =
-    h.images?.length > 0 ? h.images : h.thumbnail_url ? [h.thumbnail_url] : [];
+  const images = collectHotelImages(h);
 
   const tagLower = h.tags.map((t) => t.toLowerCase());
 
@@ -227,32 +331,22 @@ export function mapApiRoomsToHotelRoomTypes(
     .filter((r) => r.available)
     .map((room) => {
       const image = room.images[0] ?? hotel.images[0] ?? "";
-      const price = Math.round(room.price_per_night);
-      const original = Math.round(room.original_price ?? price + Math.max(400, price * 0.2));
-      const taxes = Math.round(price * 0.12);
-
-      const ratePlan: HotelRoomRatePlan = {
-        id: `${room.id}-room-only`,
-        packageName: "Room Only",
-        benefits: [...room.amenities.slice(0, 6), "Free WiFi"],
-        originalPrice: original,
-        price,
-        taxes,
-        discountAmount: Math.max(0, original - price),
-        nonRefundable: false,
-        couponCode: "UNOHOTELS",
-      };
+      const tags = [
+        room.bed_type ? `${room.bed_type} bed` : "Bed",
+        room.size_sqft ? `${room.size_sqft} Sq Ft` : null,
+        `${room.max_occupancy} Guests`,
+        room.available_count > 0 ? `${room.available_count} rooms left` : null,
+      ].filter(Boolean) as string[];
 
       return {
         id: room.id,
         name: room.name,
         image,
-        tags: [
-          room.bed_type ? `${room.bed_type} bed` : "Bed",
-          `${room.size_sqft} Sq Ft`,
-          `${room.max_occupancy} Guests`,
-        ],
-        ratePlans: [ratePlan],
+        description: room.description?.trim() || undefined,
+        amenities: room.amenities,
+        availableCount: room.available_count,
+        tags,
+        ratePlans: buildRoomRatePlans(room),
       };
     });
 }
@@ -325,6 +419,13 @@ export async function fetchFeaturedHotels(): Promise<HotelListing[]> {
   const raw = await apiFetch<ApiHotel[]>("/v1/hotels/featured");
   if (raw?.length) return raw.map(mapApiHotelToListing);
   return [];
+}
+
+/** Every hotel from search API (featured endpoint only returns a subset). */
+export async function fetchAllHotels(
+  limit = 50,
+): Promise<{ hotels: HotelListing[]; total: number }> {
+  return searchHotels({ page: 1, limit, sort: "popular" });
 }
 
 export async function fetchPopularDestinations(): Promise<ApiDestination[]> {
@@ -436,17 +537,31 @@ export async function getHotelDetailBundle(
   const policies = mapApiPoliciesToBullets(detail.policies);
   const similarHotels = await fetchRelatedHotels(detail.id, 4);
 
+  const photoCategories: HotelPhotoCategory[] = (detail.photo_categories ?? []).map((c) => ({
+    category: c.category,
+    label: c.label,
+    images: c.images ?? [],
+  }));
+
+  const roomPhotoCount =
+    photoCategories.find((c) => /room/i.test(c.category))?.images.length ??
+    roomTypes.reduce((n, r) => n + (r.image ? 1 : 0), 0);
+
   return {
     city,
     hotel: {
       ...hotel,
       roomOptionsCount: roomTypes.length,
       defaultRoomType: roomTypes[0]?.name ?? hotel.defaultRoomType,
+      nearbyLandmark: detail.nearby_attractions?.[0] ?? hotel.nearbyLandmark,
+      propertyPhotoCount: detail.images?.length ?? hotel.propertyPhotoCount,
+      roomPhotoCount,
     },
     roomTypes,
     policies,
     reviews: detail.reviews ?? [],
     nearbyAttractions: detail.nearby_attractions ?? [],
+    photoCategories,
     similarHotels,
   };
 }

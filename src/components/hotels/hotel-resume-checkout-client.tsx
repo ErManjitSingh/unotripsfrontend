@@ -16,7 +16,7 @@ import { useAuthOptional } from "@/contexts/auth-context";
 function ResumeCheckoutSkeleton() {
   return (
     <main className="min-h-screen bg-[#f5f5f5] px-3 py-12">
-      <div className="mx-auto flex max-w-[1180px] items-center justify-center gap-3 py-16">
+      <div className="mx-auto flex w-full max-w-[1320px] items-center justify-center gap-3 px-3 py-16 sm:px-4 lg:px-6">
         <Loader2 className="h-8 w-8 animate-spin text-[#2196F3]" aria-hidden />
         <p className="text-sm font-medium text-[#616161]">Loading your checkout…</p>
       </div>

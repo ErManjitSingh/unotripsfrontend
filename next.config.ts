@@ -1,12 +1,15 @@
 import type { NextConfig } from "next";
 
+const isStaticExport = process.env.BUILD_STATIC === "1";
+
 /**
- * Fully dynamic app — NO `output: "export"`.
- * Hotel pages load live API data at runtime (no generateStaticParams / static HTML).
- * Deploy: `npm run build` && `npm run start`
+ * Default: dynamic app (`npm run build` && `npm run start` on Vercel).
+ * Static host: `npm run build:static` → `out/` (BUILD_STATIC=1, output: "export").
  */
 const nextConfig: NextConfig = {
-  /** Default `.next` — required for Vercel and `next start`. */
+  ...(isStaticExport
+    ? { output: "export" as const, distDir: ".next-build" }
+    : {}),
   transpilePackages: ["swiper"],
   images: {
     unoptimized: true,

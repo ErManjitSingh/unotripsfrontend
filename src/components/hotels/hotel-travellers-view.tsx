@@ -9,31 +9,35 @@ import { Footer } from "@/components/layout/Footer";
 import { Navbar } from "@/components/layout/Navbar";
 import {
   HotelBookingPaymentStep,
-  type PaymentMethod,
 } from "@/components/hotels/hotel-booking-payment-step";
+import { CheckoutGuestAuthPanel } from "@/components/hotels/checkout-guest-auth-panel";
 import { HotelTagBadgeList } from "@/components/hotels/hotel-tag-badge";
 import { formatHotelDateFromIso } from "@/components/hotels/hotels-search-fields";
 import { useAuthOptional } from "@/contexts/auth-context";
 import type { HotelDetailBundle } from "@/lib/hotels-api";
 import { upsertCachedBooking } from "@/lib/booking-cache-storage";
-import { createHotelBooking, type BookingWithOrder } from "@/lib/hotels-bookings-api";
+import { createHotelBooking, fetchHotelBookingById, isConfirmedBookingStatus, verifyHotelBookingPayment, type BookingWithOrder } from "@/lib/hotels-bookings-api";
 import {
   hotelBookingNights,
   hotelDetailHref,
   hotelListingKey,
   resolveBookingSelectionFromBundle,
+  type HotelRoomRatePlan,
 } from "@/lib/hotels-catalog";
+import { getRazorpayKeyId, openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import {
   savePendingCheckout,
 } from "@/lib/pending-checkout-storage";
 import { cn, formatInrAmount } from "@/lib/utils";
 
-const PROMO_OFFERS = [
-  { id: "FLASHDEALS", label: "FLASHDEALS", save: 468, applied: true },
-  { id: "EMTHOTELS", label: "EMTHOTELS", save: 320, applied: false },
-  { id: "EMTSALE", label: "EMTSALE", save: 250, applied: false },
-  { id: "CRAB20", label: "CRAB20", save: 200, applied: false },
-] as const;
+function mealPlanPayloadFromRatePlan(ratePlan: HotelRoomRatePlan) {
+  const suffix = ratePlan.id.split("-").pop() ?? "ep";
+  return {
+    meal_plan: suffix,
+    meal_plan_label: ratePlan.packageName,
+    meal_plan_price: ratePlan.mealAddOn,
+  };
+}
 
 type BookingStep = "travellers" | "payment" | "confirmed";
 
@@ -74,7 +78,6 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const checkOutLabel = formatHotelDateFromIso(checkOutIso);
 
   const [step, setStep] = useState<BookingStep>("travellers");
-  const [promoId, setPromoId] = useState<string>("FLASHDEALS");
   const [agreed, setAgreed] = useState(false);
   const [title, setTitle] = useState("Mr");
   const [firstName, setFirstName] = useState("");
@@ -84,13 +87,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const [donation, setDonation] = useState<number | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [upiId, setUpiId] = useState("");
   const [processing, setProcessing] = useState(false);
   const [bookingRef, setBookingRef] = useState("");
+  const [apiBooking, setApiBooking] = useState<BookingWithOrder | null>(null);
   const [apiBookingId, setApiBookingId] = useState<string | null>(
     () => searchParams.get("booking_id"),
   );
@@ -103,10 +102,30 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   }, [searchParams, pathSlug, hotelId]);
 
   useEffect(() => {
-    if (resumePayment && apiBookingId) {
-      setStep("payment");
-    }
-  }, [resumePayment, apiBookingId]);
+    if (!resumePayment || !apiBookingId || !auth?.isAuthenticated) return;
+    const token = auth.getAccessToken();
+    if (!token) return;
+
+    let cancelled = false;
+    void fetchHotelBookingById(token, apiBookingId)
+      .then((booking) => {
+        if (cancelled) return;
+        setApiBooking(booking);
+        setBookingRef(booking.confirmation_number);
+        if (isConfirmedBookingStatus(booking.status)) {
+          setStep("confirmed");
+        } else {
+          setStep("payment");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStep("payment");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resumePayment, apiBookingId, auth?.isAuthenticated, auth]);
 
   useEffect(() => {
     if (auth?.user?.email && !email) setEmail(auth.user.email);
@@ -125,11 +144,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       if (!selection) return;
       const { city, hotel, roomType, ratePlan } = selection;
       const nightCount = hotelBookingNights(checkInIso, checkOutIso);
-      const promoOffer = PROMO_OFFERS.find((p) => p.id === promoId) ?? PROMO_OFFERS[0];
       const roomTotal = ratePlan.price * nightCount * rooms;
-      const afterDiscount = Math.max(0, roomTotal - promoOffer.save);
       const taxTotal = ratePlan.taxes * nightCount * rooms;
-      const total = afterDiscount + taxTotal + (donation ?? 0);
+      const total = roomTotal + taxTotal + (donation ?? 0);
 
       savePendingCheckout({
         bookingId,
@@ -154,7 +171,6 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     },
     [
       selection,
-      promoId,
       auth?.user?.id,
       email,
       checkInIso,
@@ -183,13 +199,11 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const detailHref = hotelDetailHref(city.slug, hotelListingKey(hotel));
   const changeRoomHref = `${detailHref}?check_in=${encodeURIComponent(checkInIso)}&check_out=${encodeURIComponent(checkOutIso)}&rooms=${rooms}&guests=${guests}#hotel-tabs`;
 
-  const promo = PROMO_OFFERS.find((p) => p.id === promoId) ?? PROMO_OFFERS[0];
   const roomTotal = ratePlan.price * nights * rooms;
-  const discount = promo.save;
-  const afterDiscount = Math.max(0, roomTotal - discount);
   const taxes = ratePlan.taxes * nights * rooms;
   const donationAmt = donation ?? 0;
-  const grandTotal = afterDiscount + taxes + donationAmt;
+  const estimatedTotal = roomTotal + taxes + donationAmt;
+  const payTotal = apiBooking?.total_amount ?? estimatedTotal;
 
   const guestFullName = `${title} ${firstName} ${lastName}`.trim();
 
@@ -218,7 +232,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     if (!validateTravellers()) return;
 
     if (!auth?.isAuthenticated) {
-      router.push(`/login?redirect=${encodeURIComponent(bookReturnUrl)}`);
+      setFormError("Please verify your mobile with OTP below to continue as guest.");
       return;
     }
 
@@ -253,12 +267,14 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
           phone: mobile.replace(/\D/g, "").slice(-10),
           country_code: "+91",
         },
+        ...mealPlanPayloadFromRatePlan(ratePlan),
       });
 
       if (auth.user?.id) {
         upsertCachedBooking(auth.user.id, created);
       }
 
+      setApiBooking(created);
       setApiBookingId(created.id);
       setBookingRef(created.confirmation_number);
       persistPendingCheckout(created.id);
@@ -275,40 +291,92 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   };
 
   const handlePay = async () => {
+    const token = auth?.getAccessToken();
+    const keyId = getRazorpayKeyId();
+    const orderId = apiBooking?.razorpay_order_id;
+    const bookingId = apiBookingId;
+
+    if (!token || !bookingId) {
+      setFormError("Session expired. Please go back and create the booking again.");
+      return;
+    }
+    if (!keyId) {
+      setFormError("Razorpay is not configured. Add NEXT_PUBLIC_RAZORPAY_KEY_ID on the server.");
+      return;
+    }
+    if (!orderId) {
+      setFormError("Payment order missing from booking. Please contact support with your booking ID.");
+      return;
+    }
+
     setProcessing(true);
     setFormError(null);
-    await new Promise((r) => setTimeout(r, 1200));
 
-    const ref = bookingRef || `UNO-${Date.now().toString(36).toUpperCase()}`;
-    setBookingRef(ref);
-    if (apiBookingId && auth?.user?.id) {
-      // Demo pay — keep pending in account until Razorpay verify is wired.
-      persistPendingCheckout(apiBookingId);
-      upsertCachedBooking(auth.user.id, {
-        id: apiBookingId,
-        confirmation_number: ref,
-        status: "pending",
-        hotel_id: hotel.id,
-        hotel_name: hotel.name,
-        hotel_city: city.name,
-        hotel_thumbnail: hotel.images[0] ?? "",
-        room_type_id: roomType.id,
-        room_name: roomType.name,
-        check_in: checkInIso,
-        check_out: checkOutIso,
-        nights,
-        adults: guests,
-        children: 0,
-        rooms,
-        total_amount: grandTotal,
-        currency: "INR",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+    try {
+      await openRazorpayCheckout({
+        keyId,
+        orderId,
+        amountPaise: Math.round(payTotal * 100),
+        name: "UNO Trips",
+        description: `${hotel.name} — ${roomType.name}`,
+        prefill: {
+          name: guestFullName,
+          email: email.trim(),
+          contact: mobile.replace(/\D/g, "").slice(-10),
+        },
+        onDismiss: () => setProcessing(false),
+        onSuccess: async (response) => {
+          try {
+            const verified = await verifyHotelBookingPayment(token, bookingId, response);
+            const confirmed = verified as unknown as BookingWithOrder;
+            const nextBooking: BookingWithOrder = {
+              ...(apiBooking ?? {
+                id: bookingId,
+                confirmation_number: bookingRef,
+                status: "confirmed",
+                hotel_id: hotel.id,
+                hotel_name: hotel.name,
+                hotel_city: city.name,
+                hotel_thumbnail: hotel.images[0] ?? "",
+                room_type_id: roomType.id,
+                room_name: roomType.name,
+                check_in: checkInIso,
+                check_out: checkOutIso,
+                nights,
+                adults: guests,
+                children: 0,
+                rooms,
+                total_amount: payTotal,
+                currency: "INR",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              }),
+              ...confirmed,
+              status: confirmed.status ?? "confirmed",
+            };
+            setApiBooking(nextBooking);
+            setBookingRef(nextBooking.confirmation_number || bookingRef);
+            if (auth?.user?.id) {
+              upsertCachedBooking(auth.user.id, nextBooking);
+            }
+            setStep("confirmed");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          } catch (err) {
+            const message =
+              err instanceof Error ? err.message : "Payment verification failed. Contact support if amount was deducted.";
+            setFormError(message);
+          } finally {
+            setProcessing(false);
+          }
+        },
       });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not open payment.";
+      if (message !== "Payment cancelled.") {
+        setFormError(message);
+      }
+      setProcessing(false);
     }
-    setProcessing(false);
-    setStep("confirmed");
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const inclusions = ratePlan.benefits.filter((b) => /breakfast|wifi|wi-fi/i.test(b));
@@ -322,7 +390,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
         <Navbar variant="ease" easeActiveNavId="hotels" />
 
         <div className="border-b border-[#e0e0e0] bg-white">
-          <div className="mx-auto flex max-w-[1180px] items-center gap-6 px-3 py-4 sm:px-4 lg:px-6">
+          <div className="mx-auto flex w-full max-w-[1320px] items-center gap-6 px-3 py-4 sm:px-4 lg:px-6">
             <div
               className={cn(
                 "flex items-center gap-2 text-[13px]",
@@ -368,7 +436,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
           </div>
         </div>
 
-        <div className="mx-auto max-w-[1180px] px-3 py-5 sm:px-4 lg:px-6">
+        <div className="mx-auto w-full max-w-[1320px] px-3 py-5 sm:px-4 lg:px-6">
           {step === "confirmed" ? (
             <section className="mx-auto max-w-2xl rounded-xl border border-[#c8e6c9] bg-white p-8 text-center shadow-sm">
               <CircleCheck className="mx-auto h-16 w-16 text-[#2E7D32]" strokeWidth={1.5} aria-hidden />
@@ -394,7 +462,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                 </div>
                 <div className="flex justify-between pt-1">
                   <dt className="text-[#757575]">Amount Paid</dt>
-                  <dd className="text-lg font-bold">₹ {formatInrAmount(grandTotal)}</dd>
+                  <dd className="text-lg font-bold">₹ {formatInrAmount(payTotal)}</dd>
                 </div>
               </dl>
               <p className="mt-4 text-[12px] text-[#757575]">
@@ -429,21 +497,12 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
               nights={nights}
               rooms={rooms}
               guests={guests}
-              grandTotal={grandTotal}
+              grandTotal={payTotal}
               guestName={guestFullName}
               email={email}
               mobile={mobile}
-              paymentMethod={paymentMethod}
-              onPaymentMethodChange={setPaymentMethod}
-              cardNumber={cardNumber}
-              onCardNumberChange={setCardNumber}
-              cardExpiry={cardExpiry}
-              onCardExpiryChange={setCardExpiry}
-              cardCvv={cardCvv}
-              onCardCvvChange={setCardCvv}
-              upiId={upiId}
-              onUpiIdChange={setUpiId}
               processing={processing}
+              paymentError={formError}
               onBack={() => setStep("travellers")}
               onPay={() => void handlePay()}
             />
@@ -637,20 +696,11 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                 </label>
 
                 {!auth?.isAuthenticated ? (
-                  <p className="rounded-lg border border-[#BBDEFB] bg-[#E3F2FD] px-3 py-2.5 text-[12px] text-[#1565C0]">
-                    Please{" "}
-                    <Link
-                      href={`/login?redirect=${encodeURIComponent(bookReturnUrl)}`}
-                      className="font-bold underline"
-                    >
-                      login
-                    </Link>{" "}
-                    or{" "}
-                    <Link href="/signup" className="font-bold underline">
-                      sign up
-                    </Link>{" "}
-                    to continue — unpaid checkouts will be saved to your account.
-                  </p>
+                  <CheckoutGuestAuthPanel
+                    mobile={mobile}
+                    bookReturnUrl={bookReturnUrl}
+                    onVerified={() => setFormError(null)}
+                  />
                 ) : null}
 
                 <button
@@ -682,14 +732,6 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                       </dt>
                       <dd className="font-medium">₹ {formatInrAmount(roomTotal)}</dd>
                     </div>
-                    <div className="flex justify-between text-[#2E7D32]">
-                      <dt>Total Discount</dt>
-                      <dd className="font-medium">- ₹ {formatInrAmount(discount)}</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt className="text-[#616161]">Price After Discount</dt>
-                      <dd className="font-medium">₹ {formatInrAmount(afterDiscount)}</dd>
-                    </div>
                     <div className="flex justify-between">
                       <dt className="text-[#616161]">Taxes &amp; Fees</dt>
                       <dd className="font-medium">₹ {formatInrAmount(taxes)}</dd>
@@ -703,37 +745,13 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   </dl>
                   <div className="mt-3 flex justify-between border-t border-[#eee] pt-3">
                     <span className="text-base font-bold">Grand Total</span>
-                    <span className="text-lg font-bold">₹ {formatInrAmount(grandTotal)}</span>
+                    <span className="text-lg font-bold">₹ {formatInrAmount(payTotal)}</span>
                   </div>
-                </section>
-
-                <section className="rounded-lg border border-[#e0e0e0] bg-white p-4 shadow-sm">
-                  <h2 className="text-sm font-bold">Offers &amp; Promo Codes</h2>
-                  {promoId === "FLASHDEALS" ? (
-                    <p className="mt-2 flex items-center gap-1 rounded bg-[#e8f5e9] px-2 py-1.5 text-[12px] font-medium text-[#2E7D32]">
-                      <Check className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
-                      FLASHDEALS applied successfully!
+                  {apiBooking?.total_amount != null && apiBooking.total_amount !== estimatedTotal ? (
+                    <p className="mt-2 text-[11px] text-[#757575]">
+                      Final amount from booking: ₹ {formatInrAmount(apiBooking.total_amount)}
                     </p>
                   ) : null}
-                  <ul className="mt-3 space-y-2">
-                    {PROMO_OFFERS.map((offer) => (
-                      <li key={offer.id}>
-                        <label className="flex cursor-pointer items-center gap-2 rounded border border-[#eee] p-2.5 hover:border-[#2196F3]/30">
-                          <input
-                            type="radio"
-                            name="promo"
-                            checked={promoId === offer.id}
-                            onChange={() => setPromoId(offer.id)}
-                            className="accent-[#EF6614]"
-                          />
-                          <span className="text-[12px] font-semibold text-[#212121]">{offer.label}</span>
-                          <span className="ml-auto text-[11px] text-[#2E7D32]">
-                            Save ₹{formatInrAmount(offer.save)}
-                          </span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
                 </section>
               </aside>
             </div>

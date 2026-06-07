@@ -2,6 +2,8 @@ import { getBlogs } from "@/lib/blog-api";
 import { BlogListingView } from "@/components/blog/blog-listing-view";
 import type { Metadata } from "next";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Travel guides & tips",
   description:

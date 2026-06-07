@@ -8,12 +8,29 @@ import {
 } from "@/lib/hotels-api";
 import { parseHotelCitySlug } from "@/lib/hotels-catalog";
 import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
-
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+function readParam(
+  value: string | string[] | undefined,
+): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value;
+}
+
+function readIntParam(
+  value: string | string[] | undefined,
+  fallback: number,
+): number {
+  const raw = readParam(value);
+  if (!raw) return fallback;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
 
 export async function generateMetadata({
   params,
@@ -30,16 +47,28 @@ export async function generateMetadata({
   };
 }
 
-export default async function HotelInCityPage({ params }: PageProps) {
+export default async function HotelInCityPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const sp = await searchParams;
   const citySlug = parseHotelCitySlug(slug);
   const city = await resolveHotelCity(citySlug);
   if (!city) notFound();
 
+  const checkIn = readParam(sp.check_in);
+  const checkOut = readParam(sp.check_out);
+  const rooms = readIntParam(sp.rooms, 1);
+  const guests = readIntParam(sp.guests, 2);
+  const lastMinute = readParam(sp.last_minute) === "1";
+  const sortParam = readParam(sp.sort);
+
   const { hotels } = await searchHotels({
     city: city.name,
+    check_in: checkIn,
+    check_out: checkOut,
+    adults: guests,
+    rooms,
     limit: 50,
-    sort: "popular",
+    sort: sortParam === "price-low" ? "price_low" : "popular",
   });
 
   const destinations = await fetchHotelDestinations();
@@ -54,6 +83,12 @@ export default async function HotelInCityPage({ params }: PageProps) {
         state: d.state,
         country: d.country,
       }))}
+      initialCheckIn={checkIn}
+      initialCheckOut={checkOut}
+      initialRooms={rooms}
+      initialGuests={guests}
+      initialLastMinute={lastMinute}
+      initialSort={sortParam === "price-low" ? "price-low" : "popularity"}
     />
   );
 }

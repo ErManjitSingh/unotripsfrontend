@@ -2,7 +2,7 @@
  * Auth API — https://unohotels-backend.onrender.com/docs
  */
 
-import { ApiError, apiData, type ApiEnvelope } from "@/lib/api";
+import { ApiError, apiData, apiJson, type ApiEnvelope } from "@/lib/api";
 
 export type { ApiEnvelope };
 export { ApiError, ApiError as HotelsAuthError };
@@ -83,20 +83,51 @@ export async function logoutUser(accessToken: string): Promise<void> {
 }
 
 export async function guestSendOtp(phone: string): Promise<{ message: string }> {
-  return apiData<{ message: string }>("/v1/auth/guest/send-otp", {
+  const digits = phone.replace(/\D/g, "");
+  const normalized =
+    digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits.slice(-10);
+
+  if (normalized.length !== 10) {
+    throw new ApiError("Enter a valid 10-digit mobile number.", 422);
+  }
+
+  const result = await apiJson<{ message: string }>("/v1/auth/guest/send-otp", {
     method: "POST",
-    body: JSON.stringify({ phone: phone.replace(/\D/g, "").slice(-10) }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone: normalized }),
   });
+
+  if (!result.ok) {
+    throw new ApiError(result.message, result.status);
+  }
+
+  return result.data;
 }
 
 export async function guestVerifyOtp(phone: string, otp: string): Promise<AuthResponse> {
-  return apiData<AuthResponse>("/v1/auth/guest/verify-otp", {
+  const digits = phone.replace(/\D/g, "");
+  const normalized =
+    digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits.slice(-10);
+  const code = otp.replace(/\D/g, "").slice(0, 6);
+
+  if (normalized.length !== 10) {
+    throw new ApiError("Enter a valid 10-digit mobile number.", 422);
+  }
+  if (code.length !== 6) {
+    throw new ApiError("Enter the 6-digit OTP.", 422);
+  }
+
+  const result = await apiJson<AuthResponse>("/v1/auth/guest/verify-otp", {
     method: "POST",
-    body: JSON.stringify({
-      phone: phone.replace(/\D/g, "").slice(-10),
-      otp: otp.replace(/\D/g, "").slice(0, 6),
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone: normalized, otp: code }),
   });
+
+  if (!result.ok) {
+    throw new ApiError(result.message, result.status);
+  }
+
+  return result.data;
 }
 
 export async function forgotPassword(email: string): Promise<{ message?: string }> {

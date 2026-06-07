@@ -70,7 +70,10 @@ export type HotelRoomOption = {
 export type HotelRoomRatePlan = {
   id: string;
   packageName: string;
+  /** Meal inclusions only — room amenities are shown once per room. */
   benefits: string[];
+  roomBasePrice: number;
+  mealAddOn: number;
   originalPrice: number;
   price: number;
   taxes: number;
@@ -84,8 +87,17 @@ export type HotelRoomType = {
   id: string;
   name: string;
   image: string;
+  description?: string;
+  amenities?: string[];
+  availableCount?: number;
   tags: string[];
   ratePlans: HotelRoomRatePlan[];
+};
+
+export type HotelPhotoCategory = {
+  category: string;
+  label: string;
+  images: string[];
 };
 
 export type HotelBookingSelection = {
@@ -278,6 +290,8 @@ export type HotelResultsSearchParams = {
   rooms?: number;
   guests?: number;
   q?: string;
+  last_minute?: boolean;
+  sort?: HotelSortOption;
 };
 
 export function hotelResultsHref(
@@ -291,8 +305,26 @@ export function hotelResultsHref(
   if (params?.rooms != null) q.set("rooms", String(params.rooms));
   if (params?.guests != null) q.set("guests", String(params.guests));
   if (params?.q) q.set("q", params.q);
+  if (params?.last_minute) q.set("last_minute", "1");
+  if (params?.sort && params.sort !== "popularity") q.set("sort", params.sort);
   const qs = q.toString();
   return qs ? `/hotel/${slug}?${qs}` : `/hotel/${slug}`;
+}
+
+export function toHotelDestinationOptions(
+  destinations: Array<{
+    slug: string;
+    city: string;
+    state?: string;
+    country: string;
+  }>,
+): HotelDestinationOption[] {
+  return destinations.map((d) => ({
+    slug: d.slug,
+    city: d.city,
+    state: d.state,
+    country: d.country,
+  }));
 }
 
 /** Match typed city text to a known destination (client-safe). */

@@ -211,8 +211,16 @@ export async function apiData<T>(path: string, init?: RequestInit): Promise<T> {
   };
 
   try {
-    json = (await res.json()) as typeof json;
-  } catch {
+    const text = await res.text();
+    if (!text.trim()) {
+      throw new ApiError(
+        res.ok ? "Empty response from API" : "Could not reach Hotels API",
+        res.status,
+      );
+    }
+    json = JSON.parse(text) as typeof json;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
     throw new ApiError(res.ok ? "Invalid response" : "Could not reach Hotels API", res.status);
   }
 

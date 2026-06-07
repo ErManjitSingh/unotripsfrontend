@@ -1,11 +1,10 @@
-import { getBlogs, getPackages, getTestimonials } from "@/lib/cms-api";
+import { getBlogs, getTestimonials } from "@/lib/cms-api";
 import { BlogPreview } from "@/components/home/BlogPreview";
 import { Testimonials } from "@/components/home/Testimonials";
-import { TrendingTours } from "@/components/home/TrendingTours";
+import { TrendingToursApiSection } from "@/components/home/trending-tours-api-section";
 
-export async function TrendingToursSection() {
-  const packages = await getPackages();
-  return <TrendingTours tours={packages} />;
+export function TrendingToursSection() {
+  return <TrendingToursApiSection />;
 }
 
 export async function BlogPreviewSection() {

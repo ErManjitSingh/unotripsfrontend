@@ -100,7 +100,7 @@ export function DestinationListingSkeleton({
     <div className={cn("min-h-screen bg-[#f4f6f8]", className)}>
       <div
         className={cn(
-          "mx-auto min-h-0 w-full max-w-[1400px]",
+          "mx-auto min-h-0 w-full max-w-[1320px] px-3 sm:px-4 lg:px-6",
           PAGE_MARGIN_X_CLASS,
         )}
       >

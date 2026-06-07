@@ -144,6 +144,11 @@ export function HotelLocationField({
             onFocus={() => setOpen(true)}
             onKeyDown={(e) => {
               if (e.key === "Escape") setOpen(false);
+              if (e.key === "Enter" && open && suggestions.length > 0) {
+                e.preventDefault();
+                onSelectDestination(suggestions[0]!);
+                setOpen(false);
+              }
             }}
             placeholder="Search city"
             autoComplete="off"

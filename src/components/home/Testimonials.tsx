@@ -11,7 +11,7 @@ export type TestimonialsProps = {
 export function Testimonials({ items, className }: TestimonialsProps) {
   return (
     <section className={cn("bg-surface py-8 sm:py-10 lg:py-12", className)}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">
             Voices from the road

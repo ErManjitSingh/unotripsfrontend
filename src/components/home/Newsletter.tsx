@@ -8,7 +8,7 @@ export type NewsletterProps = {
 export function Newsletter({ className }: NewsletterProps) {
   return (
     <section className={cn("bg-surface py-16 sm:py-20", className)}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
         <div className="relative overflow-hidden rounded-[2rem] border border-slate-100 bg-white p-8 shadow-lift sm:p-10 lg:flex lg:items-center lg:justify-between lg:gap-10 lg:p-12">
           <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-28 -left-10 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />

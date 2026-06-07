@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { HotelViewClient } from "@/components/hotels/hotel-view-client";
 import { HotelsCityResultsSkeleton } from "@/components/hotels/hotels-page-skeleton";
 import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
-
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {

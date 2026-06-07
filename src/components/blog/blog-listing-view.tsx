@@ -47,7 +47,7 @@ export function BlogListingView({ posts }: BlogListingViewProps) {
         <div className="absolute right-0 top-16 h-64 w-64 rounded-full bg-sky-200/40 blur-3xl" />
       </div>
 
-      <div className={cn("relative", PAGE_MARGIN_X_CLASS, "mx-auto max-w-6xl pt-5 sm:pt-6")}>
+      <div className={cn("relative mx-auto w-full max-w-[1320px] pt-5 sm:pt-6", PAGE_MARGIN_X_CLASS)}>
         <div className="max-w-2xl">
           <p className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-primary">
             <Sparkles className="h-3 w-3" aria-hidden />
@@ -83,7 +83,7 @@ export function BlogListingView({ posts }: BlogListingViewProps) {
       </div>
 
       {featured ? (
-        <div className={cn("relative mt-6 sm:mt-7", PAGE_MARGIN_X_CLASS, "mx-auto max-w-6xl")}>
+        <div className={cn("relative mx-auto mt-6 w-full max-w-[1320px] sm:mt-7", PAGE_MARGIN_X_CLASS)}>
           <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
             Featured story
           </p>
@@ -144,9 +144,8 @@ export function BlogListingView({ posts }: BlogListingViewProps) {
 
       <div
         className={cn(
-          "relative pb-10 pt-8 sm:pb-12 sm:pt-9",
+          "relative mx-auto w-full max-w-[1320px] pb-10 pt-8 sm:pb-12 sm:pt-9",
           PAGE_MARGIN_X_CLASS,
-          "mx-auto max-w-6xl",
         )}
       >
         {posts.length === 0 ? (

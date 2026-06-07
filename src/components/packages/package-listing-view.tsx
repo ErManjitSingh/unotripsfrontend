@@ -138,7 +138,7 @@ export function PackageListingView({
         {/* Centered column + viewport gutters once (avoid edge-to-edge + avoid double padding) */}
         <div
           className={cn(
-            "mx-auto min-h-0 w-full max-w-[1400px]",
+            "mx-auto min-h-0 w-full max-w-[1320px] px-3 sm:px-4 lg:px-6",
             PAGE_MARGIN_X_CLASS,
           )}
         >

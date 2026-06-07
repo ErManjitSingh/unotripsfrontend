@@ -165,7 +165,7 @@ export function PackageDetailView({ tour, similar }: PackageDetailViewProps) {
         <div className="min-h-screen bg-[#f4f6f8]">
           <div
             className={cn(
-              "mx-auto w-full max-w-[1200px] pb-12",
+              "mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6 pb-12",
               PAGE_MARGIN_X_CLASS,
             )}
           >

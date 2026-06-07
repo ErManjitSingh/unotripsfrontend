@@ -8,8 +8,8 @@ export type SpecialOffersProps = {
 
 export function SpecialOffers({ className }: SpecialOffersProps) {
   return (
-    <section id="honeymoon" className={cn("px-4 sm:px-6 lg:px-8", className)}>
-      <div className="mx-auto max-w-7xl overflow-hidden rounded-[2rem] border border-white/10 shadow-lift">
+    <section id="honeymoon" className={cn("py-6 sm:py-8", className)}>
+      <div className="mx-auto w-full max-w-[1320px] overflow-hidden rounded-[2rem] border border-white/10 px-3 shadow-lift sm:px-4 lg:px-6">
         <div
           className="relative animate-gradient-x bg-brand-banner bg-[length:200%_200%] px-6 py-6 sm:px-10 sm:py-7 lg:px-14"
         >
