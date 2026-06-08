@@ -4,7 +4,7 @@ const BACKEND_ORIGIN =
   process.env.HOTELS_API_URL?.replace(/\/$/, "") ??
   "https://unohotels-backend.onrender.com";
 
-const FETCH_TIMEOUT_MS = 25_000;
+const FETCH_TIMEOUT_MS = 90_000;
 const RETRY_STATUSES = new Set([502, 503, 504]);
 const MAX_ATTEMPTS = 3;
 

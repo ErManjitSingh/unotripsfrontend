@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getAuthErrorMessage, useAuth } from "@/contexts/auth-context";
+import { navigateAfterAuth } from "@/lib/auth-navigation";
 import { cn } from "@/lib/utils";
 
 type GuestLoginFormProps = {
@@ -12,7 +12,6 @@ type GuestLoginFormProps = {
 };
 
 export function GuestLoginForm({ redirectTo = "/account" }: GuestLoginFormProps) {
-  const router = useRouter();
   const { sendGuestOtp, verifyGuestOtp } = useAuth();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -53,7 +52,7 @@ export function GuestLoginForm({ redirectTo = "/account" }: GuestLoginFormProps)
     setLoading(true);
     try {
       await verifyGuestOtp(normalizedPhone, otp);
-      router.replace(redirectTo);
+      navigateAfterAuth(redirectTo);
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {

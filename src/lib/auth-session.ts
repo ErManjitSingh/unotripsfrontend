@@ -54,3 +54,9 @@ export function sessionFromAuthResponse(
 export function getAccessToken(): string | null {
   return loadAuthSession()?.tokens.access_token ?? null;
 }
+
+export function updateStoredAuthUser(user: AuthUser): void {
+  const session = loadAuthSession();
+  if (!session) return;
+  saveAuthSession({ ...session, user });
+}

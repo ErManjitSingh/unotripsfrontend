@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getAuthErrorMessage, useAuth } from "@/contexts/auth-context";
+import { navigateAfterAuth } from "@/lib/auth-navigation";
 import { cn } from "@/lib/utils";
 
 type SignupFormProps = {
@@ -13,7 +13,6 @@ type SignupFormProps = {
 };
 
 export function SignupForm({ redirectTo = "/account" }: SignupFormProps) {
-  const router = useRouter();
   const { register } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -37,6 +36,10 @@ export function SignupForm({ redirectTo = "/account" }: SignupFormProps) {
     }
 
     const phoneDigits = phone.replace(/\D/g, "").slice(-10);
+    if (phoneDigits.length !== 10) {
+      setError("Enter a valid 10-digit mobile number.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -44,9 +47,9 @@ export function SignupForm({ redirectTo = "/account" }: SignupFormProps) {
         name: name.trim(),
         email: email.trim(),
         password,
-        phone: phoneDigits.length === 10 ? phoneDigits : undefined,
+        phone: phoneDigits,
       });
-      router.replace(redirectTo);
+      navigateAfterAuth(redirectTo);
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {
@@ -95,7 +98,7 @@ export function SignupForm({ redirectTo = "/account" }: SignupFormProps) {
 
       <div>
         <label htmlFor="signup-phone" className="mb-1.5 block text-sm font-medium text-[#424242]">
-          Mobile <span className="font-normal text-[#9E9E9E]">(optional)</span>
+          Mobile
         </label>
         <div className="flex gap-2">
           <span className="flex h-11 items-center rounded-xl border border-slate-200/80 bg-slate-50 px-3 text-sm text-[#616161]">
@@ -108,6 +111,7 @@ export function SignupForm({ redirectTo = "/account" }: SignupFormProps) {
             autoComplete="tel"
             placeholder="10-digit number"
             maxLength={10}
+            required
             value={phone}
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
             className="rounded-lg border-[#e0e0e0]"
@@ -159,12 +163,15 @@ export function SignupForm({ redirectTo = "/account" }: SignupFormProps) {
           "h-11 w-full rounded-md bg-[#EF6614] text-sm font-bold uppercase tracking-wide text-white hover:bg-[#E65100]",
         )}
       >
-        {loading ? "Creating account…" : "Sign up as Guest"}
+        {loading ? "Connecting… first signup may take up to 60 sec" : "Sign up as Guest"}
       </Button>
 
       <p className="text-center text-[12px] text-[#757575]">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-[#2196F3] hover:underline">
+        <Link
+          href={`/login${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`}
+          className="font-semibold text-[#2196F3] hover:underline"
+        >
           Login
         </Link>
       </p>

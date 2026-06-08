@@ -25,8 +25,10 @@ import {
   loadAuthSession,
   saveAuthSession,
   sessionFromAuthResponse,
+  updateStoredAuthUser,
   type StoredAuthSession,
 } from "@/lib/auth-session";
+import { fetchAccountProfile } from "@/lib/hotels-account-api";
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -37,12 +39,14 @@ type AuthContextValue = {
     name: string;
     email: string;
     password: string;
-    phone?: string;
+    phone: string;
   }) => Promise<void>;
   sendGuestOtp: (phone: string) => Promise<string>;
   verifyGuestOtp: (phone: string, otp: string) => Promise<void>;
   logout: () => Promise<void>;
   getAccessToken: () => string | null;
+  refreshUser: () => Promise<void>;
+  updateUser: (user: AuthUser) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -73,18 +77,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       let { tokens } = stored;
       const { user: storedUser } = stored;
-      const needsRefresh = Date.now() >= stored.expiresAt - 60_000;
+      const needsRefresh =
+        tokens.refresh_token &&
+        tokens.refresh_token !== tokens.access_token &&
+        Date.now() >= stored.expiresAt - 60_000;
 
       if (needsRefresh) {
-        tokens = await refreshAuthTokens(tokens.refresh_token);
-        const refreshed = sessionFromAuthResponse(storedUser, tokens);
-        saveAuthSession(refreshed);
-        setSession(refreshed);
+        try {
+          tokens = await refreshAuthTokens(tokens.refresh_token);
+          const refreshed = sessionFromAuthResponse(storedUser, tokens);
+          saveAuthSession(refreshed);
+          setSession(refreshed);
+        } catch {
+          setSession(stored);
+        }
       } else {
         setSession(stored);
       }
 
-      const me = await fetchAuthMe(tokens.access_token);
+      let me: AuthUser;
+      try {
+        me = await fetchAuthMe(tokens.access_token);
+      } catch {
+        me = await fetchAccountProfile(tokens.access_token);
+      }
       setUser(me);
       const updated = sessionFromAuthResponse(me, tokens);
       saveAuthSession(updated);
@@ -108,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (payload: { name: string; email: string; password: string; phone?: string }) => {
+    async (payload: { name: string; email: string; password: string; phone: string }) => {
       const response = await registerUser({
         ...payload,
         role: "guest",
@@ -146,6 +162,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return session?.tokens.access_token ?? loadAuthSession()?.tokens.access_token ?? null;
   }, [session]);
 
+  const updateUser = useCallback((next: AuthUser) => {
+    setUser(next);
+    updateStoredAuthUser(next);
+    setSession((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, user: next };
+      saveAuthSession(updated);
+      return updated;
+    });
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const token = session?.tokens.access_token ?? loadAuthSession()?.tokens.access_token;
+    if (!token) return;
+    try {
+      let me: AuthUser;
+      try {
+        me = await fetchAuthMe(token);
+      } catch {
+        me = await fetchAccountProfile(token);
+      }
+      updateUser(me);
+    } catch {
+      /* keep cached user */
+    }
+  }, [session, updateUser]);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -157,8 +200,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       verifyGuestOtp,
       logout,
       getAccessToken,
+      refreshUser,
+      updateUser,
     }),
-    [user, isLoading, login, register, sendGuestOtp, verifyGuestOtp, logout, getAccessToken],
+    [user, isLoading, login, register, sendGuestOtp, verifyGuestOtp, logout, getAccessToken, refreshUser, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

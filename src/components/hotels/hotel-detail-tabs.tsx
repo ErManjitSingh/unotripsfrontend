@@ -4,7 +4,6 @@ import { HotelDetailAbout } from "@/components/hotels/hotel-detail-about";
 import { HotelDetailAmenitiesGrid } from "@/components/hotels/hotel-detail-amenities-grid";
 import { HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booking-policy";
 import { HotelDetailLocation } from "@/components/hotels/hotel-detail-location";
-import { HotelDetailReviews } from "@/components/hotels/hotel-detail-reviews";
 import { HotelDetailRoomsTable } from "@/components/hotels/hotel-detail-rooms-table";
 import type {
   HotelBookingQueryParams,
@@ -13,7 +12,6 @@ import type {
   HotelPhotoCategory,
   HotelRoomType,
 } from "@/lib/hotels-catalog";
-import type { ApiReview } from "@/lib/hotels-api";
 import { cn } from "@/lib/utils";
 
 export type HotelDetailTabId =
@@ -21,8 +19,7 @@ export type HotelDetailTabId =
   | "overview"
   | "amenities"
   | "location"
-  | "policy"
-  | "reviews";
+  | "policy";
 
 const TABS: { id: HotelDetailTabId; label: string }[] = [
   { id: "rooms", label: "Rooms" },
@@ -30,7 +27,6 @@ const TABS: { id: HotelDetailTabId; label: string }[] = [
   { id: "amenities", label: "Amenities" },
   { id: "location", label: "Location" },
   { id: "policy", label: "Booking Policy" },
-  { id: "reviews", label: "Guest Rating" },
 ];
 
 type HotelDetailTabsProps = {
@@ -39,7 +35,6 @@ type HotelDetailTabsProps = {
   roomTypes?: HotelRoomType[];
   bookingContext?: HotelBookingQueryParams;
   policies?: string[];
-  apiReviews?: ApiReview[];
   nearbyAttractions?: string[];
   photoCategories?: HotelPhotoCategory[];
   className?: string;
@@ -54,7 +49,6 @@ export function HotelDetailTabs({
   roomTypes,
   bookingContext,
   policies,
-  apiReviews,
   nearbyAttractions,
   photoCategories,
   activeTab,
@@ -106,13 +100,6 @@ export function HotelDetailTabs({
           <HotelDetailBookingPolicy
             hotel={hotel}
             policies={policies}
-            className="rounded-none border-0 shadow-none"
-          />
-        ) : null}
-        {activeTab === "reviews" ? (
-          <HotelDetailReviews
-            hotel={hotel}
-            apiReviews={apiReviews}
             className="rounded-none border-0 shadow-none"
           />
         ) : null}

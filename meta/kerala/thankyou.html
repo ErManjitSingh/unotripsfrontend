@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, follow" />
+  <title>Thank You - Uno Trips Kerala</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'" />
+  <!-- Google Ads: same as landing page -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17928878008"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'AW-17928878008');
+  </script>
+  <link rel="stylesheet" href="style.critical.min.css" />
+  <link rel="stylesheet" href="style.deferred.min.css" />
+  <style>
+    .success-animation {
+      animation: scaleIn 0.5s ease-out;
+    }
+    @keyframes scaleIn {
+      from {
+        transform: scale(0);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    .pulse-animation {
+      animation: pulse 2s infinite;
+    }
+    .call-btn {
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 50%, #dc2626 100%);
+      box-shadow: 0 10px 25px rgba(249, 115, 22, 0.4),
+                  0 5px 10px rgba(249, 115, 22, 0.3),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      position: relative;
+      overflow: hidden;
+      transform: translateY(0);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      animation: callBtnPulse 2s ease-in-out infinite;
+    }
+    .call-btn::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+    .call-btn:hover::before {
+      width: 300px;
+      height: 300px;
+    }
+    .call-btn:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 15px 35px rgba(249, 115, 22, 0.5),
+                  0 8px 15px rgba(249, 115, 22, 0.4),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+    .call-btn:active {
+      transform: translateY(-1px) scale(1.02);
+    }
+    @keyframes callBtnPulse {
+      0%, 100% {
+        box-shadow: 0 10px 25px rgba(249, 115, 22, 0.4),
+                    0 5px 10px rgba(249, 115, 22, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      }
+      50% {
+        box-shadow: 0 10px 30px rgba(249, 115, 22, 0.6),
+                    0 5px 15px rgba(249, 115, 22, 0.5),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      }
+    }
+    .call-btn-icon {
+      animation: phoneRing 1.5s ease-in-out infinite;
+    }
+    @keyframes phoneRing {
+      0%, 100% {
+        transform: rotate(0deg);
+      }
+      10%, 30% {
+        transform: rotate(-15deg);
+      }
+      20%, 40% {
+        transform: rotate(15deg);
+      }
+      50% {
+        transform: rotate(0deg);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 page-body">
+  <!-- Header -->
+  <header class="site-header text-white py-3 px-4 md:px-6 shadow-lg">
+    <div class="container mx-auto flex items-center justify-between">
+      <!-- Logo -->
+      <div class="flex items-center">
+        <img
+          src="img/logo.png"
+          alt="Uno Trips Logo"
+          class="h-8 md:h-10 w-auto" />
+      </div>
+
+      <!-- Right Side -->
+      <div class="flex items-center space-x-3 md:space-x-4">
+        <a
+          href="tel:+918353096965"
+          class="px-3 py-1.5 rounded text-white transition-colors font-semibold text-sm flex items-center gap-2"
+          style="background-color: #f97316;"
+          onmouseover="this.style.backgroundColor='#ea580c'"
+          onmouseout="this.style.backgroundColor='#f97316'">
+          <i class="fas fa-phone text-xs"></i>
+          <span>+91-8353096965</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Thank You Section -->
+  <section class="min-h-screen flex items-center justify-center py-12 px-4 md:px-6">
+    <div class="container mx-auto max-w-2xl">
+      <div class="bg-white rounded-2xl shadow-xl p-8 md:p-12 text-center success-animation border border-gray-100">
+        <!-- Success Icon -->
+        <div class="mb-6 flex justify-center">
+          <div class="w-24 h-24 md:w-32 md:h-32 bg-green-100 rounded-full flex items-center justify-center pulse-animation">
+            <i class="fas fa-check-circle text-green-600 text-5xl md:text-6xl"></i>
+          </div>
+        </div>
+
+        <!-- Thank You Message -->
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-4">
+          Thank You! 🎉
+        </h1>
+        <p class="text-lg md:text-xl text-gray-600 mb-2">
+          Your enquiry has been submitted successfully!
+        </p>
+        <p class="text-base text-gray-500 mb-8">
+          Our team will connect with you shortly to assist you with your Kerala tour package.
+        </p>
+
+        <!-- Contact Information -->
+        <div class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-8 mb-8 border-2 border-gray-200">
+          <h3 class="text-xl font-bold text-gray-800 mb-6">Need Immediate Assistance?</h3>
+          <div class="flex flex-col md:flex-row gap-4 justify-center items-center">
+            <a
+              href="tel:+918353096965"
+              class="call-btn flex items-center gap-3 px-8 py-4 text-white rounded-xl font-bold text-lg md:text-xl relative z-10">
+              <i class="fas fa-phone call-btn-icon text-xl md:text-2xl"></i>
+              <span class="relative z-10">Call Us Now: +91-8353096965</span>
+            </a>
+            <a
+              href="https://wa.me/918353096965"
+              target="_blank"
+              class="flex items-center gap-2 px-6 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all hover:scale-105 shadow-lg">
+              <i class="fab fa-whatsapp text-lg"></i>
+              <span>WhatsApp Us</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- What's Next -->
+        <div class="mb-8">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4">What happens next?</h3>
+          <div class="space-y-3 text-left max-w-md mx-auto">
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <span class="text-blue-600 font-bold">1</span>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-800">We'll review your enquiry</p>
+                <p class="text-sm text-gray-600">Our travel experts will analyze your requirements</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <span class="text-blue-600 font-bold">2</span>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-800">You'll receive a call</p>
+                <p class="text-sm text-gray-600">We'll contact you within 24 hours</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <span class="text-blue-600 font-bold">3</span>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-800">Customized package</p>
+                <p class="text-sm text-gray-600">We'll create the perfect itinerary for you</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col md:flex-row gap-4 justify-center">
+          <a
+            href="index.php"
+            class="px-6 py-3 bg-gray-800 text-white rounded-lg font-semibold hover:bg-gray-900 transition-colors inline-flex items-center justify-center gap-2">
+            <i class="fas fa-arrow-left"></i>
+            <span>Back to Home</span>
+          </a>
+          <a
+            href="index.php#packages"
+            class="px-6 py-3 gradient-btn text-white rounded-lg font-semibold inline-flex items-center justify-center gap-2">
+            <i class="fas fa-eye"></i>
+            <span>View Packages</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Desktop Footer -->
+  <footer class="desktop-footer text-white py-8 px-4 md:px-6 mt-6">
+    <div class="container mx-auto">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+        <!-- Company Info -->
+        <div>
+          <h3 class="text-lg font-bold mb-4">Uno Trips</h3>
+          <p class="text-sm text-gray-300 mb-4">
+            Your trusted travel partner for amazing Kerala tours. Experience backwaters, beaches and lush green hills with our curated packages.
+          </p>
+        </div>
+
+        <!-- Quick Links -->
+        <div>
+          <h3 class="text-lg font-bold mb-4">Quick Links</h3>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li><a href="index.php#packages" class="hover:text-white transition-colors">Tour Packages</a></li>
+            <li><a href="index.php#faq" class="hover:text-white transition-colors">FAQs</a></li>
+            <li><a href="https://unotrips.com" class="hover:text-white transition-colors" rel="noopener">About Uno Trips</a></li>
+            <li><a href="tel:+918353096965" class="hover:text-white transition-colors">Contact Us</a></li>
+            <li><a href="privacy.html" class="hover:text-white transition-colors">Privacy Policy</a></li>
+          </ul>
+        </div>
+
+        <!-- Contact Info -->
+        <div>
+          <h3 class="text-lg font-bold mb-4">Contact Us</h3>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li class="flex items-center gap-2">
+              <i class="fas fa-phone text-blue-400"></i>
+              <a href="tel:+918353096965" class="hover:text-white transition-colors">+91-8353096965</a>
+            </li>
+            <li class="flex items-center gap-2">
+              <i class="fab fa-whatsapp text-green-400"></i>
+              <a href="https://wa.me/918353096965" target="_blank" class="hover:text-white transition-colors">WhatsApp Us</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Copyright -->
+      <div class="border-t border-gray-700 pt-6 text-center">
+        <p class="text-sm text-gray-300">&copy; 2025 Uno Trips. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Conversion: fire on thank you page load -->
+  <script>
+    window.addEventListener('load', function() {
+      if (typeof gtag === 'function') {
+        gtag('event', 'generate_lead', { 'event_category': 'engagement', 'event_label': 'kerala_tour_enquiry' });
+        gtag('event', 'conversion', {
+          'send_to': 'AW-17928878008/xcUNCIPosfIbELjvk-VC',
+          'value': 1.0,
+          'currency': 'INR'
+        });
+      }
+    });
+  </script>
+</body>
+</html>

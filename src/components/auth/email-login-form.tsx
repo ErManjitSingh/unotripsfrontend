@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getAuthErrorMessage, useAuth } from "@/contexts/auth-context";
+import { navigateAfterAuth } from "@/lib/auth-navigation";
 import { cn } from "@/lib/utils";
 
 type EmailLoginFormProps = {
@@ -13,7 +13,6 @@ type EmailLoginFormProps = {
 };
 
 export function EmailLoginForm({ redirectTo = "/account" }: EmailLoginFormProps) {
-  const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,7 +25,7 @@ export function EmailLoginForm({ redirectTo = "/account" }: EmailLoginFormProps)
     setLoading(true);
     try {
       await login(email, password);
-      router.replace(redirectTo);
+      navigateAfterAuth(redirectTo);
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {
@@ -79,7 +78,10 @@ export function EmailLoginForm({ redirectTo = "/account" }: EmailLoginFormProps)
       </Button>
       <p className="text-center text-[12px] text-[#757575]">
         New here?{" "}
-        <Link href="/signup" className="font-semibold text-[#2196F3] hover:underline">
+        <Link
+          href={`/signup${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`}
+          className="font-semibold text-[#2196F3] hover:underline"
+        >
           Create guest account
         </Link>
       </p>

@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { GuestLoginForm } from "@/components/auth/guest-login-form";
 import { EmailLoginForm } from "@/components/auth/email-login-form";
+import { useAuthOptional } from "@/contexts/auth-context";
+import { navigateAfterAuth } from "@/lib/auth-navigation";
 import { cn } from "@/lib/utils";
 
 type AuthTab = "guest" | "email";
@@ -12,7 +15,23 @@ type AuthTab = "guest" | "email";
 export function LoginPageClient() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/account";
+  const auth = useAuthOptional();
   const [tab, setTab] = useState<AuthTab>("guest");
+
+  useEffect(() => {
+    if (auth?.isAuthenticated && !auth.isLoading) {
+      navigateAfterAuth(redirectTo);
+    }
+  }, [auth?.isAuthenticated, auth?.isLoading, redirectTo]);
+
+  if (auth?.isLoading || auth?.isAuthenticated) {
+    return (
+      <p className="flex items-center justify-center gap-2 py-8 text-sm text-[#757575]">
+        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        Redirecting…
+      </p>
+    );
+  }
 
   return (
     <>

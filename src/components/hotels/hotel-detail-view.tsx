@@ -475,13 +475,11 @@ export function HotelDetailView({
     (tab: HotelDetailTabId) => {
       setActiveTab(tab);
       if (tab === "policy") scrollToSection("booking-policy");
-      if (tab === "reviews") scrollToSection("guest-reviews");
     },
     [scrollToSection],
   );
 
   const scrollToReviews = useCallback(() => {
-    setActiveTab("reviews");
     scrollToSection("guest-reviews");
   }, [scrollToSection]);
 
@@ -590,16 +588,15 @@ export function HotelDetailView({
               roomTypes={roomTypes}
               bookingContext={bookingContext}
               policies={policies}
-              apiReviews={apiReviews}
               nearbyAttractions={nearbyAttractions}
               photoCategories={photoCategories}
               activeTab={activeTab}
               onTabChange={handleTabChange}
               onRoomPhotoClick={openPhotoBySrc}
             />
+            <HotelDetailReviews hotel={hotel} cityName={city.name} apiReviews={apiReviews} />
             <HotelDetailBookingPolicy hotel={hotel} policies={policies} />
             <HotelDetailSimilarHotels hotels={similarHotels} city={city} />
-            <HotelDetailReviews hotel={hotel} apiReviews={apiReviews} />
           </div>
         </div>
 

@@ -45,5 +45,19 @@ export async function updateAccountProfile(
 }
 
 export async function fetchUserBookings(accessToken: string): Promise<UserBooking[]> {
-  return apiDataWithAuth<UserBooking[]>("/v1/bookings", accessToken);
+  const data = await apiDataWithAuth<UserBooking[] | { items?: UserBooking[] }>(
+    "/v1/bookings",
+    accessToken,
+  );
+  return Array.isArray(data) ? data : (data.items ?? []);
+}
+
+export async function changeAccountPassword(
+  accessToken: string,
+  payload: { current_password: string; new_password: string },
+): Promise<{ message?: string }> {
+  return apiDataWithAuth<{ message?: string }>("/v1/account/change-password", accessToken, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }

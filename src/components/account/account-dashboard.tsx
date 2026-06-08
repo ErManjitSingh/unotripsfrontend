@@ -18,6 +18,7 @@ import {
   LogOut,
   Mail,
   MapPin,
+  MessageSquare,
   Moon,
   Pencil,
   Phone,
@@ -47,7 +48,9 @@ import {
   syncPendingCheckoutsFromBookings,
 } from "@/lib/account-bookings-display";
 import { getCachedBookings, mergeBookings } from "@/lib/booking-cache-storage";
-import { isIncompleteBookingStatus } from "@/lib/hotels-bookings-api";
+import { cancelHotelBooking, isIncompleteBookingStatus } from "@/lib/hotels-bookings-api";
+import { AccountChangePassword } from "@/components/account/account-change-password";
+import { AccountMyReviews } from "@/components/account/account-my-reviews";
 import {
   claimPendingCheckoutsForUser,
   getPendingCheckoutsForUser,
@@ -392,7 +395,25 @@ function IncompletePendingCard({ pending }: { pending: PendingCheckout }) {
   );
 }
 
-function BookingCard({ booking, index }: { booking: UserBooking; index: number }) {
+function canCancelBooking(booking: UserBooking): boolean {
+  const s = booking.status.toLowerCase();
+  if (s === "cancelled" || s === "canceled" || s === "failed" || s === "refunded") return false;
+  if (isIncompleteBookingStatus(booking.status)) return false;
+  const days = daysUntilCheckIn(booking.check_in);
+  return days !== null && days >= 0;
+}
+
+function BookingCard({
+  booking,
+  index,
+  onCancel,
+  cancelLoading,
+}: {
+  booking: UserBooking;
+  index: number;
+  onCancel?: (booking: UserBooking) => void;
+  cancelLoading?: boolean;
+}) {
   const citySlug = booking.hotel_city.trim().toLowerCase().replace(/\s+/g, "-");
   const hotelPath = `/hotel/${citySlug}/${booking.hotel_id}`;
   const status = statusStyles(booking.status);
@@ -478,13 +499,26 @@ function BookingCard({ booking, index }: { booking: UserBooking; index: number }
             <p className="text-[11px] font-medium text-[#9E9E9E]">
               Confirmation · <span className="font-mono text-[#616161]">{booking.confirmation_number}</span>
             </p>
-            <Link
-              href={hotelPath}
-              className="inline-flex items-center gap-1 rounded-full bg-[#2196F3] px-4 py-2 text-[12px] font-bold text-white shadow-md shadow-[#2196F3]/25 transition hover:bg-[#1976D2] hover:shadow-lg"
-            >
-              View hotel
-              <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              {onCancel && canCancelBooking(booking) ? (
+                <button
+                  type="button"
+                  disabled={cancelLoading}
+                  onClick={() => onCancel(booking)}
+                  className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-[12px] font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+                >
+                  {cancelLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
+                  Cancel booking
+                </button>
+              ) : null}
+              <Link
+                href={hotelPath}
+                className="inline-flex items-center gap-1 rounded-full bg-[#2196F3] px-4 py-2 text-[12px] font-bold text-white shadow-md shadow-[#2196F3]/25 transition hover:bg-[#1976D2] hover:shadow-lg"
+              >
+                View hotel
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -497,13 +531,14 @@ type AccountDashboardProps = {
 };
 
 export function AccountDashboard({ onLogout }: AccountDashboardProps) {
-  const { user: sessionUser, getAccessToken } = useAuth();
+  const { user: sessionUser, getAccessToken, updateUser } = useAuth();
   const [profile, setProfile] = useState<AuthUser | null>(sessionUser);
   const [bookings, setBookings] = useState<UserBooking[]>([]);
   const [localPending, setLocalPending] = useState<PendingCheckout[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"bookings" | "profile">("bookings");
+  const [activeTab, setActiveTab] = useState<"bookings" | "reviews" | "profile">("bookings");
+  const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
   const [bookingFilter, setBookingFilter] = useState<BookingFilter>("all");
   const [refreshing, setRefreshing] = useState(false);
 
@@ -571,6 +606,22 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
     return () => window.removeEventListener("focus", onFocus);
   }, [loadDashboard]);
 
+  const handleCancelBooking = async (booking: UserBooking) => {
+    const token = getAccessToken();
+    if (!token) return;
+    if (!window.confirm(`Cancel booking at ${booking.hotel_name}? This cannot be undone.`)) return;
+
+    setCancelBookingId(booking.id);
+    try {
+      const updated = await cancelHotelBooking(token, booking.id);
+      setBookings((prev) => prev.map((b) => (b.id === booking.id ? { ...b, ...updated } : b)));
+    } catch (err) {
+      window.alert(getAuthErrorMessage(err));
+    } finally {
+      setCancelBookingId(null);
+    }
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = getAccessToken();
@@ -586,6 +637,7 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
         phone: phoneDigits.length === 10 ? phoneDigits : null,
       });
       setProfile(updated);
+      updateUser(updated);
       setEditing(false);
       setSaveMessage("Profile updated successfully.");
     } catch (err) {
@@ -684,6 +736,7 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
           {(
             [
               { id: "bookings" as const, label: "My bookings", icon: Plane },
+              { id: "reviews" as const, label: "My reviews", icon: MessageSquare },
               { id: "profile" as const, label: "Profile", icon: Shield },
             ] as const
           ).map((item) => (
@@ -851,8 +904,9 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
       <div className="flex gap-1 rounded-2xl border border-[#e8e8e8] bg-white/90 p-1.5 shadow-sm backdrop-blur-md lg:hidden">
         {(
           [
-            { id: "bookings" as const, label: "My bookings", count: confirmedBookings.length + incompleteCount },
-            { id: "profile" as const, label: "Profile & settings", count: null },
+            { id: "bookings" as const, label: "Bookings", count: confirmedBookings.length + incompleteCount },
+            { id: "reviews" as const, label: "Reviews", count: null },
+            { id: "profile" as const, label: "Profile", count: null },
           ] as const
         ).map((tab) => (
           <button
@@ -979,7 +1033,13 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
           ) : displayedConfirmed.length > 0 ? (
             <div className="grid gap-5">
               {displayedConfirmed.map((b, i) => (
-                <BookingCard key={b.id} booking={b} index={i} />
+                <BookingCard
+                  key={b.id}
+                  booking={b}
+                  index={i}
+                  onCancel={(bk) => void handleCancelBooking(bk)}
+                  cancelLoading={cancelBookingId === b.id}
+                />
               ))}
             </div>
           ) : (
@@ -989,6 +1049,14 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
           )}
           </>
           ) : null}
+        </section>
+      ) : activeTab === "reviews" ? (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-[#212121]">My reviews</h2>
+            <p className="text-[13px] text-[#757575]">Reviews you submitted after your stays</p>
+          </div>
+          <AccountMyReviews />
         </section>
       ) : (
         <section className="overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_4px_24px_rgba(0,0,0,0.05)]">
@@ -1173,6 +1241,7 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
                 </div>
               </div>
             )}
+            {!editing ? <AccountChangePassword /> : null}
           </div>
         </section>
       )}

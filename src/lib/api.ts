@@ -10,9 +10,9 @@ export const API_DOCS_URL = "https://unohotels-backend.onrender.com/docs";
 const DEFAULT_PUBLIC_BASE = "/api/hotels";
 const DEFAULT_SERVER_BASE = "https://unohotels-backend.onrender.com";
 
-const FETCH_TIMEOUT_MS = 25_000;
+const FETCH_TIMEOUT_MS = 90_000;
 const RETRY_STATUSES = new Set([502, 503, 504]);
-const MAX_ATTEMPTS = 3;
+const MAX_ATTEMPTS = 4;
 
 export type ApiEnvelope<T> = {
   data: T;
@@ -75,12 +75,29 @@ function normalizePath(path: string): string {
 }
 
 function buildUrl(path: string): string {
-  const base = getApiBase();
   const normalized = normalizePath(path);
+  // Auth uses dedicated Next.js route (longer server timeout + Render wake-up)
+  if (normalized.startsWith("/api/auth")) {
+    return normalized;
+  }
+  const base = getApiBase();
   if (base.endsWith("/api/hotels") || base === "/api/hotels") {
     return `${base}${normalized}`;
   }
   return `${base}${normalized}`;
+}
+
+function fetchTimeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    try {
+      return AbortSignal.timeout(ms);
+    } catch {
+      /* fall through */
+    }
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
 }
 
 export function isHtmlError(res: Response, bodyText: string): boolean {
@@ -102,7 +119,7 @@ export async function apiRequest(path: string, init?: RequestInit): Promise<Resp
           Accept: "application/json",
           ...(init?.headers ?? {}),
         },
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        signal: fetchTimeoutSignal(FETCH_TIMEOUT_MS),
       });
       lastResponse = res;
       if (res.ok) return res;
@@ -117,7 +134,10 @@ export async function apiRequest(path: string, init?: RequestInit): Promise<Resp
         await sleep(700 * (attempt + 1));
         continue;
       }
-      throw new ApiError("Network error — could not reach Hotels API. Try again.", 0);
+      throw new ApiError(
+        "Could not reach Hotels API. The server may be waking up — please wait a moment and try again.",
+        0,
+      );
     }
   }
 
