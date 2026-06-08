@@ -1,0 +1,5 @@
+User-Agent: *
+Allow: /
+
+Host: https://unotrips.com
+Sitemap: https://unotrips.com/sitemap.xml
