@@ -1,20 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import {
   fetchBackendWithRetry,
   getBackendOrigin,
   stripHopByHopHeaders,
 } from "@/lib/backend-fetch";
 
-function devLog(...args: unknown[]) {
-  if (process.env.NODE_ENV === "development") {
-    console.debug("[api/hotels]", ...args);
-  }
-}
-
-function buildTargetUrl(req: NextRequest, pathSegments: string[]): URL {
+function buildTargetUrl(pathSegments: string[], searchParams: URLSearchParams): URL {
   const path = pathSegments.join("/");
-  const target = new URL(`${getBackendOrigin()}/${path}`);
-  req.nextUrl.searchParams.forEach((value, key) => {
+  const target = new URL(`${getBackendOrigin()}/v1/account/${path}`);
+  searchParams.forEach((value, key) => {
     target.searchParams.append(key, value);
   });
   return target;
@@ -43,13 +37,11 @@ function forwardRequestHeaders(req: NextRequest): Headers {
 
 async function handle(req: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
-  const target = buildTargetUrl(req, path);
+  const target = buildTargetUrl(path, req.nextUrl.searchParams);
   const method = req.method.toUpperCase();
   const headers = forwardRequestHeaders(req);
   const body =
     method === "GET" || method === "HEAD" ? undefined : await req.arrayBuffer();
-
-  devLog(method, target.pathname + target.search);
 
   try {
     const upstream = await fetchBackendWithRetry(
@@ -70,11 +62,10 @@ async function handle(req: NextRequest, context: { params: Promise<{ path: strin
       statusText: upstream.statusText,
       headers: responseHeaders,
     });
-  } catch (err) {
-    devLog("proxy error", err);
+  } catch {
     return NextResponse.json(
       {
-        message: "Hotels API is waking up. Please wait 30 seconds and try again.",
+        message: "Account service is waking up. Please wait 30 seconds and try again.",
         status: 503,
         data: null,
       },

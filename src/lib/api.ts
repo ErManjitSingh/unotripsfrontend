@@ -11,6 +11,8 @@ const DEFAULT_PUBLIC_BASE = "/api/hotels";
 const DEFAULT_SERVER_BASE = "https://unohotels-backend.onrender.com";
 
 const FETCH_TIMEOUT_MS = 90_000;
+/** Auth/account signup can wait for Render cold start (server proxy allows ~120s + retries). */
+const AUTH_FETCH_TIMEOUT_MS = 150_000;
 const RETRY_STATUSES = new Set([502, 503, 504]);
 const MAX_ATTEMPTS = 4;
 
@@ -74,10 +76,27 @@ function normalizePath(path: string): string {
   return path.startsWith("/") ? path : `/${path}`;
 }
 
+function isAuthOrAccountPath(path: string): boolean {
+  const normalized = normalizePath(path);
+  return (
+    normalized.startsWith("/api/auth") ||
+    normalized.startsWith("/api/account") ||
+    normalized.startsWith("/v1/auth") ||
+    normalized.startsWith("/v1/account")
+  );
+}
+
+function unreachableMessage(path: string): string {
+  if (isAuthOrAccountPath(path)) {
+    return "Could not reach auth service. The server may be waking up — please wait up to 60 seconds and try again.";
+  }
+  return "Could not reach Hotels API. The server may be waking up — please wait a moment and try again.";
+}
+
 function buildUrl(path: string): string {
   const normalized = normalizePath(path);
-  // Auth uses dedicated Next.js route (longer server timeout + Render wake-up)
-  if (normalized.startsWith("/api/auth")) {
+  // Auth/account use dedicated Next.js routes (longer server timeout + Render wake-up)
+  if (normalized.startsWith("/api/auth") || normalized.startsWith("/api/account")) {
     return normalized;
   }
   const base = getApiBase();
@@ -108,6 +127,7 @@ export function isHtmlError(res: Response, bodyText: string): boolean {
 
 export async function apiRequest(path: string, init?: RequestInit): Promise<Response> {
   const url = buildUrl(path);
+  const timeoutMs = isAuthOrAccountPath(path) ? AUTH_FETCH_TIMEOUT_MS : FETCH_TIMEOUT_MS;
   let lastResponse: Response | null = null;
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
@@ -119,7 +139,7 @@ export async function apiRequest(path: string, init?: RequestInit): Promise<Resp
           Accept: "application/json",
           ...(init?.headers ?? {}),
         },
-        signal: fetchTimeoutSignal(FETCH_TIMEOUT_MS),
+        signal: fetchTimeoutSignal(timeoutMs),
       });
       lastResponse = res;
       if (res.ok) return res;
@@ -134,15 +154,12 @@ export async function apiRequest(path: string, init?: RequestInit): Promise<Resp
         await sleep(700 * (attempt + 1));
         continue;
       }
-      throw new ApiError(
-        "Could not reach Hotels API. The server may be waking up — please wait a moment and try again.",
-        0,
-      );
+      throw new ApiError(unreachableMessage(path), 0);
     }
   }
 
   if (lastResponse) return lastResponse;
-  throw new ApiError("Network error — could not reach Hotels API.", 0);
+  throw new ApiError(unreachableMessage(path), 0);
 }
 
 function formatErrorMessage(
@@ -192,7 +209,7 @@ export async function apiJson<T>(
       return {
         ok: false,
         status: res.status,
-        message: res.ok ? "Invalid JSON from API" : "Could not reach Hotels API",
+        message: res.ok ? "Invalid JSON from API" : unreachableMessage(path),
       };
     }
     if (!res.ok) {
@@ -234,14 +251,14 @@ export async function apiData<T>(path: string, init?: RequestInit): Promise<T> {
     const text = await res.text();
     if (!text.trim()) {
       throw new ApiError(
-        res.ok ? "Empty response from API" : "Could not reach Hotels API",
+        res.ok ? "Empty response from API" : unreachableMessage(path),
         res.status,
       );
     }
     json = JSON.parse(text) as typeof json;
   } catch (err) {
     if (err instanceof ApiError) throw err;
-    throw new ApiError(res.ok ? "Invalid response" : "Could not reach Hotels API", res.status);
+    throw new ApiError(res.ok ? "Invalid response" : unreachableMessage(path), res.status);
   }
 
   if (!res.ok) {
