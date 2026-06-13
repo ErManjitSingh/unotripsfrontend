@@ -3,6 +3,7 @@ import {
   fetchFeaturedPackages,
   getAllPackages,
   getPackageBySlug,
+  getPackageSlugs,
   getRelatedPackages,
   listPackages,
   searchPackages,
@@ -17,9 +18,9 @@ export async function getTourBySlug(slug: string): Promise<TourPackage | undefin
   return tour ?? undefined;
 }
 
+/** All published slugs — used by generateStaticParams in packages/[slug]/page.tsx */
 export async function getTourSlugs(): Promise<string[]> {
-  const tours = await getAllPackages();
-  return tours.map((t) => t.slug ?? t.id).filter(Boolean) as string[];
+  return getPackageSlugs();
 }
 
 export function packageDetailHref(tour: TourPackage): string {

@@ -34,13 +34,13 @@ const LIST_PROPERTY_CTA = {
 } as const;
 
 const EASE_MAIN_NAV: EaseNavItem[] = [
-  { id: "flights", label: "FLIGHTS", href: "#flights" },
+  { id: "flights", label: "FLIGHTS", href: "/flights" },
   { id: "hotels", label: "HOTELS", href: "/hotels" },
-  { id: "trains", label: "TRAINS", href: "#trains" },
-  { id: "bus", label: "BUS", href: "#bus" },
+  { id: "trains", label: "TRAINS", href: "/trains" },
+  { id: "bus", label: "BUS", href: "/bus" },
   { id: "holidays", label: "HOLIDAYS", href: "/" },
-  { id: "cabs", label: "CABS", href: "#cabs" },
-  { id: "activities", label: "Activities", href: "/packages?q=activities" },
+  { id: "cabs",       label: "CABS",       href: "/cabs"      },
+  { id: "activities", label: "Activities", href: "/activities" },
   { id: "more", label: "More", href: "#more" },
 ];
 

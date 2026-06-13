@@ -1,3 +1,17 @@
+/**
+ * src/lib/cms-api.ts
+ *
+ * Content API — destinations, packages, blog, testimonials.
+ * 100% Python backend. Zero Laravel. No NEXT_PUBLIC_API_URL.
+ *
+ * Every function has:
+ *   1. Next.js ISR cache (revalidate N seconds) — zero extra DB hits per user
+ *   2. Silent fallback to static data — page never crashes on API down
+ *
+ * Testimonials: no backend support exists yet. Returns static TESTIMONIALS
+ * from constants.ts. Replace with a real endpoint when the backend adds it.
+ */
+
 import {
   POPULAR_DESTINATIONS,
   TESTIMONIALS,
@@ -5,134 +19,171 @@ import {
   type Testimonial,
   type TourPackage,
 } from "@/lib/constants";
+
 import {
-  getBlogPost as getBlogPostFromApi,
   getBlogs as getBlogsFromApi,
+  getBlogPost as getBlogPostFromApi,
+  getFeaturedBlogs,
   type BlogPost,
 } from "@/lib/blog-api";
-import { findDestinationInExtendedCatalog } from "@/lib/destination-catalog";
+
 import { getAllPackages, getPackageBySlug } from "@/services/packages";
+import { apiGetRaw } from "@/services/api";
 
-const DEFAULT_API_ROOT = "https://website.travelwithuno.com";
+export type { BlogPost } from "@/lib/blog-api";
 
-/** Laravel / CMS API base — defaults to production when env is unset (same as blog API). */
-const baseUrl = () =>
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || DEFAULT_API_ROOT;
+const REVALIDATE_DESTINATIONS = 600;   // 10 min — destination data barely changes
 
-async function safeJson<T>(res: Response): Promise<T | null> {
-  if (!res.ok) return null;
+// ── Raw shape from Python /v1/destinations ────────────────────────────────────
+
+type RawDestination = {
+  city:           string;
+  state:          string;
+  country:        string;
+  hotel_count:    number;
+  image_url:      string;
+  slug:           string;
+  starting_price: number;
+};
+
+function mapDestination(d: RawDestination): DestinationCard {
+  return {
+    id:           d.slug,           // slug is the stable identifier
+    name:         d.city,
+    slug:         d.slug,
+    image:        d.image_url || "",
+    packageCount: d.hotel_count,
+    region:       d.state || d.country,
+  };
+}
+
+// ── Destinations ──────────────────────────────────────────────────────────────
+
+/**
+ * Popular destinations list.
+ * Python: GET /v1/destinations/popular
+ * Cached 10 min. Falls back to POPULAR_DESTINATIONS static data on error.
+ */
+export async function getDestinations(): Promise<DestinationCard[]> {
   try {
-    return (await res.json()) as T;
+    const raw = await apiGetRaw<{ data: RawDestination[] }>(
+      "/v1/destinations/popular",
+      { next: { revalidate: REVALIDATE_DESTINATIONS } },
+    );
+
+    const list = Array.isArray(raw?.data)
+      ? raw.data
+      : Array.isArray(raw)
+        ? (raw as unknown as RawDestination[])
+        : [];
+
+    if (list.length > 0) {
+      return list.map(mapDestination);
+    }
   } catch {
-    return null;
+    // fall through to static data
   }
+
+  return POPULAR_DESTINATIONS;
 }
 
-const API_FETCH_TIMEOUT_MS = 15_000;
+/**
+ * Single destination by slug.
+ * Python: GET /v1/destinations/{slug}
+ * Cached 10 min. Falls back to local catalog match.
+ */
+export async function getDestinationBySlug(
+  slug: string,
+): Promise<DestinationCard | null> {
+  try {
+    const raw = await apiGetRaw<{ data: RawDestination }>(
+      `/v1/destinations/${encodeURIComponent(slug)}`,
+      { next: { revalidate: REVALIDATE_DESTINATIONS } },
+    );
 
-function buildMediaUrl(pathLike: string, root: string): string {
-  const p = pathLike.trim();
-  if (!p) return "";
-  if (/^https?:\/\//i.test(p)) return p;
-  const clean = p.replace(/^\/+/, "");
-  const normalized = clean.startsWith("storage/") ? clean : `storage/${clean}`;
-  return `${root.replace(/\/$/, "")}/${normalized}`;
+    const d = raw?.data ?? (raw as unknown as RawDestination);
+    if (d?.slug) {
+      return mapDestination(d);
+    }
+  } catch {
+    // fall through to local catalog
+  }
+
+  // Local fallback — static catalog
+  return POPULAR_DESTINATIONS.find((d) => d.slug === slug) ?? null;
 }
 
-/** Tour packages — Uno Hotels backend via `@/services/packages`. */
+// ── Packages ──────────────────────────────────────────────────────────────────
+
+/**
+ * All packages — Python /v1/packages.
+ * Already cached in services/packages.ts (apiGetRaw with ISR).
+ */
 export async function getPackages(): Promise<TourPackage[]> {
   return getAllPackages();
 }
 
-/** Single package by slug — backend API. */
-export async function getPackageBySlugFromApi(slug: string): Promise<TourPackage | null> {
+/**
+ * Single package by slug — Python /v1/packages/{slug}.
+ */
+export async function getPackageBySlugFromApi(
+  slug: string,
+): Promise<TourPackage | null> {
   return getPackageBySlug(slug);
 }
 
-/** Destinations index — Laravel CMS (blog/destinations only). */
-export async function getDestinations(): Promise<DestinationCard[]> {
-  const root = baseUrl();
-  if (!root) return POPULAR_DESTINATIONS;
+// ── Blog ──────────────────────────────────────────────────────────────────────
 
-  let res: Response | null = null;
-  try {
-    res = await fetch(`${root}/api/destinations`, {
-      cache: "no-store",
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(API_FETCH_TIMEOUT_MS),
-    });
-  } catch {
-    return POPULAR_DESTINATIONS;
-  }
-  const data = await safeJson<DestinationCard[]>(res);
-  return data?.length ? data : POPULAR_DESTINATIONS;
+/**
+ * Published blog posts list.
+ * Python: GET /v1/blog/posts
+ */
+export async function getBlogs(
+  limit    = 3,
+  category?: string,
+): Promise<BlogPost[]> {
+  const { posts } = await getBlogsFromApi(limit, category);
+  return posts;
 }
 
-/** Blog posts — `GET /api/v1/blog/posts` via `@/lib/blog-api`. */
-export async function getBlogs(limit = 3, category?: string): Promise<BlogPost[]> {
-  return getBlogsFromApi(limit, category);
+/**
+ * Featured posts for homepage.
+ * Python: GET /v1/blog/posts/featured
+ */
+export async function getFeaturedBlogPosts(limit = 3): Promise<BlogPost[]> {
+  return getFeaturedBlogs(limit);
 }
 
-/** Testimonials — wire to `GET /api/testimonials`. */
-export async function getTestimonials(): Promise<Testimonial[]> {
-  const root = baseUrl();
-  if (!root) return TESTIMONIALS;
-
-  let res: Response | null = null;
-  try {
-    res = await fetch(`${root}/api/testimonials`, {
-      cache: "no-store",
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(API_FETCH_TIMEOUT_MS),
-    });
-  } catch {
-    return TESTIMONIALS;
-  }
-  const data = await safeJson<Testimonial[]>(res);
-  return data?.length ? data : TESTIMONIALS;
-}
-
-/** Single blog post — `GET /api/v1/blog/posts/{slug}` via `@/lib/blog-api`. */
-export async function getBlogPost(slug: string) {
+/**
+ * Single blog post with related posts.
+ * Python: GET /v1/blog/posts/{slug}
+ */
+export async function getBlogPost(
+  slug: string,
+): Promise<BlogPost | null> {
   const { post } = await getBlogPostFromApi(slug);
   return post;
 }
 
-/** Single post with related articles from the API. */
-export async function getBlogPostDetail(slug: string) {
+/**
+ * Single blog post with related posts (full object).
+ * Python: GET /v1/blog/posts/{slug}
+ */
+export async function getBlogPostDetail(
+  slug: string,
+): Promise<{ post: BlogPost | null; related: BlogPost[] }> {
   return getBlogPostFromApi(slug);
 }
 
-export type { BlogPost } from "@/lib/blog-api";
+// ── Testimonials ──────────────────────────────────────────────────────────────
 
-/** Single destination — wire to `GET /api/destinations/{slug}`. */
-export async function getDestinationBySlug(
-  slug: string,
-): Promise<DestinationCard | null> {
-  const local = findDestinationInExtendedCatalog(slug);
-  const root = baseUrl();
-  if (!root) return local ?? null;
-
-  let res: Response | null = null;
-  try {
-    res = await fetch(`${root}/api/destinations/${encodeURIComponent(slug)}`, {
-      cache: "no-store",
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(API_FETCH_TIMEOUT_MS),
-    });
-  } catch {
-    return local ?? null;
-  }
-  const one = await safeJson<DestinationCard>(res);
-  if (!one?.slug) return local ?? null;
-
-  const fromApi = (one.image ?? "").trim();
-  const resolved =
-    fromApi && /^https?:\/\//i.test(fromApi)
-      ? fromApi
-      : fromApi
-        ? buildMediaUrl(fromApi, root)
-        : "";
-  const image = resolved || local?.image || "";
-  return { ...one, image };
+/**
+ * Testimonials — static data (no backend endpoint yet).
+ *
+ * When the Python backend adds GET /v1/testimonials, replace this with:
+ *   const raw = await apiGetRaw<{data: Testimonial[]}>("/v1/testimonials", ...);
+ *   return raw?.data?.length ? raw.data : TESTIMONIALS;
+ */
+export async function getTestimonials(): Promise<Testimonial[]> {
+  return TESTIMONIALS;
 }

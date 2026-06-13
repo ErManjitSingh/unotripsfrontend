@@ -8,6 +8,13 @@ import {
 } from "@/lib/hotels-api";
 import { parseHotelCitySlug } from "@/lib/hotels-catalog";
 import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
+
+// This page stays force-dynamic — it renders user search params (check_in,
+// check_out, rooms, guests, sort) which are different per request.
+// The searchHotels call itself cannot be cached per-page because the results
+// depend on user-supplied query params that change on every search.
+// fetchHotelDestinations uses next: { revalidate: 600 } inside hotels-api.ts
+// so it still benefits from Next.js fetch cache even inside a dynamic page.
 export const dynamic = "force-dynamic";
 
 type PageProps = {

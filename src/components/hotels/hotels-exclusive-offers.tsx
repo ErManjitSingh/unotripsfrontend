@@ -132,9 +132,9 @@ export function HotelsExclusiveOffers() {
               }}
               className="handpicked-hotels-swiper trending-packages-swiper !pb-4 !pt-1"
             >
-              {cards.map((card) => (
-                <SwiperSlide key={card.key} className="h-auto">
-                  <OfferCard {...card} />
+              {cards.map(({ key, ...cardProps }) => (
+                <SwiperSlide key={key} className="h-auto">
+                  <OfferCard {...cardProps} />
                 </SwiperSlide>
               ))}
             </Swiper>
