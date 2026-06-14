@@ -8,7 +8,7 @@ import { notFound }      from "next/navigation";
 import { Navbar }              from "@/components/layout/Navbar";
 import { Footer }              from "@/components/layout/Footer";
 import { ActivityDetailClient } from "@/components/activities/ActivityDetailClient";
-import { HARDCODED_ACTIVITIES } from "@/components/activities/ActivitiesClient";
+import { HARDCODED_ACTIVITIES } from "@/data/activities";
 
 type Props = { params: Promise<{ slug: string }> };
 
