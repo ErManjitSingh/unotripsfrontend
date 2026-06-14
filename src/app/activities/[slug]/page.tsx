@@ -14,9 +14,8 @@ type Props = { params: Promise<{ slug: string }> };
 
 // Generate static pages for all 5 activities at build time
 export async function generateStaticParams() {
-  return HARDCODED_ACTIVITIES.map((a) => ({ slug: a.slug }));
+  return [];
 }
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const activity = HARDCODED_ACTIVITIES.find((a) => a.slug === slug);
