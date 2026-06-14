@@ -6,15 +6,19 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   BedDouble,
+  Check,
   ChevronRight,
   ChevronsDown,
   MapPin,
   Play,
   Search,
+  ShieldCheck,
   Star,
   Users,
+  Utensils,
 } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
+import type { RoomSelection } from "@/components/hotels/hotel-detail-rooms-table";
 import { Navbar } from "@/components/layout/Navbar";
 import { HotelTagBadgeList } from "@/components/hotels/hotel-tag-badge";
 import { HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booking-policy";
@@ -323,83 +327,53 @@ function DetailGallery({
   );
 }
 
-function BookingCard({
-  city,
+function BookingSummary({
   hotel,
-  roomTypes,
-  bookingContext,
   onViewRooms,
 }: {
-  city: HotelCity;
   hotel: HotelListing;
-  roomTypes?: HotelRoomType[];
-  bookingContext: HotelBookingQueryParams;
+  selection: RoomSelection | null;   // kept in signature so callers don't break
   onViewRooms: () => void;
 }) {
-  const firstRoom = roomTypes?.[0];
-  const firstPlan = firstRoom?.ratePlans[0];
-  const price = firstPlan?.price ?? hotel.price;
-  const taxes = firstPlan?.taxes ?? hotel.taxes;
-  const roomName = firstRoom?.name ?? hotel.defaultRoomType;
-  const guestCount = firstRoom?.tags.find((t) => /guest/i.test(t))?.replace(/\D/g, "") ?? "2";
-  const bookHref =
-    firstRoom && firstPlan
-      ? hotelBookingHref(city.slug, hotelListingKey(hotel), firstRoom.id, firstPlan.id, bookingContext)
-      : null;
-
   return (
-    <div className="space-y-3">
-      <div className="rounded-lg border border-[#e0e0e0] bg-white p-4 shadow-sm lg:sticky lg:top-24">
-        <h2 className="text-lg font-bold text-[#212121]">{roomName}</h2>
-        <div className="mt-2 flex flex-wrap items-center gap-3 text-[12px] text-[#616161]">
-          <span className="inline-flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" aria-hidden />
-            {guestCount} Guests
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <BedDouble className="h-3.5 w-3.5" aria-hidden />
-            1 Room
-          </span>
+    <div className="space-y-3 lg:sticky lg:top-24">
+      {/* Always show simple CTA — full summary is inside each room card */}
+      <div className="rounded-xl border border-[#e0e0e0] bg-white shadow-sm">
+        <div className="border-b border-[#eee] px-4 py-3">
+          <h2 className="text-[15px] font-bold text-[#212121]">Booking Summary</h2>
         </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <HotelTagBadgeList
-            tags={[
-              ...(hotel.coupleFriendly ? ["Couple Friendly"] : []),
-              ...(hotel.localIdsAccepted ? ["Local IDs Accepted"] : []),
-            ]}
-          />
-          {hotel.freeCancellation ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[#2E7D32]">
-              ✓ Free Cancellation Till Check-In
-            </span>
-          ) : null}
-        </div>
-
-        <div className="mt-4 border-t border-[#eee] pt-4">
-          <p className="text-2xl font-bold text-[#212121]">₹ {formatInrAmount(price)}</p>
-          <p className="mt-0.5 text-[12px] text-[#757575]">
-            +{formatInrAmount(taxes)} taxes &amp; fees Per Night
+        <div className="px-4 py-5 text-center">
+          <p className="text-[13px] font-semibold text-[#212121]">
+            ₹ {formatInrAmount(hotel.price)}
+            <span className="text-[11px] font-normal text-[#757575]"> / night</span>
           </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={onViewRooms}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-[#EF6614] bg-white py-2.5 text-sm font-bold uppercase tracking-wide text-[#EF6614] transition-colors hover:bg-[#FFF3E0]"
-        >
-          View {hotel.roomOptionsCount} Room Options
-          <ChevronsDown className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-        </button>
-
-        {bookHref ? (
-          <Link
-            href={bookHref}
-            className="mt-2 flex w-full items-center justify-center rounded-md bg-[#EF6614] py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#E65100]"
+          <p className="mt-1 text-[12px] text-[#757575]">Select a room below to see full pricing</p>
+          <button
+            type="button"
+            onClick={onViewRooms}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md bg-[#EF6614] py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#E65100]"
           >
-            Book Now
-          </Link>
-        ) : null}
+            View Room Options
+            <ChevronsDown className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+          </button>
+        </div>
+        )
+      </div>
+
+      {/* Why book with us */}
+      <div className="rounded-xl border border-[#e0e0e0] bg-[#f8f9ff] px-4 py-3">
+        <p className="flex items-center gap-1.5 text-[12px] font-bold text-[#212121]">
+          <ShieldCheck className="h-4 w-4 text-[#EF6614]" aria-hidden />
+          Why book with us?
+        </p>
+        <ul className="mt-2 space-y-1">
+          {["Best Price Guaranteed", "Instant Confirmation", "Safe & Secure Payments", "24x7 Customer Support"].map((item) => (
+            <li key={item} className="flex items-center gap-1.5 text-[11px] text-[#424242]">
+              <Check className="h-3 w-3 shrink-0 text-[#2E7D32]" strokeWidth={2.5} aria-hidden />
+              {item}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -419,6 +393,7 @@ export function HotelDetailView({
   const listingHref = hotelHref(city.slug);
   const [activeTab, setActiveTab] = useState<HotelDetailTabId>("rooms");
   const [lightbox, setLightbox] = useState({ open: false, index: 0 });
+  const [roomSelection, setRoomSelection] = useState<RoomSelection | null>(null);
 
   const paramsContext = useMemo(
     () => parseBookingContextFromParams(searchParams),
@@ -571,11 +546,9 @@ export function HotelDetailView({
               <DetailGallery hotel={hotel} photos={allPhotos} onOpenPhoto={openPhoto} />
             </div>
             <div className="w-full shrink-0 lg:w-[300px] xl:w-[320px]">
-              <BookingCard
-                city={city}
+              <BookingSummary
                 hotel={hotel}
-                roomTypes={roomTypes}
-                bookingContext={bookingContext}
+                selection={roomSelection}
                 onViewRooms={scrollToRooms}
               />
             </div>
@@ -593,6 +566,7 @@ export function HotelDetailView({
               activeTab={activeTab}
               onTabChange={handleTabChange}
               onRoomPhotoClick={openPhotoBySrc}
+              onRoomSelect={setRoomSelection}
             />
             <HotelDetailReviews hotel={hotel} cityName={city.name} apiReviews={apiReviews} />
             <HotelDetailBookingPolicy hotel={hotel} policies={policies} />

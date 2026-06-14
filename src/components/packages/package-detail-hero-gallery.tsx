@@ -25,7 +25,7 @@ export function PackageDetailHeroGallery({
   guestPhotoExtraCount,
 }: Props) {
   const safeImages = useMemo(() => {
-    const u = images.filter(Boolean);
+    const u = images.filter((img) => !!img && (/^https?:\/\//i.test(img) || img.startsWith("data:")));
     return u.length ? u : ["https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1200&q=80"];
   }, [images]);
 

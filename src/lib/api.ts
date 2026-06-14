@@ -1,14 +1,14 @@
 /**
  * Uno Hotels API client (auth, hotels, bookings)
- * Browser: ONLY /api/hotels (Next.js proxy) — no direct Render URLs
- * Server: HOTELS_API_URL direct to backend
- * @see https://unohotels-backend.onrender.com/docs
+ * Browser: ONLY /api/hotels (Next.js proxy) — no direct backend URLs
+ * Server: HOTELS_API_URL direct to backend (set in .env.development)
  */
 
-export const API_DOCS_URL = "https://unohotels-backend.onrender.com/docs";
-
-const DEFAULT_PUBLIC_BASE = "/api/hotels";
-const DEFAULT_SERVER_BASE = "https://unohotels-backend.onrender.com";
+export const API_DOCS_URL = `${
+  process.env.HOTELS_API_URL?.trim().replace(/\/$/, "") ||
+  process.env.NEXT_PUBLIC_HOTELS_API_URL?.trim().replace(/\/$/, "") ||
+  "http://localhost:8000"
+}/docs`;
 
 const FETCH_TIMEOUT_MS = 90_000;
 /** Auth/account signup can wait for Render cold start (server proxy allows ~120s + retries). */
@@ -50,19 +50,33 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Public proxy path — browser must use this only */
+/**
+ * Public proxy path — browser must always call through this Next.js proxy.
+ * Reads NEXT_PUBLIC_API_BASE from .env.development (default: /api/hotels).
+ * The proxy route at src/app/api/hotels/[...path]/route.ts forwards to the backend.
+ */
 export function getPublicApiBase(): string {
-  const base = process.env.NEXT_PUBLIC_API_BASE?.replace(/\/$/, "");
-  return base || DEFAULT_PUBLIC_BASE;
+  return process.env.NEXT_PUBLIC_API_BASE?.trim().replace(/\/$/, "") || "/api/hotels";
 }
 
-/** Server-side direct backend (Route Handler + RSC) */
+/**
+ * Server-side direct backend URL (Route Handlers, RSC).
+ * Reads HOTELS_API_URL from .env.development.
+ * Set HOTELS_API_URL=http://localhost:8000 for local development.
+ */
 export function getServerApiBase(): string {
-  return (
-    process.env.HOTELS_API_URL?.replace(/\/$/, "") ||
-    process.env.NEXT_PUBLIC_HOTELS_API_URL?.replace(/\/$/, "") ||
-    DEFAULT_SERVER_BASE
-  );
+  const url =
+    process.env.HOTELS_API_URL?.trim().replace(/\/$/, "") ||
+    process.env.NEXT_PUBLIC_HOTELS_API_URL?.trim().replace(/\/$/, "");
+
+  if (!url) {
+    throw new Error(
+      "[api] Backend URL is not configured.\n" +
+        "Add HOTELS_API_URL=http://localhost:8000 to your .env.development file.",
+    );
+  }
+
+  return url;
 }
 
 export function getApiBase(): string {
@@ -88,9 +102,9 @@ function isAuthOrAccountPath(path: string): boolean {
 
 function unreachableMessage(path: string): string {
   if (isAuthOrAccountPath(path)) {
-    return "Could not reach auth service. The server may be waking up — please wait up to 60 seconds and try again.";
+    return "Could not reach auth service. Is the backend running on http://localhost:8000?";
   }
-  return "Could not reach Hotels API. The server may be waking up — please wait a moment and try again.";
+  return "Could not reach Hotels API. Is the backend running on http://localhost:8000?";
 }
 
 function buildUrl(path: string): string {
@@ -100,9 +114,6 @@ function buildUrl(path: string): string {
     return normalized;
   }
   const base = getApiBase();
-  if (base.endsWith("/api/hotels") || base === "/api/hotels") {
-    return `${base}${normalized}`;
-  }
   return `${base}${normalized}`;
 }
 

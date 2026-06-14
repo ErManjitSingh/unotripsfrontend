@@ -1,26 +1,64 @@
-import Link from "next/link";
+/**
+ * src/app/destinations/[slug]/destination-page-content.tsx
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Destination content — renders the package listing for a destination.
+ *
+ * CHANGES vs previous version:
+ * ─────────────────────────────
+ * 1. Accepts optional `destination` prop from parent page
+ *
+ *    BEFORE: Always called getDestinationBySlug(slug) independently.
+ *            Combined with the parent page's generateMetadata also calling it,
+ *            that was 2 backend calls per render for the same data.
+ *
+ *    AFTER:  When `destination` is passed as a prop (from the parent page
+ *            which uses React.cache()), this component skips the fetch entirely.
+ *            The prop is already the resolved destination data — zero extra calls.
+ *
+ *            If destination is NOT passed (backward compat / direct rendering),
+ *            it fetches normally. This makes the component self-contained
+ *            without breaking any other potential callers.
+ *
+ * 2. getPackages() is now ISR-cached (packages.ts fix propagates here)
+ *
+ *    BEFORE: getPackages() → getAllPackages() → apiGetRaw with cache: "no-store"
+ *            → full package list fetched fresh on every destination page render
+ *
+ *    AFTER:  packages.ts fixed → ISR 5 min + in-process dedup
+ *            → destination pages share the cached package list
+ *            → zero extra DB calls for packages on cached destination pages
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+import Link       from "next/link";
 import { notFound } from "next/navigation";
-import { PackageListingView } from "@/components/packages/package-listing-view";
+import { PackageListingView }             from "@/components/packages/package-listing-view";
 import type { DestinationCard, TourPackage } from "@/lib/constants";
 import { getDestinationBySlug, getPackages } from "@/lib/cms-api";
 import { filterTourPackagesByDestinationSlug } from "@/lib/package-destination-filter";
 
-type Props = { params: Promise<{ slug: string }> };
+type Props = {
+  params:       Promise<{ slug: string }>;
+  // Optional: pass pre-fetched destination to avoid duplicate fetch.
+  // When provided, skips the getDestinationBySlug() call entirely.
+  // When not provided, fetches normally (backward compat).
+  destination?: DestinationCard | null;
+};
 
 function destinationHeroTour(d: DestinationCard, slug: string): TourPackage {
   return {
-    id: `dest-hero-${slug}`,
-    slug: `destination-${slug}`,
-    title: `${d.name} Tour Packages`,
-    image: d.image,
-    durationNights: 6,
-    durationDays: 7,
-    rating: 4.8,
-    reviewCount: 487,
-    priceINR: 49_999,
-    description: `Book ${d.name} tour packages with trusted hotels, sightseeing, and transfers. Browse departures, seasonal offers, and customise your route with our travel experts — all in one place.`,
-    packageType: "Holiday package",
-    location: d.region,
+    id:              `dest-hero-${slug}`,
+    slug:            `destination-${slug}`,
+    title:           `${d.name} Tour Packages`,
+    image:           d.image,
+    durationNights:  6,
+    durationDays:    7,
+    rating:          4.8,
+    reviewCount:     487,
+    priceINR:        49_999,
+    description:     `Book ${d.name} tour packages with trusted hotels, sightseeing, and transfers. Browse departures, seasonal offers, and customise your route with our travel experts — all in one place.`,
+    packageType:     "Holiday package",
+    location:        d.region,
     showMemberPrice: true,
   };
 }
@@ -30,18 +68,26 @@ function breadcrumbScope(d: DestinationCard): { label: string; href: string } {
   return { label: "World", href: "/#destinations" };
 }
 
-export async function DestinationPageContent({ params }: Props) {
+export async function DestinationPageContent({ params, destination: destinationProp }: Props) {
   const { slug } = await params;
-  const d = await getDestinationBySlug(slug);
+
+  // Use pre-fetched destination prop if available — zero extra network call.
+  // Fall back to fetching if called without prop (backward compat).
+  const d = destinationProp !== undefined
+    ? destinationProp
+    : await getDestinationBySlug(slug);
+
   if (!d) notFound();
 
+  // getPackages() → getAllPackages() — ISR-cached 5 min + in-process dedup.
+  // Multiple destination pages rendered in the same deploy share this cache.
   const allPackages = await getPackages();
-  const related = filterTourPackagesByDestinationSlug(allPackages, slug);
+  const related     = filterTourPackagesByDestinationSlug(allPackages, slug);
 
-  const featured = related[0] ?? destinationHeroTour(d, slug);
-  const scope = breadcrumbScope(d);
-  const pageTitle = `${d.name} Tour Packages`;
-  const heroDescription =
+  const featured         = related[0] ?? destinationHeroTour(d, slug);
+  const scope            = breadcrumbScope(d);
+  const pageTitle        = `${d.name} Tour Packages`;
+  const heroDescription  =
     related[0]?.description ??
     `Discover curated ${d.name} holidays with clear inclusions, flexible nights, and competitive pricing. Use filters to narrow by budget and departure city, or request a call back for a tailor-made itinerary.`;
 
@@ -79,10 +125,10 @@ export async function DestinationPageContent({ params }: Props) {
       searchHint={d.name}
       emptyListing={related.length === 0 ? emptyListing : undefined}
       easeHero={{
-        title: pageTitle,
-        image: d.image,
+        title:           pageTitle,
+        image:           d.image,
         destinationName: d.name,
-        fromCity: "New Delhi",
+        fromCity:        "New Delhi",
       }}
     />
   );

@@ -10,7 +10,12 @@ import { HotelsPageCta } from "@/components/hotels/hotels-page-cta";
 import { fetchHotelDestinations } from "@/lib/hotels-api";
 import { hotelHref, toHotelDestinationOptions } from "@/lib/hotels-catalog";
 import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
-export const dynamic = "force-dynamic";
+
+// Revalidate every 5 minutes — destinations and hotel list change rarely.
+// Removed force-dynamic: that was causing a full DB hit on every single page
+// load. With revalidate=300, Next.js serves the cached page instantly and
+// rebuilds in the background only when 5 minutes have passed.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: `Hotels | ${TRAVEL_HOME_BRAND.name} — Same hotel, cheapest price`,
