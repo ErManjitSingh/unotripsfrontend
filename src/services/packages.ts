@@ -312,7 +312,7 @@ function _isServer(): boolean {
 
 function _buildPackageUrl(path: string): string {
   // Server: direct to backend — bypasses Next.js proxy for server components
-  // Client: through Next.js proxy — browser security, same as before
+  // Client: through Next.js proxy at /api/packages/[...path]
   if (_isServer()) {
     try {
       const base = getServerApiBase();
@@ -322,8 +322,13 @@ function _buildPackageUrl(path: string): string {
       return path;
     }
   }
-  // Browser: use existing proxy routing via apiRequest
-  return path;
+  // Browser: map /v1/packages/... → /api/packages/... so the request hits
+  // the correct Next.js proxy at src/app/api/packages/[...path]/route.ts.
+  // Without this, apiRequest() prepends NEXT_PUBLIC_API_BASE (/api/hotels)
+  // giving /api/hotels/v1/packages/... which has no matching route → 404.
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const clientPath = normalized.replace(/^\/v1\/packages/, "/api/packages");
+  return clientPath;
 }
 
 async function _fetchPackage<T>(
@@ -350,9 +355,11 @@ async function _fetchPackage<T>(
       return json as T;
     } else {
       // ── CLIENT (browser) ──────────────────────────────────────────────────
-      // Use existing apiRequest() which goes through Next.js proxy.
-      // React Query handles client-side caching — no Next.js ISR needed here.
-      const res = await apiRequest(path, {
+      // Use _buildPackageUrl() which maps /v1/packages/... → /api/packages/...
+      // then use plain fetch() so the path is used as-is without apiRequest()
+      // prepending NEXT_PUBLIC_API_BASE (/api/hotels) a second time.
+      const url = _buildPackageUrl(path);
+      const res = await fetch(url, {
         cache:   "no-store",
         headers: { Accept: "application/json" },
       });
