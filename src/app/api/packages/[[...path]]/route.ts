@@ -1,16 +1,16 @@
 /**
- * src/app/api/packages/[...path]/route.ts
+ * src/app/api/packages/[[...path]]/route.ts
  *
- * Packages API proxy — browser calls /api/packages/* → this handler → backend /v1/packages/*
+ * Packages API proxy — browser calls /api/packages/* → backend /v1/packages/*
  *
- * Handles ALL HTTP methods so booking endpoints (POST /book, POST /verify-payment,
- * POST /balance-order, POST /verify-balance) flow correctly with JSON bodies,
- * auth headers, and appropriate timeouts.
- *
- * Timeout strategy:
- *   GET requests (listing, detail, customizer): 15s — fast, cached on backend
- *   POST requests (book, verify): 30s — involves Razorpay API calls (~600ms each)
- *   No wakeOnFailure — packages are not a Render cold-start target
+ * WHY [[...path]] (optional catch-all) instead of [...path]:
+ * ──────────────────────────────────────────────────────────
+ * [...path]  requires at least 1 path segment — misses /api/packages?page=1 (listing)
+ * [[...path]] catches ALL of:
+ *   /api/packages               → path = []   → backend /v1/packages  (listing)
+ *   /api/packages?page=1&sort=x → path = []   → backend /v1/packages?page=1&sort=x
+ *   /api/packages/some-slug     → path = ["some-slug"] → backend /v1/packages/some-slug
+ *   /api/packages/slug/book     → path = ["slug","book"] → backend /v1/packages/slug/book
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -27,8 +27,9 @@ function devLog(...args: unknown[]) {
 }
 
 function buildTargetUrl(req: NextRequest, pathSegments: string[]): URL {
-  const path   = pathSegments.join("/");
-  const target = new URL(`${getBackendOrigin()}/v1/packages/${path}`);
+  // pathSegments = [] for listing, ["slug"] for detail, ["slug","book"] for booking
+  const subPath = pathSegments.length > 0 ? `/${pathSegments.join("/")}` : "";
+  const target  = new URL(`${getBackendOrigin()}/v1/packages${subPath}`);
   req.nextUrl.searchParams.forEach((value, key) => {
     target.searchParams.append(key, value);
   });
@@ -47,13 +48,13 @@ function forwardHeaders(req: NextRequest): Headers {
 
 async function handle(
   req: NextRequest,
-  context: { params: Promise<{ path: string[] }> },
+  context: { params: Promise<{ path?: string[] }> },
 ) {
-  const { path } = await context.params;
-  const target   = buildTargetUrl(req, path);
-  const method   = req.method.toUpperCase();
-  const headers  = forwardHeaders(req);
-  const body     = method === "GET" || method === "HEAD"
+  const { path = [] } = await context.params;
+  const target        = buildTargetUrl(req, path);
+  const method        = req.method.toUpperCase();
+  const headers       = forwardHeaders(req);
+  const body          = method === "GET" || method === "HEAD"
     ? undefined
     : await req.arrayBuffer();
 
@@ -72,7 +73,7 @@ async function handle(
       },
       {
         timeoutMs,
-        maxAttempts:   method === "GET" ? 3 : 1,  // no retry on POST (not idempotent)
+        maxAttempts:   method === "GET" ? 3 : 1,
         wakeOnFailure: false,
       },
     );
