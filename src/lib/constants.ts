@@ -44,7 +44,7 @@ export const SITE = {
 } as const;
 
 /** Hotel partners — list property / partner signup (opens in new tab from nav CTAs). */
-export const PARTNER_PORTAL_URL = "https://partner.unotrips.com/partner";
+export const PARTNER_PORTAL_URL = "/partner";
 
 export type DestinationCard = {
   id: string;
@@ -64,7 +64,6 @@ export type TourItineraryDay = {
 
 export type TourPackage = {
   id: string;
-  /** URL segment for `/packages/[slug]` (Laravel may omit). */
   slug?: string;
   title: string;
   image: string;
@@ -75,21 +74,20 @@ export type TourPackage = {
   priceINR: number;
   oldPriceINR?: number;
   discountPct?: number;
-  /** Long hero / listing intro (HTML-free). */
   description?: string;
-  /** Stats line: “N Countries | M Cities”. */
   countries?: number;
   cities?: number;
-  /** Booking-style top line (e.g. escorted tour, beach package). */
   packageType?: string;
-  /** City / region label under title. */
   location?: string;
-  /** “X km from centre” line. */
   distanceFromCentreKm?: number;
-  /** Show a compact member-save badge next to stars. */
   showMemberPrice?: boolean;
-  /** Day-wise plan from API when present; otherwise UI builds a short placeholder. */
   itinerary?: TourItineraryDay[];
+  galleryImages?: string[];
+  inclusions?: string[];
+  exclusions?: string[];
+  faqs?: Array<{ question: string; answer: string }>;
+  isCustomizable?: boolean;
+  packageId?: string;
 };
 
 export type Testimonial = {

@@ -1,11 +1,30 @@
-﻿const DEFAULT_ORIGIN = "https://unohotels-backend.onrender.com";
-
+﻿/**
+ * Returns the backend origin (scheme + host + port, no trailing slash).
+ *
+ * Resolution order (first non-empty value wins):
+ *   1. HOTELS_API_URL          — server-side env var (Route Handlers, RSC)
+ *   2. NEXT_PUBLIC_HOTELS_API_URL — build-time public env var (fallback)
+ *
+ * Set these in .env.development:
+ *   HOTELS_API_URL=http://localhost:8000
+ *   NEXT_PUBLIC_HOTELS_API_URL=http://localhost:8000
+ *
+ * If neither is set, throws in development so you notice immediately.
+ * In production the build will fail at the call site if the var is missing.
+ */
 export function getBackendOrigin(): string {
-  return (
-    process.env.HOTELS_API_URL?.replace(/\/$/, "") ??
-    process.env.NEXT_PUBLIC_HOTELS_API_URL?.replace(/\/$/, "") ??
-    DEFAULT_ORIGIN
-  );
+  const origin =
+    process.env.HOTELS_API_URL?.trim().replace(/\/$/, "") ||
+    process.env.NEXT_PUBLIC_HOTELS_API_URL?.trim().replace(/\/$/, "");
+
+  if (!origin) {
+    throw new Error(
+      "[backend-fetch] Backend URL is not configured.\n" +
+        "Add HOTELS_API_URL=http://localhost:8000 to your .env.development file.",
+    );
+  }
+
+  return origin;
 }
 
 const RETRY_STATUSES = new Set([502, 503, 504]);

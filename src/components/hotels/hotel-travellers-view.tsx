@@ -4,13 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, CircleCheck, Loader2, Star } from "lucide-react";
+import { Check, CircleCheck, Edit2, Loader2, MessageCircle, Minus, Phone, Plus, Star, X } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import { Navbar } from "@/components/layout/Navbar";
 import {
   HotelBookingPaymentStep,
 } from "@/components/hotels/hotel-booking-payment-step";
 import { CheckoutGuestAuthPanel } from "@/components/hotels/checkout-guest-auth-panel";
+import { BookingAuthModal } from "@/components/hotels/booking-auth-modal";
 import { HotelTagBadgeList } from "@/components/hotels/hotel-tag-badge";
 import { formatHotelDateFromIso } from "@/components/hotels/hotels-search-fields";
 import { useAuthOptional } from "@/contexts/auth-context";
@@ -28,6 +29,7 @@ import { getRazorpayKeyId, openRazorpayCheckout } from "@/lib/razorpay-checkout"
 import {
   savePendingCheckout,
 } from "@/lib/pending-checkout-storage";
+import { siteWhatsAppChatUrl, siteTelHref } from "@/lib/site-contact";
 import { cn, formatInrAmount } from "@/lib/utils";
 
 function mealPlanPayloadFromRatePlan(ratePlan: HotelRoomRatePlan) {
@@ -94,6 +96,19 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     () => searchParams.get("booking_id"),
   );
   const [continuing, setContinuing] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  // Editable order summary state
+  const [localNights, setLocalNights]   = useState<number | null>(null);
+  const [localAdults, setLocalAdults]   = useState<number | null>(null);
+  const [localChildren, setLocalChildren] = useState(0);
+  const [editingCheckIn, setEditingCheckIn]   = useState(false);
+  const [editingCheckOut, setEditingCheckOut] = useState(false);
+  const [localCheckIn,  setLocalCheckIn]  = useState(checkInIso);
+  const [localCheckOut, setLocalCheckOut] = useState(checkOutIso);
+
+  const displayNights = localNights ?? nights;
+  const displayAdults = localAdults ?? guests;
   const resumePayment = searchParams.get("resume") === "1";
 
   const bookReturnUrl = useMemo(() => {
@@ -228,11 +243,18 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     return true;
   };
 
+  // ── Token / Full payment toggle (same as packages) ──────────────────────────
+  const [payType, setPayType] = useState<"token" | "full">("token");
+  const tokenAmt = Math.round(payTotal * 0.4);   // 40% token
+  const payAmt   = payType === "token" ? tokenAmt : payTotal;
+
   const handleContinueBooking = async () => {
+    // Check guest details first
     if (!validateTravellers()) return;
 
+    // If not logged in → open login modal
     if (!auth?.isAuthenticated) {
-      setFormError("Please verify your mobile with OTP below to continue as guest.");
+      setAuthModalOpen(true);
       return;
     }
 
@@ -242,7 +264,8 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     try {
       const token = auth.getAccessToken();
       if (!token) {
-        router.push(`/login?redirect=${encodeURIComponent(bookReturnUrl)}`);
+        setAuthModalOpen(true);
+        setContinuing(false);
         return;
       }
 
@@ -278,8 +301,55 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       setApiBookingId(created.id);
       setBookingRef(created.confirmation_number);
       persistPendingCheckout(created.id);
-      setStep("payment");
-      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      // ── Open Razorpay directly — no separate payment step ────────────────
+      const keyId   = getRazorpayKeyId();
+      const orderId = created.razorpay_order_id;
+      if (!keyId || !orderId) {
+        setStep("payment");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        setContinuing(false);
+        return;
+      }
+
+      const amountPaise = payType === "token"
+        ? Math.round(payTotal * 0.4 * 100)   // 40% token
+        : Math.round(payTotal * 100);          // 100% full
+
+      try {
+        await openRazorpayCheckout({
+          keyId,
+          orderId,
+          amountPaise,
+          currency: "INR",
+          name: hotel.name,
+          description: payType === "token"
+            ? `Token payment (40%) — ₹${Math.round(payTotal * 0.4).toLocaleString("en-IN")}`
+            : `Full payment — ₹${payTotal.toLocaleString("en-IN")}`,
+          prefill: {
+            name:    `${firstName.trim()} ${lastName.trim()}`.trim(),
+            email:   email.trim(),
+            contact: mobile.replace(/\D/g, "").slice(-10),
+          },
+          onSuccess: async (response) => {
+            try {
+              const tkn = auth?.getAccessToken();
+              if (tkn) {
+                await verifyHotelBookingPayment(tkn, created.id, response);
+              }
+              setStep("confirmed");
+            } catch {
+              setStep("payment");
+            }
+          },
+          onDismiss: () => {
+            setStep("payment");
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          },
+        });
+      } catch {
+        setStep("payment");
+      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Could not save your booking. Please try again.";
@@ -509,7 +579,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
             </>
           ) : (
             <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:gap-6">
-              <div className="space-y-4">
+              <div className="order-2 space-y-4 lg:order-1">
                 <section className="rounded-lg border border-[#e0e0e0] bg-white p-4 shadow-sm sm:p-5">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -695,70 +765,251 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   Policy.
                 </label>
 
-                {!auth?.isAuthenticated ? (
-                  <CheckoutGuestAuthPanel
-                    mobile={mobile}
-                    bookReturnUrl={bookReturnUrl}
-                    onVerified={() => setFormError(null)}
-                  />
-                ) : null}
+                {/* Auth modal rendered at root level below */}
 
-                <button
-                  type="button"
-                  onClick={() => void handleContinueBooking()}
-                  disabled={continuing}
-                  className="flex w-full items-center justify-center gap-2 rounded-md bg-[#EF6614] py-3.5 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-[#E65100] disabled:opacity-70 sm:max-w-md"
-                >
-                  {continuing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                      Saving booking…
-                    </>
-                  ) : (
-                    "Continue to payment"
-                  )}
-                </button>
+                {/* ── Customer support ── */}
+                <div className="rounded-xl border border-dashed border-[#FDBA74] bg-orange-50/50 p-4">
+                  <p className="text-[13px] font-bold text-[#1a1a1a]">Need help with your booking?</p>
+                  <p className="mt-0.5 text-[11px] text-[#757575]">Our team is available 24/7 — reach us on WhatsApp or call directly.</p>
+                  <div className="mt-3 flex gap-2 justify-center">
+                    <a
+                      href={siteWhatsAppChatUrl(`Hi, I need help with my hotel booking at ${hotel.name}`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg bg-[#25D366] px-3 py-1.5 text-[12px] font-bold text-white"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" aria-hidden />WhatsApp
+                    </a>
+                    <a
+                      href={siteTelHref()}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[#e0e0e0] bg-white px-3 py-1.5 text-[12px] font-bold text-[#424242]"
+                    >
+                      <Phone className="h-3.5 w-3.5" aria-hidden />Call us
+                    </a>
+                  </div>
+                </div>
+
+
               </div>
 
-              <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-                <section className="rounded-lg border border-[#e0e0e0] bg-white p-4 shadow-sm">
-                  <h2 className="text-sm font-bold uppercase tracking-wide text-[#212121]">
-                    Room Price Details
-                  </h2>
-                  <dl className="mt-3 space-y-2 text-[13px]">
-                    <div className="flex justify-between">
-                      <dt className="text-[#616161]">
-                        {rooms} Room{rooms !== 1 ? "s" : ""} × {nights} Night{nights !== 1 ? "s" : ""}
-                      </dt>
-                      <dd className="font-medium">₹ {formatInrAmount(roomTotal)}</dd>
+              <aside className="order-1 lg:order-2 lg:sticky lg:top-24 lg:self-start">
+                <div className="rounded-xl border border-[#e0e0e0] bg-white shadow-sm overflow-hidden">
+
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-[#eee] px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[13px] font-bold uppercase tracking-wide text-[#212121]">Order Summary</p>
+                      <span className="rounded-full bg-[#EF6614] px-2 py-0.5 text-[10px] font-bold text-white">
+                        {rooms} room
+                      </span>
                     </div>
-                    <div className="flex justify-between">
-                      <dt className="text-[#616161]">Taxes &amp; Fees</dt>
-                      <dd className="font-medium">₹ {formatInrAmount(taxes)}</dd>
-                    </div>
-                    {donationAmt > 0 ? (
-                      <div className="flex justify-between">
-                        <dt className="text-[#616161]">Donation</dt>
-                        <dd className="font-medium">₹ {formatInrAmount(donationAmt)}</dd>
-                      </div>
-                    ) : null}
-                  </dl>
-                  <div className="mt-3 flex justify-between border-t border-[#eee] pt-3">
-                    <span className="text-base font-bold">Grand Total</span>
-                    <span className="text-lg font-bold">₹ {formatInrAmount(payTotal)}</span>
+                    <Link href={changeRoomHref} className="text-[11px] font-semibold text-[#EF6614] hover:underline">
+                      + Add more
+                    </Link>
                   </div>
-                  {apiBooking?.total_amount != null && apiBooking.total_amount !== estimatedTotal ? (
-                    <p className="mt-2 text-[11px] text-[#757575]">
-                      Final amount from booking: ₹ {formatInrAmount(apiBooking.total_amount)}
+
+                  {/* Room card */}
+                  <div className="border-b border-[#eee] px-4 py-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-[13px] font-bold text-[#212121]">{roomType.name}</p>
+                        <p className="text-[11px] text-[#757575]">
+                          {roomType.tags[0] ?? ""} · ₹{formatInrAmount(ratePlan.price)}/night
+                        </p>
+                        {ratePlan.mealAddOn > 0 && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-[#FFF8E1] px-2 py-0.5 text-[10px] font-semibold text-[#E65100]">
+                            🍽 {ratePlan.packageName.replace(/\s*\(.*?\)\s*/g, "").trim()}
+                          </span>
+                        )}
+                      </div>
+                      <Link href={changeRoomHref}>
+                        <X className="h-4 w-4 text-[#9E9E9E] hover:text-[#212121]" />
+                      </Link>
+                    </div>
+
+                    {/* Rooms counter */}
+                    <div className="mt-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#bdbdbd]"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className="w-4 text-center text-[13px] font-bold">{rooms}</span>
+                        <button
+                          type="button"
+                          disabled
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#bdbdbd]"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+                      <p className="text-[13px] font-semibold text-[#212121]">
+                        ₹{formatInrAmount(ratePlan.price * displayNights * rooms)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Dates */}
+                  <div className="grid grid-cols-2 divide-x divide-[#eee] border-b border-[#eee]">
+                    <div className="px-3 py-2.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9E9E9E]">Check-in</p>
+                        <Edit2 className="h-3 w-3 text-[#9E9E9E]" />
+                      </div>
+                      <p className="mt-0.5 text-[12px] font-bold text-[#212121]">
+                        {checkInLabel.main || "Select"}
+                      </p>
+                      <p className="text-[10px] text-[#757575]">{checkInLabel.sub || "From 2:00 PM"}</p>
+                    </div>
+                    <div className="px-3 py-2.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9E9E9E]">Check-out</p>
+                        <Edit2 className="h-3 w-3 text-[#9E9E9E]" />
+                      </div>
+                      <p className="mt-0.5 text-[12px] font-bold text-[#212121]">
+                        {checkOutLabel.main || "Select"}
+                      </p>
+                      <p className="text-[10px] text-[#757575]">{checkOutLabel.sub || "Until 10:00 AM"}</p>
+                    </div>
+                  </div>
+
+                  {/* Nights / Adults / Children */}
+                  <div className="divide-y divide-[#eee] border-b border-[#eee]">
+                    {[
+                      {
+                        label: "Nights",
+                        sub: `${checkInLabel.main?.split(",")[0] ?? ""} → ${checkOutLabel.main?.split(",")[0] ?? ""}`,
+                        value: displayNights,
+                        onDec: () => setLocalNights(Math.max(1, displayNights - 1)),
+                        onInc: () => setLocalNights(displayNights + 1),
+                      },
+                      {
+                        label: "Adults",
+                        sub: "",
+                        value: displayAdults,
+                        onDec: () => setLocalAdults(Math.max(1, displayAdults - 1)),
+                        onInc: () => setLocalAdults(displayAdults + 1),
+                      },
+                      {
+                        label: "Children",
+                        sub: "",
+                        value: localChildren,
+                        onDec: () => setLocalChildren(Math.max(0, localChildren - 1)),
+                        onInc: () => setLocalChildren(localChildren + 1),
+                      },
+                    ].map((row) => (
+                      <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
+                        <div>
+                          <p className="text-[12px] font-semibold text-[#212121]">{row.label}</p>
+                          {row.sub && <p className="text-[10px] text-[#9E9E9E]">{row.sub}</p>}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={row.onDec}
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]"
+                          >
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="w-5 text-center text-[13px] font-bold text-[#212121]">{row.value}</span>
+                          <button
+                            type="button"
+                            onClick={row.onInc}
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]"
+                          >
+                            <Plus className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Price breakdown */}
+                  <div className="space-y-2 px-4 py-3 text-[12px]">
+                    <div className="flex justify-between">
+                      <span className="text-[#616161]">
+                        {roomType.name} ×{rooms} × {displayNights}n
+                      </span>
+                      <span className="font-medium text-[#212121]">
+                        ₹{formatInrAmount(ratePlan.roomBasePrice * displayNights * rooms)}
+                      </span>
+                    </div>
+                    {ratePlan.mealAddOn > 0 && (
+                      <div className="flex justify-between">
+                        <span className="flex items-center gap-1 text-[#616161]">
+                          🍽 {ratePlan.packageName.replace(/\s*\(.*?\)\s*/g, "").trim()} ({displayAdults}g × {displayNights}n)
+                        </span>
+                        <span className="font-medium text-[#2E7D32]">
+                          +₹{formatInrAmount(ratePlan.mealAddOn * displayAdults * displayNights)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-[#616161]">Platform fee (incl. in room price)</span>
+                      <span className="text-[#616161]">Included</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#616161]">Taxes &amp; Fees</span>
+                      <span className="font-medium text-[#212121]">
+                        ₹{formatInrAmount(taxes)}
+                      </span>
+                    </div>
+                    {donationAmt > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-[#616161]">Donation</span>
+                        <span className="font-medium text-[#212121]">₹{formatInrAmount(donationAmt)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Total + CTA */}
+                  <div className="border-t border-[#eee] px-4 pb-4 pt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[14px] font-bold text-[#212121]">Total</span>
+                      <span className="text-[18px] font-bold text-[#EF6614]">
+                        ₹{formatInrAmount(payTotal)}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 text-right text-[10px] text-[#9E9E9E]">
+                      {displayNights} night · {rooms} room · {displayAdults} guest{displayAdults !== 1 ? "s" : ""}
                     </p>
-                  ) : null}
-                </section>
+                    <button
+                      type="button"
+                      onClick={() => void handleContinueBooking()}
+                      disabled={continuing}
+                      className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#EF6614] py-3 text-[13px] font-bold text-white transition hover:bg-[#E65100] disabled:opacity-70"
+                    >
+                      {continuing ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+                      ) : !firstName.trim() || !lastName.trim() || !email.trim() || !mobile.trim() ? (
+                        "Fill Guest Details First"
+                      ) : !auth?.isAuthenticated ? (
+                        "Login to Continue"
+                      ) : (
+                        "Proceed to Pay →"
+                      )}
+                    </button>
+                  </div>
+                </div>
               </aside>
             </div>
           )}
         </div>
       </main>
       <Footer />
+
+      {/* Auth modal — opens when user clicks Proceed to Pay without being logged in */}
+      <BookingAuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccess={() => {
+          setAuthModalOpen(false);
+          void handleContinueBooking();
+        }}
+      />
     </>
   );
 }

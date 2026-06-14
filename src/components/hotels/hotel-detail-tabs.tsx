@@ -4,7 +4,7 @@ import { HotelDetailAbout } from "@/components/hotels/hotel-detail-about";
 import { HotelDetailAmenitiesGrid } from "@/components/hotels/hotel-detail-amenities-grid";
 import { HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booking-policy";
 import { HotelDetailLocation } from "@/components/hotels/hotel-detail-location";
-import { HotelDetailRoomsTable } from "@/components/hotels/hotel-detail-rooms-table";
+import { HotelDetailRoomsTable, type RoomSelection } from "@/components/hotels/hotel-detail-rooms-table";
 import type {
   HotelBookingQueryParams,
   HotelCity,
@@ -41,6 +41,7 @@ type HotelDetailTabsProps = {
   activeTab: HotelDetailTabId;
   onTabChange: (tab: HotelDetailTabId) => void;
   onRoomPhotoClick?: (imageSrc: string) => void;
+  onRoomSelect?: (selection: RoomSelection | null) => void;
 };
 
 export function HotelDetailTabs({
@@ -54,6 +55,7 @@ export function HotelDetailTabs({
   activeTab,
   onTabChange,
   onRoomPhotoClick,
+  onRoomSelect,
   className,
 }: HotelDetailTabsProps) {
   return (
@@ -87,6 +89,7 @@ export function HotelDetailTabs({
             roomTypes={roomTypes}
             bookingContext={bookingContext}
             onRoomPhotoClick={onRoomPhotoClick}
+            onRoomSelect={onRoomSelect}
             className="rounded-none border-0 shadow-none"
           />
         ) : null}
