@@ -90,6 +90,9 @@ export type HotelRoomType = {
   description?: string;
   amenities?: string[];
   availableCount?: number;
+  maxOccupancy: number;
+  /** INR per night for an extra bed. null = extra bed not offered for this room. */
+  extraBedPrice: number | null;
   tags: string[];
   ratePlans: HotelRoomRatePlan[];
 };

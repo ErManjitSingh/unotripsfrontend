@@ -9,9 +9,11 @@ import { cn } from "@/lib/utils";
 
 type GuestLoginFormProps = {
   redirectTo?: string;
+  /** When provided, called instead of navigateAfterAuth — prevents full page reload inside modals. */
+  onAuthComplete?: () => void;
 };
 
-export function GuestLoginForm({ redirectTo = "/account" }: GuestLoginFormProps) {
+export function GuestLoginForm({ redirectTo = "/account", onAuthComplete }: GuestLoginFormProps) {
   const { sendGuestOtp, verifyGuestOtp } = useAuth();
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -52,7 +54,11 @@ export function GuestLoginForm({ redirectTo = "/account" }: GuestLoginFormProps)
     setLoading(true);
     try {
       await verifyGuestOtp(normalizedPhone, otp);
-      navigateAfterAuth(redirectTo);
+      if (onAuthComplete) {
+        onAuthComplete();
+      } else {
+        navigateAfterAuth(redirectTo);
+      }
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {

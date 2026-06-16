@@ -74,6 +74,7 @@ export function HotelsSearchHero({
   const [checkOutIso, setCheckOutIso] = useState(checkOutDefaultIso);
   const [rooms, setRooms] = useState(1);
   const [guests, setGuests] = useState(2);
+  const [childrenAges, setChildrenAges] = useState<number[]>([]);
   const checkOutInputRef = useRef<HTMLInputElement>(null);
   const [lastMinute, setLastMinute] = useState(false);
   const [lowestPrice, setLowestPrice] = useState(true);
@@ -346,6 +347,8 @@ export function HotelsSearchHero({
                 guests={guests}
                 onRoomsChange={setRooms}
                 onGuestsChange={setGuests}
+                childrenAges={childrenAges}
+                onChildrenAgesChange={setChildrenAges}
               />
             </div>
 

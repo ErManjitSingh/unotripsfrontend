@@ -184,6 +184,9 @@ type HotelRoomsGuestsFieldProps = {
   guests: number;
   onRoomsChange: (n: number) => void;
   onGuestsChange: (n: number) => void;
+  /** Optional children ages array — enables children counter + age picker. */
+  childrenAges?: number[];
+  onChildrenAgesChange?: (ages: number[]) => void;
   className?: string;
 };
 
@@ -191,12 +194,15 @@ const ROOM_MIN = 1;
 const ROOM_MAX = 8;
 const GUEST_MIN = 1;
 const GUEST_MAX = 20;
+const CHILD_MAX = 4;
 
 export function HotelRoomsGuestsField({
   rooms,
   guests,
   onRoomsChange,
   onGuestsChange,
+  childrenAges,
+  onChildrenAgesChange,
   className,
 }: HotelRoomsGuestsFieldProps) {
   const [open, setOpen] = useState(false);
@@ -229,7 +235,7 @@ export function HotelRoomsGuestsField({
               Rooms &amp; Guests
             </span>
             <span className="mt-1 block truncate text-[17px] font-bold leading-tight text-[#212121]">
-              {rooms} Room {guests} Guests
+              {rooms} Room {guests} Guest{guests !== 1 ? "s" : ""}{childrenAges && childrenAges.length > 0 ? ` ${childrenAges.length} Child${childrenAges.length !== 1 ? "ren" : ""}` : ""}
             </span>
           </span>
           <ChevronDown
@@ -264,6 +270,51 @@ export function HotelRoomsGuestsField({
             onChange={onGuestsChange}
             className="mt-4"
           />
+
+          {/* Children counter + age selectors (only if parent provides the props) */}
+          {childrenAges !== undefined && onChildrenAgesChange && (
+            <>
+              <CounterRow
+                label="Children"
+                value={childrenAges.length}
+                min={0}
+                max={CHILD_MAX}
+                onChange={(n) => {
+                  if (n > childrenAges.length) {
+                    onChildrenAgesChange([...childrenAges, 0]);
+                  } else if (n < childrenAges.length) {
+                    onChildrenAgesChange(childrenAges.slice(0, n));
+                  }
+                }}
+                className="mt-4"
+              />
+              {childrenAges.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  {childrenAges.map((age, idx) => (
+                    <div key={idx} className="flex items-center justify-between rounded-md bg-[#fafafa] px-3 py-1.5">
+                      <span className="text-[11px] text-[#616161]">Child {idx + 1} age</span>
+                      <select
+                        value={age}
+                        onChange={(e) => {
+                          const next = [...childrenAges];
+                          next[idx] = Number.parseInt(e.target.value, 10);
+                          onChildrenAgesChange(next);
+                        }}
+                        className="h-7 w-20 rounded border border-[#e0e0e0] px-1.5 text-[11px] font-semibold text-[#212121] outline-none focus:border-[#2196F3]"
+                      >
+                        {Array.from({ length: 18 }, (_, i) => (
+                          <option key={i} value={i}>
+                            {i} yr{i !== 1 ? "s" : ""}{i <= 5 ? " (free)" : i <= 11 ? "" : " (adult)"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
           <Button
             type="button"
             className="mt-4 h-10 w-full rounded-lg bg-[#2196F3] text-sm font-semibold text-white hover:bg-[#1E88E5]"
