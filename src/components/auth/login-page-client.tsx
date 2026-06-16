@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { GuestLoginForm } from "@/components/auth/guest-login-form";
@@ -64,15 +63,6 @@ export function LoginPageClient() {
         <EmailLoginForm redirectTo={redirectTo} />
       )}
 
-      <p className="mt-5 text-center text-[12px] text-[#757575]">
-        Don&apos;t have an account?{" "}
-        <Link
-          href={`/signup${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`}
-          className="font-semibold text-[#2196F3] hover:underline"
-        >
-          Sign up as Guest
-        </Link>
-      </p>
     </>
   );
 }

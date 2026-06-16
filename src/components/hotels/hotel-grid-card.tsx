@@ -108,11 +108,11 @@ export function HotelGridCard({ hotel }: HotelGridCardProps) {
   return (
     <article className="group/card flex h-full flex-col overflow-hidden rounded-xl border border-[#e0e0e0] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
       <div className="px-3 pb-2 pt-3">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-[#212121]">{roomTitle}</h3>
+        <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-[#212121]">{hotel.name}</h3>
+        <div className="mt-0.5 flex items-center justify-between gap-2">
+          <p className="line-clamp-1 text-[11px] text-[#616161]">{roomTitle}</p>
           <span className="shrink-0 text-[11px] text-[#757575]">{roomSizeLabel(hotel.stars)}</span>
         </div>
-        <p className="mt-0.5 line-clamp-1 text-[11px] text-[#616161]">{hotel.name}</p>
       </div>
 
       <div

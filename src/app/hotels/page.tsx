@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { HotelsSearchHero } from "@/components/hotels/hotels-search-hero";
-import { HotelsMoroccoBanner } from "@/components/hotels/hotels-morocco-banner";
+import { HotelsFeaturedDestinations } from "@/components/hotels/hotels-featured-destinations";
 import { HotelsExclusiveOffers } from "@/components/hotels/hotels-exclusive-offers";
 import { HotelsPopularDestinationsSection } from "@/components/hotels/hotels-popular-destinations-section";
 import { HotelsPopularHotelsSection } from "@/components/hotels/hotels-popular-hotels-section";
@@ -37,7 +37,7 @@ export default async function HotelsPage() {
           defaultCountry={first?.country ?? "India"}
           defaultSlug={first?.slug}
         />
-        <HotelsMoroccoBanner />
+        <HotelsFeaturedDestinations />
         <div className="bg-gradient-to-b from-slate-50 via-white to-slate-50">
           <HotelsPopularDestinationsSection destinations={destinations} />
           <HotelsPopularHotelsSection
