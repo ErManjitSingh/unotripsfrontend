@@ -74,13 +74,13 @@ export function SignupForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="rounded-md bg-[#FFF3E0] px-3 py-2 text-[12px] leading-relaxed text-[#E65100]">
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <p className="rounded-md bg-[#FFF3E0] px-3 py-1.5 text-[11px] leading-relaxed text-[#E65100]">
         Your account will be created as a <strong>Guest</strong> — book hotels and manage trips easily.
       </p>
 
       <div>
-        <label htmlFor="signup-name" className="mb-1.5 block text-sm font-medium text-[#424242]">
+        <label htmlFor="signup-name" className="mb-1 block text-[13px] font-medium text-[#424242]">
           Full name
         </label>
         <Input
@@ -97,7 +97,7 @@ export function SignupForm({
       </div>
 
       <div>
-        <label htmlFor="signup-email" className="mb-1.5 block text-sm font-medium text-[#424242]">
+        <label htmlFor="signup-email" className="mb-1 block text-[13px] font-medium text-[#424242]">
           Email
         </label>
         <Input
@@ -113,11 +113,11 @@ export function SignupForm({
       </div>
 
       <div>
-        <label htmlFor="signup-phone" className="mb-1.5 block text-sm font-medium text-[#424242]">
+        <label htmlFor="signup-phone" className="mb-1 block text-[13px] font-medium text-[#424242]">
           Mobile
         </label>
         <div className="flex gap-2">
-          <span className="flex h-11 items-center rounded-xl border border-slate-200/80 bg-slate-50 px-3 text-sm text-[#616161]">
+          <span className="flex h-10 items-center rounded-xl border border-slate-200/80 bg-slate-50 px-3 text-sm text-[#616161]">
             +91
           </span>
           <Input
@@ -137,7 +137,7 @@ export function SignupForm({
       </div>
 
       <div>
-        <label htmlFor="signup-password" className="mb-1.5 block text-sm font-medium text-[#424242]">
+        <label htmlFor="signup-password" className="mb-1 block text-[13px] font-medium text-[#424242]">
           Password
         </label>
         <Input
@@ -154,7 +154,7 @@ export function SignupForm({
       </div>
 
       <div>
-        <label htmlFor="signup-confirm" className="mb-1.5 block text-sm font-medium text-[#424242]">
+        <label htmlFor="signup-confirm" className="mb-1 block text-[13px] font-medium text-[#424242]">
           Confirm password
         </label>
         <Input
@@ -176,7 +176,7 @@ export function SignupForm({
         type="submit"
         disabled={loading}
         className={cn(
-          "h-11 w-full rounded-md bg-[#EF6614] text-sm font-bold uppercase tracking-wide text-white hover:bg-[#E65100]",
+          "h-10 w-full rounded-md bg-[#EF6614] text-sm font-bold uppercase tracking-wide text-white hover:bg-[#E65100]",
         )}
       >
         {loading ? "Connecting… first signup may take up to 60 sec" : "Sign up as Guest"}
