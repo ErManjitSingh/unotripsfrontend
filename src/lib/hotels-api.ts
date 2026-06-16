@@ -126,6 +126,7 @@ export type ApiRoomType = {
   price_is_for_dates?: boolean;
   total_price?: number | null;
   nightly_breakdown?: { date: string; price: number }[];
+  extra_bed_price?: number | null;
 };
 
 export type ApiHotelPolicies = {
@@ -214,8 +215,27 @@ export type HotelDetailBundle = {
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-function roomTaxes(price: number): number {
-  return Math.round(price * 0.12);
+/**
+ * Hotel tax calculation — must match backend `app/utils/pricing.py`.
+ *
+ * GST slabs (declared tariff = price per night per room):
+ *   ≤ ₹999     → 0%   (Nil)
+ *   ₹1,000–₹7,499 → 12%  (Standard)
+ *   ≥ ₹7,500   → 18%  (Luxury)
+ *
+ * TCS = 0.5% on (room + GST)
+ */
+function getHotelGstRate(pricePerNight: number): number {
+  if (pricePerNight <= 999)  return 0;
+  if (pricePerNight <= 7499) return 0.12;
+  return 0.18;
+}
+
+function roomTaxes(pricePerNight: number): number {
+  const gstRate = getHotelGstRate(pricePerNight);
+  const gst     = Math.round(pricePerNight * gstRate);
+  const tcs     = Math.round((pricePerNight + gst) * 0.005);
+  return gst + tcs;
 }
 
 function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
@@ -364,7 +384,7 @@ export function mapApiHotelToListing(h: ApiHotel): HotelListing {
     reviewCount:      h.review_count,
     originalPrice:    original,
     price,
-    taxes:            Math.round(price * 0.12),
+    taxes:            roomTaxes(price),
     images,
     dealOfDay:        h.is_featured,
     bookWithZero:     false,
@@ -411,6 +431,8 @@ export function mapApiRoomsToHotelRoomTypes(
         description:  room.description?.trim() || undefined,
         amenities:    room.amenities,
         availableCount: room.available_count,
+        maxOccupancy: room.max_occupancy ?? 2,
+        extraBedPrice: room.extra_bed_price ?? null,
         tags,
         ratePlans:    buildRoomRatePlans(room),
       };

@@ -24,9 +24,11 @@ type BookingAuthModalProps = {
   open: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  /** Pre-fill signup form from the guest details the user already typed. */
+  prefill?: { name?: string; email?: string; phone?: string };
 };
 
-export function BookingAuthModal({ open, onClose, onSuccess }: BookingAuthModalProps) {
+export function BookingAuthModal({ open, onClose, onSuccess, prefill }: BookingAuthModalProps) {
   const auth = useAuthOptional();
   const [tab, setTab] = useState<AuthTab>("signup");
 
@@ -101,15 +103,28 @@ export function BookingAuthModal({ open, onClose, onSuccess }: BookingAuthModalP
             ))}
           </div>
 
-          {/* Forms — intercepted via useEffect on isAuthenticated */}
+          {/* Forms — onAuthComplete prevents navigateAfterAuth (no page reload) */}
+          {/* The useEffect above catches auth state change and calls onSuccess */}
           {tab === "guest" && (
-            <GuestLoginForm redirectTo={typeof window !== "undefined" ? window.location.pathname + window.location.search : "/"} />
+            <GuestLoginForm
+              redirectTo={typeof window !== "undefined" ? window.location.pathname + window.location.search : "/"}
+              onAuthComplete={() => {/* no-op — useEffect handles onSuccess */}}
+            />
           )}
           {tab === "email" && (
-            <EmailLoginForm redirectTo={typeof window !== "undefined" ? window.location.pathname + window.location.search : "/"} />
+            <EmailLoginForm
+              redirectTo={typeof window !== "undefined" ? window.location.pathname + window.location.search : "/"}
+              onAuthComplete={() => {/* no-op — useEffect handles onSuccess */}}
+            />
           )}
           {tab === "signup" && (
-            <SignupForm redirectTo={typeof window !== "undefined" ? window.location.pathname + window.location.search : "/"} />
+            <SignupForm
+              redirectTo={typeof window !== "undefined" ? window.location.pathname + window.location.search : "/"}
+              onAuthComplete={() => {/* no-op — useEffect handles onSuccess */}}
+              initialName={prefill?.name}
+              initialEmail={prefill?.email}
+              initialPhone={prefill?.phone}
+            />
           )}
 
           <p className="mt-4 text-center text-[11px] text-[#9E9E9E]">

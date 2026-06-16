@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -35,13 +35,88 @@ import { cn, formatInrAmount } from "@/lib/utils";
 function mealPlanPayloadFromRatePlan(ratePlan: HotelRoomRatePlan) {
   const suffix = ratePlan.id.split("-").pop() ?? "ep";
   return {
-    meal_plan: suffix,
+    meal_plan: suffix === "ep" ? null : suffix,
     meal_plan_label: ratePlan.packageName,
     meal_plan_price: ratePlan.mealAddOn,
   };
 }
 
+function addDaysToIso(iso: string, days: number): string {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map((x) => Number.parseInt(x, 10));
+  if (!y || !m || !d) return iso;
+  const date = new Date(y, m - 1, d, 12, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  const yy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 type BookingStep = "travellers" | "payment" | "confirmed";
+
+// ── Checkout draft — survives auth redirect (sessionStorage) ─────────────────
+
+type CheckoutDraft = {
+  childrenAges: number[];
+  localRooms: number;
+  localAdults: number | null;
+  localNights: number | null;
+  localCheckIn: string;
+  localCheckOut: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  mobile: string;
+  title: string;
+  donation: number | null;
+  agreed: boolean;
+};
+
+function draftKey(hotelId: string, roomTypeId: string): string {
+  return `uno_checkout_draft_${hotelId}_${roomTypeId}`;
+}
+
+function loadDraft(key: string): CheckoutDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as CheckoutDraft) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveDraftToStorage(key: string, d: CheckoutDraft): void {
+  if (typeof window === "undefined") return;
+  try { sessionStorage.setItem(key, JSON.stringify(d)); } catch { /* quota full — ignore */ }
+}
+
+function clearDraft(key: string): void {
+  if (typeof window === "undefined") return;
+  try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+}
+
+// ── Booking hold countdown (must match backend PENDING_EXPIRES_MINUTES) ──────
+const HOLD_MINUTES = 15;
+
+function holdSecondsRemaining(createdAt: string): number {
+  const created = new Date(createdAt).getTime();
+  if (Number.isNaN(created)) return 0;
+  const expiresAt = created + HOLD_MINUTES * 60 * 1000;
+  return Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+}
+
+function formatCountdown(totalSec: number): string {
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
 
 type HotelTravellersViewProps = {
   pathSlug: string;
@@ -76,17 +151,19 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     () => hotelBookingNights(checkInIso, checkOutIso),
     [checkInIso, checkOutIso],
   );
-  const checkInLabel = formatHotelDateFromIso(checkInIso);
-  const checkOutLabel = formatHotelDateFromIso(checkOutIso);
+
+  // ── Restore checkout draft from sessionStorage (survives auth redirect) ────
+  const storageKey = useMemo(() => draftKey(hotelId, roomTypeId), [hotelId, roomTypeId]);
+  const [draft] = useState(() => loadDraft(storageKey));
 
   const [step, setStep] = useState<BookingStep>("travellers");
-  const [agreed, setAgreed] = useState(false);
-  const [title, setTitle] = useState("Mr");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [donation, setDonation] = useState<number | null>(null);
+  const [agreed, setAgreed] = useState(draft?.agreed ?? false);
+  const [title, setTitle] = useState(draft?.title ?? "Mr");
+  const [firstName, setFirstName] = useState(draft?.firstName ?? "");
+  const [lastName, setLastName] = useState(draft?.lastName ?? "");
+  const [email, setEmail] = useState(draft?.email ?? "");
+  const [mobile, setMobile] = useState(draft?.mobile ?? "");
+  const [donation, setDonation] = useState<number | null>(draft?.donation ?? null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const [processing, setProcessing] = useState(false);
@@ -98,18 +175,142 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const [continuing, setContinuing] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  // Editable order summary state
-  const [localNights, setLocalNights]   = useState<number | null>(null);
-  const [localAdults, setLocalAdults]   = useState<number | null>(null);
-  const [localChildren, setLocalChildren] = useState(0);
+  // Editable order summary state (restored from draft if available)
+  const [localRooms, setLocalRooms]       = useState(draft?.localRooms ?? rooms);
+  const [localNights, setLocalNights]     = useState<number | null>(draft?.localNights ?? null);
+  const [localAdults, setLocalAdults]     = useState<number | null>(draft?.localAdults ?? null);
+  const [childrenAges, setChildrenAges]   = useState<number[]>(draft?.childrenAges ?? []);
+  const localChildren = childrenAges.length;
   const [editingCheckIn, setEditingCheckIn]   = useState(false);
   const [editingCheckOut, setEditingCheckOut] = useState(false);
-  const [localCheckIn,  setLocalCheckIn]  = useState(checkInIso);
-  const [localCheckOut, setLocalCheckOut] = useState(checkOutIso);
+  const [localCheckIn,  setLocalCheckIn]  = useState(draft?.localCheckIn || checkInIso);
+  const [localCheckOut, setLocalCheckOut] = useState(draft?.localCheckOut || checkOutIso);
 
   const displayNights = localNights ?? nights;
   const displayAdults = localAdults ?? guests;
+  const displayRooms  = localRooms;
+  const maxOccupancy  = selection?.roomType.maxOccupancy ?? 2;
+  const maxAdultsAllowed = maxOccupancy * displayRooms;
+  const availableRoomCount = selection?.roomType.availableCount ?? 10;
   const resumePayment = searchParams.get("resume") === "1";
+
+  // ── Booking hold countdown — ticks every second when a pending booking exists ─
+  const [holdSec, setHoldSec] = useState<number | null>(null);
+  const holdExpired = holdSec === 0;
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (!apiBooking?.created_at || step === "confirmed") {
+      setHoldSec(null);
+      return;
+    }
+    const tick = () => {
+      const remaining = holdSecondsRemaining(apiBooking.created_at);
+      setHoldSec(remaining);
+      if (remaining <= 0 && countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+    };
+    tick();
+    countdownRef.current = setInterval(tick, 1000);
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [apiBooking?.created_at, step]);
+
+  const effectiveCheckIn  = localCheckIn  || checkInIso;
+  const effectiveCheckOut = localCheckOut || checkOutIso;
+
+  const checkInLabel = formatHotelDateFromIso(effectiveCheckIn);
+  const checkOutLabel = formatHotelDateFromIso(effectiveCheckOut);
+
+  // ── Persist checkout draft to sessionStorage on every edit ─────────────────
+  useEffect(() => {
+    if (step === "confirmed") return; // don't save after confirmation
+    saveDraftToStorage(storageKey, {
+      childrenAges, localRooms, localAdults, localNights,
+      localCheckIn, localCheckOut,
+      firstName, lastName, email, mobile, title, donation, agreed,
+    });
+  }, [
+    storageKey, step, childrenAges, localRooms, localAdults, localNights,
+    localCheckIn, localCheckOut, firstName, lastName, email, mobile,
+    title, donation, agreed,
+  ]);
+
+  // ── Children 12+ count as adults for occupancy — auto-increase rooms ──────
+  const adultEquivalent = useMemo(
+    () => displayAdults + childrenAges.filter((a) => a >= 12).length,
+    [displayAdults, childrenAges],
+  );
+  const neededRooms = useMemo(
+    () => Math.ceil(adultEquivalent / maxOccupancy),
+    [adultEquivalent, maxOccupancy],
+  );
+  useEffect(() => {
+    if (neededRooms > displayRooms && neededRooms <= availableRoomCount) {
+      setLocalRooms(neededRooms);
+    }
+  }, [neededRooms, displayRooms, availableRoomCount]);
+
+  // ── Clear draft once booking is confirmed ──────────────────────────────────
+  useEffect(() => {
+    if (step === "confirmed") clearDraft(storageKey);
+  }, [step, storageKey]);
+
+  const handleAdultsChange = useCallback((newAdults: number) => {
+    if (newAdults < 1) return;
+    const neededRooms = Math.ceil(newAdults / maxOccupancy);
+    if (neededRooms > availableRoomCount) return;
+    setLocalAdults(newAdults);
+    if (neededRooms > displayRooms) setLocalRooms(neededRooms);
+  }, [maxOccupancy, displayRooms, availableRoomCount]);
+
+  const handleNightsChange = useCallback((newNights: number) => {
+    if (newNights < 1) return;
+    setLocalNights(newNights);
+    const newCheckOut = addDaysToIso(effectiveCheckIn, newNights);
+    if (newCheckOut) setLocalCheckOut(newCheckOut);
+  }, [effectiveCheckIn]);
+
+  const handleCheckInChange = useCallback((newDate: string) => {
+    setLocalCheckIn(newDate);
+    setEditingCheckIn(false);
+    const newNights = hotelBookingNights(newDate, effectiveCheckOut);
+    if (newNights >= 1) setLocalNights(newNights);
+  }, [effectiveCheckOut]);
+
+  const handleCheckOutChange = useCallback((newDate: string) => {
+    setLocalCheckOut(newDate);
+    setEditingCheckOut(false);
+    const newNights = hotelBookingNights(effectiveCheckIn, newDate);
+    if (newNights >= 1) setLocalNights(newNights);
+  }, [effectiveCheckIn]);
+
+  const handleRoomsChange = useCallback((newRooms: number) => {
+    if (newRooms < 1 || newRooms > availableRoomCount) return;
+    setLocalRooms(newRooms);
+    const newMax = maxOccupancy * newRooms;
+    if (displayAdults > newMax) setLocalAdults(newMax);
+  }, [maxOccupancy, displayAdults, availableRoomCount]);
+
+  const addChild = useCallback(() => {
+    setChildrenAges((prev) => [...prev, 0]);
+  }, []);
+
+  const removeChild = useCallback(() => {
+    setChildrenAges((prev) => prev.slice(0, -1));
+  }, []);
+
+  const updateChildAge = useCallback((index: number, age: number) => {
+    setChildrenAges((prev) => {
+      const next = [...prev];
+      next[index] = age;
+      return next;
+    });
+  }, []);
 
   const bookReturnUrl = useMemo(() => {
     const q = searchParams.toString();
@@ -142,26 +343,42 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     };
   }, [resumePayment, apiBookingId, auth?.isAuthenticated, auth]);
 
+  // ── Auth prefill — only fill truly empty fields (draft takes priority) ──────
   useEffect(() => {
-    if (auth?.user?.email && !email) setEmail(auth.user.email);
-    if (auth?.user?.name && !firstName) {
+    if (!auth?.user) return;
+    if (auth.user.email && !email) setEmail(auth.user.email);
+    if (auth.user.name && !firstName) {
       const parts = auth.user.name.trim().split(/\s+/);
       setFirstName(parts[0] ?? "");
       setLastName(parts.slice(1).join(" "));
     }
-    if (auth?.user?.phone && !mobile) {
-      setMobile(auth.user.phone.replace(/\D/g, "").slice(-10));
+    if (auth.user.phone && !mobile) {
+      const digits = auth.user.phone.replace(/\D/g, "").slice(-10);
+      // Only prefill if the phone is real (not all zeros / placeholder)
+      if (digits && !/^0+$/.test(digits)) {
+        setMobile(digits);
+      }
     }
-  }, [auth?.user, email, firstName, mobile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps — intentionally runs only when auth.user changes
+  }, [auth?.user]);
 
   const persistPendingCheckout = useCallback(
     (bookingId?: string) => {
       if (!selection) return;
       const { city, hotel, roomType, ratePlan } = selection;
-      const nightCount = hotelBookingNights(checkInIso, checkOutIso);
-      const roomTotal = ratePlan.price * nightCount * rooms;
-      const taxTotal = ratePlan.taxes * nightCount * rooms;
-      const total = roomTotal + taxTotal + (donation ?? 0);
+
+      const ebPrice = roomType.extraBedPrice ?? 0;
+      const chargeable = childrenAges.filter((a) => a >= 6 && a <= 11).length;
+      const childCost = chargeable > 0
+        ? ebPrice > 0
+          ? Math.round(ebPrice * chargeable * displayNights)
+          : Math.round((ratePlan.roomBasePrice ?? 0) * 0.5 * chargeable * displayNights)
+        : 0;
+
+      const nightCount = hotelBookingNights(effectiveCheckIn, effectiveCheckOut);
+      const roomTotal = ratePlan.price * nightCount * displayRooms;
+      const taxTotal = ratePlan.taxes * nightCount * displayRooms;
+      const total = roomTotal + taxTotal + childCost + (donation ?? 0);
 
       savePendingCheckout({
         bookingId,
@@ -175,11 +392,11 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
         citySlug: city.slug,
         roomTypeId: roomType.id,
         ratePlanId: ratePlan.id,
-        checkIn: checkInIso,
-        checkOut: checkOutIso,
-        rooms,
-        guests,
-        adults: guests,
+        checkIn: effectiveCheckIn,
+        checkOut: effectiveCheckOut,
+        rooms: displayRooms,
+        guests: displayAdults,
+        adults: displayAdults,
         totalAmount: total,
         currency: "INR",
       });
@@ -188,10 +405,10 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       selection,
       auth?.user?.id,
       email,
-      checkInIso,
-      checkOutIso,
-      rooms,
-      guests,
+      effectiveCheckIn,
+      effectiveCheckOut,
+      displayRooms,
+      displayAdults,
       donation,
     ],
   );
@@ -211,13 +428,34 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   }
 
   const { city, hotel, roomType, ratePlan } = selection;
+
+  // ── Extra bed availability + child charges ─────────────────────────────────
+  const extraBedAvailable = roomType.extraBedPrice != null;
+  const extraBedPricePerNight = roomType.extraBedPrice ?? 0;
+  const chargeableChildCount = childrenAges.filter((a) => a >= 6 && a <= 11).length;
+  const estimatedChildCharges = chargeableChildCount > 0
+    ? extraBedAvailable
+      ? Math.round(extraBedPricePerNight * chargeableChildCount * displayNights)
+      : Math.round((ratePlan.roomBasePrice ?? 0) * 0.5 * chargeableChildCount * displayNights)
+    : 0;
+  // Warning: children aged 6-11 but room doesn't offer extra bed
+  const extraBedWarning = chargeableChildCount > 0 && !extraBedAvailable
+    ? `Extra bed not available for this room. Consider adding another room for ${chargeableChildCount} child${chargeableChildCount > 1 ? "ren" : ""} (age 6-11).`
+    : null;
+  // Warning: total occupancy exceeds capacity
+  const occupancyExceeded = adultEquivalent > maxOccupancy * displayRooms && neededRooms > availableRoomCount;
+  const occupancyWarning = occupancyExceeded
+    ? `Not enough rooms available. Max ${maxOccupancy} guests per room × ${availableRoomCount} available = ${maxOccupancy * availableRoomCount} guests.`
+    : null;
+
+    
   const detailHref = hotelDetailHref(city.slug, hotelListingKey(hotel));
   const changeRoomHref = `${detailHref}?check_in=${encodeURIComponent(checkInIso)}&check_out=${encodeURIComponent(checkOutIso)}&rooms=${rooms}&guests=${guests}#hotel-tabs`;
 
-  const roomTotal = ratePlan.price * nights * rooms;
-  const taxes = ratePlan.taxes * nights * rooms;
+  const roomTotal = ratePlan.price * displayNights * displayRooms;
+  const taxes = ratePlan.taxes * displayNights * displayRooms;
   const donationAmt = donation ?? 0;
-  const estimatedTotal = roomTotal + taxes + donationAmt;
+  const estimatedTotal = roomTotal + taxes + donationAmt + estimatedChildCharges;
   const payTotal = apiBooking?.total_amount ?? estimatedTotal;
 
   const guestFullName = `${title} ${firstName} ${lastName}`.trim();
@@ -269,20 +507,24 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
         return;
       }
 
-      if (!checkInIso || !checkOutIso) {
+      if (!effectiveCheckIn || !effectiveCheckOut) {
         setFormError("Please select valid check-in and check-out dates.");
         setContinuing(false);
         return;
       }
 
+      // Children aged 12+ count as adults for occupancy
+      const adultsForBooking = displayAdults + childrenAges.filter((a) => a >= 12).length;
+
       const created: BookingWithOrder = await createHotelBooking(token, {
         hotel_id: hotel.id,
         room_type_id: roomType.id,
-        check_in: checkInIso,
-        check_out: checkOutIso,
-        adults: guests,
-        children: 0,
-        rooms,
+        check_in: effectiveCheckIn,
+        check_out: effectiveCheckOut,
+        adults: adultsForBooking,
+        children: localChildren,
+        children_ages: childrenAges,
+        rooms: displayRooms,
         guest: {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
@@ -449,6 +691,18 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     }
   };
 
+  // ── Retry booking after hold expires — creates fresh booking + Razorpay order ──
+  const handleRetryBooking = useCallback(async () => {
+    setApiBooking(null);
+    setApiBookingId(null);
+    setBookingRef("");
+    setFormError(null);
+    setHoldSec(null);
+    setProcessing(false);
+    setStep("travellers");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   const inclusions = ratePlan.benefits.filter((b) => /breakfast|wifi|wi-fi/i.test(b));
   const cancellation = ratePlan.nonRefundable
     ? "Non-Refundable Booking"
@@ -555,27 +809,51 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
             </section>
           ) : step === "payment" ? (
             <>
-              {apiBookingId ? (
-                <div className="mb-4 rounded-xl border border-[#FFE082] bg-gradient-to-r from-[#FFF8E1] to-[#FFF3E0] px-4 py-3 text-[13px] text-[#E65100]">
-                  <strong>Payment pending.</strong> Complete payment below to confirm your stay at{" "}
-                  {hotel.name}. If you leave without paying, this booking will appear in your account
-                  as incomplete.
+              {/* ── Hold countdown / expiry banner ── */}
+              {holdExpired ? (
+                <div className="mb-4 rounded-xl border border-[#FFCDD2] bg-[#FFEBEE] px-4 py-4 text-center">
+                  <p className="text-[14px] font-bold text-[#C62828]">Session expired</p>
+                  <p className="mt-1 text-[12px] text-[#616161]">
+                    Your hold on this room has expired. Prices or availability may have changed.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void handleRetryBooking()}
+                    className="mt-3 inline-flex items-center gap-2 rounded-full bg-[#EF6614] px-6 py-2.5 text-[13px] font-bold text-white hover:bg-[#E65100]"
+                  >
+                    Retry Booking →
+                  </button>
+                </div>
+              ) : holdSec != null ? (
+                <div className="mb-4 flex items-center justify-between rounded-xl border border-[#FFE082] bg-gradient-to-r from-[#FFF8E1] to-[#FFF3E0] px-4 py-3">
+                  <div className="text-[13px] text-[#E65100]">
+                    <strong>Payment pending.</strong> Complete payment to confirm your stay at {hotel.name}.
+                  </div>
+                  <div className={cn(
+                    "ml-3 shrink-0 rounded-lg px-3 py-1.5 text-center font-mono text-[15px] font-bold",
+                    holdSec <= 120 ? "bg-[#C62828] text-white animate-pulse" : "bg-[#212121] text-white",
+                  )}>
+                    {formatCountdown(holdSec)}
+                  </div>
                 </div>
               ) : null}
-            <HotelBookingPaymentStep
-              selection={selection}
-              nights={nights}
-              rooms={rooms}
-              guests={guests}
-              grandTotal={payTotal}
-              guestName={guestFullName}
-              email={email}
-              mobile={mobile}
-              processing={processing}
-              paymentError={formError}
-              onBack={() => setStep("travellers")}
-              onPay={() => void handlePay()}
-            />
+
+              {!holdExpired && (
+                <HotelBookingPaymentStep
+                  selection={selection}
+                  nights={nights}
+                  rooms={rooms}
+                  guests={guests}
+                  grandTotal={payTotal}
+                  guestName={guestFullName}
+                  email={email}
+                  mobile={mobile}
+                  processing={processing}
+                  paymentError={formError}
+                  onBack={() => setStep("travellers")}
+                  onPay={() => void handlePay()}
+                />
+              )}
             </>
           ) : (
             <div className="grid gap-5 lg:grid-cols-[1fr_340px] lg:gap-6">
@@ -604,10 +882,10 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                     {[
                       { label: "Check-In", value: checkInLabel.main || "Select date", sub: checkInLabel.sub },
                       { label: "Check-Out", value: checkOutLabel.main || "Select date", sub: checkOutLabel.sub },
-                      { label: "Guests", value: `${guests} Adult${guests !== 1 ? "s" : ""}` },
+                      { label: "Guests", value: `${displayAdults} Adult${displayAdults !== 1 ? "s" : ""}${localChildren > 0 ? `, ${localChildren} Child${localChildren !== 1 ? "ren" : ""}` : ""}` },
                       {
                         label: "Rooms",
-                        value: `${rooms} Room${rooms !== 1 ? "s" : ""} | ${nights} Night${nights !== 1 ? "s" : ""}`,
+                        value: `${displayRooms} Room${displayRooms !== 1 ? "s" : ""} | ${displayNights} Night${displayNights !== 1 ? "s" : ""}`,
                       },
                     ].map((item) => (
                       <div key={item.label}>
@@ -800,7 +1078,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                     <div className="flex items-center gap-2">
                       <p className="text-[13px] font-bold uppercase tracking-wide text-[#212121]">Order Summary</p>
                       <span className="rounded-full bg-[#EF6614] px-2 py-0.5 text-[10px] font-bold text-white">
-                        {rooms} room
+                        {displayRooms} room{displayRooms !== 1 ? "s" : ""}
                       </span>
                     </div>
                     <Link href={changeRoomHref} className="text-[11px] font-semibold text-[#EF6614] hover:underline">
@@ -827,114 +1105,159 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                       </Link>
                     </div>
 
-                    {/* Rooms counter */}
+                    {/* Rooms counter — LIVE */}
                     <div className="mt-2 flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled
-                          className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#bdbdbd]"
-                        >
+                        <button type="button" onClick={() => handleRoomsChange(displayRooms - 1)} disabled={displayRooms <= 1} className={cn("flex h-7 w-7 items-center justify-center rounded-full border transition", displayRooms <= 1 ? "border-[#e0e0e0] text-[#bdbdbd]" : "border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]")}>
                           <Minus className="h-3 w-3" />
                         </button>
-                        <span className="w-4 text-center text-[13px] font-bold">{rooms}</span>
-                        <button
-                          type="button"
-                          disabled
-                          className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#bdbdbd]"
-                        >
+                        <span className="w-4 text-center text-[13px] font-bold">{displayRooms}</span>
+                        <button type="button" onClick={() => handleRoomsChange(displayRooms + 1)} disabled={displayRooms >= availableRoomCount} className={cn("flex h-7 w-7 items-center justify-center rounded-full border transition", displayRooms >= availableRoomCount ? "border-[#e0e0e0] text-[#bdbdbd]" : "border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]")}>
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
                       <p className="text-[13px] font-semibold text-[#212121]">
-                        ₹{formatInrAmount(ratePlan.price * displayNights * rooms)}
+                        ₹{formatInrAmount(ratePlan.price * displayNights * displayRooms)}
                       </p>
                     </div>
                   </div>
 
-                  {/* Dates */}
+                  {/* Dates — editable */}
                   <div className="grid grid-cols-2 divide-x divide-[#eee] border-b border-[#eee]">
                     <div className="px-3 py-2.5">
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9E9E9E]">Check-in</p>
-                        <Edit2 className="h-3 w-3 text-[#9E9E9E]" />
+                        <button type="button" onClick={() => setEditingCheckIn(!editingCheckIn)} className="p-0.5">
+                          <Edit2 className="h-3 w-3 text-[#9E9E9E] hover:text-[#EF6614]" />
+                        </button>
                       </div>
-                      <p className="mt-0.5 text-[12px] font-bold text-[#212121]">
-                        {checkInLabel.main || "Select"}
-                      </p>
-                      <p className="text-[10px] text-[#757575]">{checkInLabel.sub || "From 2:00 PM"}</p>
+                      {editingCheckIn ? (
+                        <input type="date" value={effectiveCheckIn} min={todayIso()} onChange={(e) => handleCheckInChange(e.target.value)} onBlur={() => setEditingCheckIn(false)} autoFocus className="mt-1 w-full rounded border border-[#EF6614] px-1.5 py-1 text-[12px] font-bold text-[#212121] outline-none" />
+                      ) : (
+                        <>
+                          <p className="mt-0.5 text-[12px] font-bold text-[#212121]">{checkInLabel.main || "Select"}</p>
+                          <p className="text-[10px] text-[#757575]">{checkInLabel.sub || "From 2:00 PM"}</p>
+                        </>
+                      )}
                     </div>
                     <div className="px-3 py-2.5">
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-[#9E9E9E]">Check-out</p>
-                        <Edit2 className="h-3 w-3 text-[#9E9E9E]" />
+                        <button type="button" onClick={() => setEditingCheckOut(!editingCheckOut)} className="p-0.5">
+                          <Edit2 className="h-3 w-3 text-[#9E9E9E] hover:text-[#EF6614]" />
+                        </button>
                       </div>
-                      <p className="mt-0.5 text-[12px] font-bold text-[#212121]">
-                        {checkOutLabel.main || "Select"}
-                      </p>
-                      <p className="text-[10px] text-[#757575]">{checkOutLabel.sub || "Until 10:00 AM"}</p>
+                      {editingCheckOut ? (
+                        <input type="date" value={effectiveCheckOut} min={addDaysToIso(effectiveCheckIn, 1)} onChange={(e) => handleCheckOutChange(e.target.value)} onBlur={() => setEditingCheckOut(false)} autoFocus className="mt-1 w-full rounded border border-[#EF6614] px-1.5 py-1 text-[12px] font-bold text-[#212121] outline-none" />
+                      ) : (
+                        <>
+                          <p className="mt-0.5 text-[12px] font-bold text-[#212121]">{checkOutLabel.main || "Select"}</p>
+                          <p className="text-[10px] text-[#757575]">{checkOutLabel.sub || "Until 10:00 AM"}</p>
+                        </>
+                      )}
                     </div>
                   </div>
 
-                  {/* Nights / Adults / Children */}
+                  {/* Nights / Adults / Children — LIVE with age selectors */}
                   <div className="divide-y divide-[#eee] border-b border-[#eee]">
-                    {[
-                      {
-                        label: "Nights",
-                        sub: `${checkInLabel.main?.split(",")[0] ?? ""} → ${checkOutLabel.main?.split(",")[0] ?? ""}`,
-                        value: displayNights,
-                        onDec: () => setLocalNights(Math.max(1, displayNights - 1)),
-                        onInc: () => setLocalNights(displayNights + 1),
-                      },
-                      {
-                        label: "Adults",
-                        sub: "",
-                        value: displayAdults,
-                        onDec: () => setLocalAdults(Math.max(1, displayAdults - 1)),
-                        onInc: () => setLocalAdults(displayAdults + 1),
-                      },
-                      {
-                        label: "Children",
-                        sub: "",
-                        value: localChildren,
-                        onDec: () => setLocalChildren(Math.max(0, localChildren - 1)),
-                        onInc: () => setLocalChildren(localChildren + 1),
-                      },
-                    ].map((row) => (
-                      <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
+                    {/* Nights */}
+                    <div className="flex items-center justify-between px-4 py-2.5">
+                      <div>
+                        <p className="text-[12px] font-semibold text-[#212121]">Nights</p>
+                        <p className="text-[10px] text-[#9E9E9E]">{checkInLabel.main?.split(",")[0] ?? ""} → {checkOutLabel.main?.split(",")[0] ?? ""}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => handleNightsChange(displayNights - 1)} disabled={displayNights <= 1} className={cn("flex h-7 w-7 items-center justify-center rounded-full border transition", displayNights <= 1 ? "border-[#e0e0e0] text-[#bdbdbd]" : "border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]")}>
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className="w-5 text-center text-[13px] font-bold text-[#212121]">{displayNights}</span>
+                        <button type="button" onClick={() => handleNightsChange(displayNights + 1)} className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#424242] transition hover:border-[#EF6614] hover:text-[#EF6614]">
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Adults */}
+                    <div className="flex items-center justify-between px-4 py-2.5">
+                      <div>
+                        <p className="text-[12px] font-semibold text-[#212121]">Adults</p>
+                        {displayAdults >= maxAdultsAllowed && (
+                          <p className="text-[10px] text-[#E65100]">Max {maxOccupancy}/room</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button type="button" onClick={() => handleAdultsChange(displayAdults - 1)} disabled={displayAdults <= 1} className={cn("flex h-7 w-7 items-center justify-center rounded-full border transition", displayAdults <= 1 ? "border-[#e0e0e0] text-[#bdbdbd]" : "border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]")}>
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className="w-5 text-center text-[13px] font-bold text-[#212121]">{displayAdults}</span>
+                        <button type="button" onClick={() => handleAdultsChange(displayAdults + 1)} className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#424242] transition hover:border-[#EF6614] hover:text-[#EF6614]">
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Children */}
+                    <div className="px-4 py-2.5">
+                      <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-[12px] font-semibold text-[#212121]">{row.label}</p>
-                          {row.sub && <p className="text-[10px] text-[#9E9E9E]">{row.sub}</p>}
+                          <p className="text-[12px] font-semibold text-[#212121]">Children</p>
+                          <p className="text-[10px] text-[#9E9E9E]">0-5 free · 6-11 extra bed · 12+ adult</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={row.onDec}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]"
-                          >
+                          <button type="button" onClick={removeChild} disabled={localChildren <= 0} className={cn("flex h-7 w-7 items-center justify-center rounded-full border transition", localChildren <= 0 ? "border-[#e0e0e0] text-[#bdbdbd]" : "border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]")}>
                             <Minus className="h-3 w-3" />
                           </button>
-                          <span className="w-5 text-center text-[13px] font-bold text-[#212121]">{row.value}</span>
-                          <button
-                            type="button"
-                            onClick={row.onInc}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]"
-                          >
+                          <span className="w-5 text-center text-[13px] font-bold text-[#212121]">{localChildren}</span>
+                          <button type="button" onClick={addChild} className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e0e0e0] text-[#424242] transition hover:border-[#EF6614] hover:text-[#EF6614]">
                             <Plus className="h-3 w-3" />
                           </button>
                         </div>
                       </div>
-                    ))}
+
+                      {/* Age selector per child */}
+                      {childrenAges.length > 0 && (
+                        <div className="mt-2 space-y-1.5">
+                          {childrenAges.map((age, idx) => (
+                            <div key={idx} className="flex items-center justify-between rounded-md bg-[#fafafa] px-3 py-1.5">
+                              <span className="text-[11px] text-[#616161]">Child {idx + 1} age</span>
+                              <select
+                                value={age}
+                                onChange={(e) => updateChildAge(idx, Number.parseInt(e.target.value, 10))}
+                                className="h-7 w-20 rounded border border-[#e0e0e0] px-1.5 text-[11px] font-semibold text-[#212121] outline-none focus:border-[#EF6614]"
+                              >
+                                {Array.from({ length: 18 }, (_, i) => (
+                                  <option key={i} value={i}>
+                                    {i} yr{i !== 1 ? "s" : ""}{i <= 5 ? " (free)" : i <= 11 ? extraBedAvailable ? " (extra bed)" : " (needs room)" : " (adult)"}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Extra bed / occupancy warnings */}
+                      {extraBedWarning && (
+                        <p className="mt-2 rounded-md bg-[#FFF3E0] px-3 py-2 text-[11px] font-medium text-[#E65100]">
+                          ⚠ {extraBedWarning}
+                        </p>
+                      )}
+                      {occupancyWarning && (
+                        <p className="mt-2 rounded-md bg-[#FFEBEE] px-3 py-2 text-[11px] font-medium text-[#C62828]">
+                          ⚠ {occupancyWarning}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Price breakdown */}
                   <div className="space-y-2 px-4 py-3 text-[12px]">
                     <div className="flex justify-between">
                       <span className="text-[#616161]">
-                        {roomType.name} ×{rooms} × {displayNights}n
+                        {roomType.name} ×{displayRooms} × {displayNights}n
                       </span>
                       <span className="font-medium text-[#212121]">
-                        ₹{formatInrAmount(ratePlan.roomBasePrice * displayNights * rooms)}
+                        ₹{formatInrAmount(ratePlan.roomBasePrice * displayNights * displayRooms)}
                       </span>
                     </div>
                     {ratePlan.mealAddOn > 0 && (
@@ -951,6 +1274,18 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                       <span className="text-[#616161]">Platform fee (incl. in room price)</span>
                       <span className="text-[#616161]">Included</span>
                     </div>
+                    {estimatedChildCharges > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-[#616161]">
+                          {extraBedAvailable
+                            ? `Extra bed (${chargeableChildCount} × ₹${formatInrAmount(extraBedPricePerNight)} × ${displayNights}n)`
+                            : `Children (${chargeableChildCount} × ${displayNights}n est.)`}
+                        </span>
+                        <span className="font-medium text-[#212121]">
+                          ₹{formatInrAmount(estimatedChildCharges)}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-[#616161]">Taxes &amp; Fees</span>
                       <span className="font-medium text-[#212121]">
@@ -974,16 +1309,39 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                       </span>
                     </div>
                     <p className="mt-0.5 text-right text-[10px] text-[#9E9E9E]">
-                      {displayNights} night · {rooms} room · {displayAdults} guest{displayAdults !== 1 ? "s" : ""}
+                      {displayNights} night{displayNights !== 1 ? "s" : ""} · {displayRooms} room{displayRooms !== 1 ? "s" : ""} · {displayAdults} guest{displayAdults !== 1 ? "s" : ""}
                     </p>
+
+                    {/* Countdown timer — shown once a pending booking exists */}
+                    {holdSec != null && !holdExpired && (
+                      <div className={cn(
+                        "mt-2 flex items-center justify-center gap-2 rounded-lg py-1.5 text-[12px] font-bold",
+                        holdSec <= 120 ? "bg-[#FFEBEE] text-[#C62828]" : "bg-[#FFF8E1] text-[#E65100]",
+                      )}>
+                        <span>⏱</span>
+                        <span>Complete in {formatCountdown(holdSec)}</span>
+                      </div>
+                    )}
+
+                    {holdExpired ? (
+                      <button
+                        type="button"
+                        onClick={() => void handleRetryBooking()}
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#C62828] py-3 text-[13px] font-bold text-white transition hover:bg-[#B71C1C]"
+                      >
+                        Session Expired — Retry Booking
+                      </button>
+                    ) : (
                     <button
                       type="button"
                       onClick={() => void handleContinueBooking()}
-                      disabled={continuing}
+                      disabled={continuing || occupancyExceeded}
                       className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-[#EF6614] py-3 text-[13px] font-bold text-white transition hover:bg-[#E65100] disabled:opacity-70"
                     >
                       {continuing ? (
                         <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+                      ) : occupancyExceeded ? (
+                        "Reduce guests or add rooms"
                       ) : !firstName.trim() || !lastName.trim() || !email.trim() || !mobile.trim() ? (
                         "Fill Guest Details First"
                       ) : !auth?.isAuthenticated ? (
@@ -992,6 +1350,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                         "Proceed to Pay →"
                       )}
                     </button>
+                    )}
                   </div>
                 </div>
               </aside>
@@ -1008,6 +1367,11 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
         onSuccess={() => {
           setAuthModalOpen(false);
           void handleContinueBooking();
+        }}
+        prefill={{
+          name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+          email: email.trim(),
+          phone: mobile.replace(/\D/g, "").slice(-10),
         }}
       />
     </>
