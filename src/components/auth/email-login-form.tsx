@@ -10,9 +10,11 @@ import { cn } from "@/lib/utils";
 
 type EmailLoginFormProps = {
   redirectTo?: string;
+  /** When provided, called instead of navigateAfterAuth — prevents full page reload inside modals. */
+  onAuthComplete?: () => void;
 };
 
-export function EmailLoginForm({ redirectTo = "/account" }: EmailLoginFormProps) {
+export function EmailLoginForm({ redirectTo = "/account", onAuthComplete }: EmailLoginFormProps) {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +27,11 @@ export function EmailLoginForm({ redirectTo = "/account" }: EmailLoginFormProps)
     setLoading(true);
     try {
       await login(email, password);
-      navigateAfterAuth(redirectTo);
+      if (onAuthComplete) {
+        onAuthComplete();
+      } else {
+        navigateAfterAuth(redirectTo);
+      }
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {

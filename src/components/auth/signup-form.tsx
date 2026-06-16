@@ -10,13 +10,25 @@ import { cn } from "@/lib/utils";
 
 type SignupFormProps = {
   redirectTo?: string;
+  /** When provided, pre-fills name/email/phone from the booking form. */
+  initialName?: string;
+  initialEmail?: string;
+  initialPhone?: string;
+  /** When provided, called instead of navigateAfterAuth — prevents full page reload inside modals. */
+  onAuthComplete?: () => void;
 };
 
-export function SignupForm({ redirectTo = "/account" }: SignupFormProps) {
+export function SignupForm({
+  redirectTo = "/account",
+  initialName = "",
+  initialEmail = "",
+  initialPhone = "",
+  onAuthComplete,
+}: SignupFormProps) {
   const { register } = useAuth();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
+  const [phone, setPhone] = useState(initialPhone);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +61,11 @@ export function SignupForm({ redirectTo = "/account" }: SignupFormProps) {
         password,
         phone: phoneDigits,
       });
-      navigateAfterAuth(redirectTo);
+      if (onAuthComplete) {
+        onAuthComplete();
+      } else {
+        navigateAfterAuth(redirectTo);
+      }
     } catch (err) {
       setError(getAuthErrorMessage(err));
     } finally {

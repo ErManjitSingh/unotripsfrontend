@@ -22,6 +22,7 @@ export type CreateBookingPayload = {
   check_out: string;
   adults: number;
   children?: number;
+  children_ages?: number[];
   rooms?: number;
   guest: GuestInfoPayload;
   payment_method_nonce?: string | null;
