@@ -138,7 +138,7 @@ export function PackageDetailView({
   const {
     isLoading: optLoading,
     hotelGroups, cabOptions, addonOptions, days,
-    usingDemo,
+    usingDemo, basePrice,
   } = useDayOptions(slug);
 
   // ── Customiser state ──────────────────────────────────────────────────────
@@ -277,14 +277,14 @@ export function PackageDetailView({
   }), [rooms, selectedHotels, selectedCab, addons, payType]);
 
   const breakdown = useMemo(() => {
-    const base = calcTotalWithOptions(custState, hotelGroups, cabOptions);
+    const base = calcTotalWithOptions(custState, hotelGroups, cabOptions, basePrice);
     return {
       ...base,
       sightseeing: sightTotal,
       activities:  actTotal,
       total:       base.total + sightTotal + actTotal,
     };
-  }, [custState, hotelGroups, cabOptions, sightTotal, actTotal]);
+  }, [custState, hotelGroups, cabOptions, basePrice, sightTotal, actTotal]);
 
   const token  = tokenAmount(breakdown.total);
   const payAmt = payType === "token" ? token : breakdown.total;

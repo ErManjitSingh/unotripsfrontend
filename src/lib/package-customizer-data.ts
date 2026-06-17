@@ -214,18 +214,24 @@ export function calcTotal(state: Omit<CustomizerState, "pay">): PriceBreakdown {
 /**
  * Full price breakdown using real hotel/cab arrays.
  * Used by package-detail-view.tsx which has access to the live data.
+ *
+ * FIX: accepts `basePricePerPerson` from the backend day-options response
+ * instead of the hardcoded BASE_PRICE_PER_PERSON constant.
+ * Also accepts `earlyBirdDiscount` so it can be driven by the backend.
  */
 export function calcTotalWithOptions(
   state:  Omit<CustomizerState, "pay">,
   hotels: DestinationHotels[],
   cabs:   CabOption[],
+  basePricePerPerson: number = BASE_PRICE_PER_PERSON,
+  earlyBirdDiscount:  number = EARLY_BIRD_DISCOUNT,
 ): PriceBreakdown {
   const persons     = state.adults + Math.round(state.children * CHILD_PRICE_FACTOR);
-  const base        = BASE_PRICE_PER_PERSON * Math.max(1, persons);
+  const base        = basePricePerPerson * Math.max(1, persons);
   const hotelDelta  = state.hotels.reduce((sum, sel, i) => sum + (hotels[i]?.opts[sel]?.extra ?? 0) * state.rooms, 0);
   const cabDelta    = cabs[state.cab]?.extra ?? 0;
   const addons      = state.addons.filter((a) => a.on).reduce((s, a) => s + a.price * Math.max(1, persons), 0);
-  const disc        = EARLY_BIRD_DISCOUNT;
+  const disc        = earlyBirdDiscount;
   const total       = Math.max(0, base + hotelDelta + cabDelta + addons - disc);
   return { base, hotel: hotelDelta, cab: cabDelta, addons, disc, total };
 }
