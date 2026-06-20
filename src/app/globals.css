@@ -22,6 +22,14 @@
   }
 }
 
+/* Equal-height Swiper slides */
+.trending-packages-swiper .swiper-wrapper {
+  align-items: stretch;
+}
+.trending-packages-swiper .swiper-slide {
+  height: auto;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

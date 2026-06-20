@@ -25,17 +25,18 @@ import { TravelCategories } from "@/components/home/TravelCategories";
 import { Newsletter } from "@/components/home/Newsletter";
 import { FaqSection } from "@/components/home/faq-section";
 import { TRAVEL_CATEGORIES } from "@/lib/constants";
-import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
+import { LeadCaptureWidgets } from "@/components/home/lead-capture-widgets";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Rajasthan Tour Packages | UNO Trips — India Holidays",
+  title: "UNO Trips — Travel Made Simple | Best Tour & Holiday Packages",
   description:
-    "Book Rajasthan tour packages and India holidays — premium floating search, curated deals, and 24×7 support.",
+    "Book flights, hotels, trains, buses and holiday packages — curated deals, clear pricing, and 24×7 support. Travel made simple with UNO Trips.",
   openGraph: {
-    title: `${TRAVEL_HOME_BRAND.name} — Holidays`,
-    description: "Rajasthan tour packages and handpicked India holidays.",
+    title: "UNO Trips — Travel Made Simple",
+    description:
+      "Flights, hotels, trains, buses and holiday packages — curated deals, clear pricing, and 24×7 support.",
   },
 };
 
@@ -55,7 +56,7 @@ export default function HomePage() {
             </Suspense>
             <HeroPromoBanner />
           </div>
-          <div>
+          <div className="pb-[72px] sm:pb-0">
             <Suspense fallback={<SummerEscapesSkeleton />}>
               <SummerEscapesWithCounts />
             </Suspense>
@@ -81,6 +82,7 @@ export default function HomePage() {
             <Newsletter />
           </div>
         </div>
+        <LeadCaptureWidgets />
       </main>
       <Footer />
     </>
