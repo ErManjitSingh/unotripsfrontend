@@ -1,5 +1,8 @@
+import { Award, MapPin, Star, Users } from "lucide-react";
 import { STATS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+
+const STAT_ICONS = [Users, MapPin, Star, Award] as const;
 
 function formatStatValue(s: (typeof STATS)[number]): string {
   const decimals =
@@ -16,29 +19,28 @@ export type StatsProps = {
   className?: string;
 };
 
-/** Server-only stats so crawlers and “View Source” see real numbers, not animated zeros. */
 export function Stats({ className }: StatsProps) {
   return (
-    <section
-      id="international"
-      className={cn("relative overflow-hidden py-20 sm:py-24", className)}
-    >
-      <div
-        className="pointer-events-none absolute inset-0 -z-10 scale-110 bg-[url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=1920&q=70')] bg-cover bg-center opacity-25 motion-safe:md:animate-float"
-        aria-hidden
-      />
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-white via-white/92 to-white" />
-
+    <section id="international" className={cn("pb-6 sm:pb-8", className)}>
       <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
-        <div className="grid gap-8 rounded-[2rem] border border-slate-100 bg-white/80 p-8 shadow-glass backdrop-blur-xl sm:grid-cols-2 sm:p-10 lg:grid-cols-4">
-          {STATS.map((s) => (
-            <div key={s.id} className="text-center">
-              <p className="font-display text-4xl font-bold text-primary sm:text-5xl">
-                {formatStatValue(s)}
-              </p>
-              <p className="mt-2 text-sm font-medium text-slate-600">{s.label}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 divide-x divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm sm:rounded-3xl lg:grid-cols-4">
+          {STATS.map((s, i) => {
+            const Icon = STAT_ICONS[i] ?? Star;
+            return (
+              <div
+                key={s.id}
+                className="flex flex-col items-center gap-3 px-6 py-8 sm:px-8 sm:py-10"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <Icon className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden />
+                </div>
+                <p className="font-display text-3xl font-bold text-primary sm:text-4xl">
+                  {formatStatValue(s)}
+                </p>
+                <p className="text-center text-sm font-medium text-slate-600">{s.label}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

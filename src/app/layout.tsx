@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Dancing_Script, Roboto } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
+import { TopBanner } from "@/components/layout/top-banner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { HERO_SLIDES, SITE } from "@/lib/constants";
 import "./globals.css";
@@ -83,6 +84,11 @@ export const metadata: Metadata = {
     images: [HERO_SLIDES[0].src],
   },
   category: "travel",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: "/icon.svg",
+    apple: "/images/homelogo.webp",
+  },
 };
 
 export const viewport: Viewport = {
@@ -104,7 +110,10 @@ export default function RootLayout({
     >
       <body className="min-h-screen font-sans" suppressHydrationWarning>
         <JsonLd />
-        <AppProviders>{children}</AppProviders>
+        <AppProviders>
+          <TopBanner />
+          {children}
+        </AppProviders>
       </body>
     </html>
   );

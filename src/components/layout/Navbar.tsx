@@ -33,15 +33,16 @@ const LIST_PROPERTY_CTA = {
   badge: "Free",
 } as const;
 
+const SOON_NAV_IDS = new Set<string>(["flights", "trains", "bus", "cabs"]);
+
 const EASE_MAIN_NAV: EaseNavItem[] = [
-  { id: "flights", label: "FLIGHTS", href: "/flights" },
-  { id: "hotels", label: "HOTELS", href: "/hotels" },
-  { id: "trains", label: "TRAINS", href: "/trains" },
-  { id: "bus", label: "BUS", href: "/bus" },
-  { id: "holidays", label: "HOLIDAYS", href: "/" },
-  { id: "cabs",       label: "CABS",       href: "/cabs"      },
-  { id: "activities", label: "Activities", href: "/activities" },
-  { id: "more", label: "More", href: "#more" },
+  { id: "holidays",   label: "HOLIDAYS",   href: "/"           },
+  { id: "hotels",     label: "HOTELS",     href: "/hotels"     },
+  { id: "activities", label: "ACTIVITIES", href: "/activities" },
+  { id: "flights",    label: "FLIGHTS",    href: "/flights"    },
+  { id: "trains",     label: "TRAINS",     href: "/trains"     },
+  { id: "bus",        label: "BUS",        href: "/bus"        },
+  { id: "cabs",       label: "CABS",       href: "/cabs"       },
 ];
 
 export function Navbar({
@@ -96,7 +97,7 @@ export function Navbar({
     const iconStroke = 1.15;
 
     return (
-      <header className="sticky top-0 z-50 w-full border-b border-[#EEEEEE] bg-white text-[#212121] antialiased">
+      <header className="sticky top-0 z-50 w-full border-b border-[#EEEEEE] bg-white text-[#212121] antialiased rounded-b-3xl">
         <div className={cn("mx-auto flex w-full flex-col", PAGE_MAX_WIDTH_CLASS)}>
           <div className={cn("flex h-[68px] min-h-[68px] max-h-[72px] items-center gap-2 sm:h-[72px] sm:min-h-[72px] sm:max-h-[72px] sm:gap-3", PAGE_MARGIN_X_CLASS)}>
             <Link href="/" className="flex shrink-0 items-center">
@@ -120,13 +121,13 @@ export function Navbar({
               {EASE_MAIN_NAV.map(({ id, label, href }) => {
                 const active = id === easeActiveNavId;
                 return (
-                  <motion.div key={id} whileHover={{ y: -0.5 }} whileTap={{ scale: 0.98 }}>
+                  <motion.div key={id} whileHover={{ y: -0.5 }} whileTap={{ scale: 0.98 }} className="relative">
                     <Link
                       href={href}
                       className={cn(
                         "flex min-w-[3rem] shrink-0 flex-col items-center gap-0.5 rounded-md px-1.5 py-1 text-[9px] font-semibold uppercase leading-none tracking-wide text-black transition-colors sm:min-w-[3.25rem] sm:px-2 sm:py-1.5 sm:text-[10px]",
                         active
-                          ? "border border-[#FFCC80] bg-[#FFF3E0] text-black"
+                          ? "border border-[#FFCC80] bg-[#FFF3E0] text-[#EF6614]"
                           : "border border-transparent text-black hover:bg-[#F5F5F5]",
                       )}
                     >
@@ -140,6 +141,11 @@ export function Navbar({
                       </span>
                       <span className="whitespace-nowrap">{label}</span>
                     </Link>
+                    {SOON_NAV_IDS.has(id) && (
+                      <span className="pointer-events-none absolute right-0 top-0.5 whitespace-nowrap rounded-full bg-red-500 px-1.5 py-0.5 text-[7px] font-bold leading-none tracking-wide text-white shadow-sm">
+                        Soon
+                      </span>
+                    )}
                   </motion.div>
                 );
               })}
@@ -187,24 +193,30 @@ export function Navbar({
           </div>
 
           <div className="flex items-center border-t border-[#EEEEEE] py-2 lg:hidden">
-            <div className="min-w-0 flex-1 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              <div className="flex w-max items-center gap-0.5 px-3 pr-2">
+            <div className="w-full px-1">
+              <div className="grid w-full items-center px-1" style={{ gridTemplateColumns: `repeat(${EASE_MAIN_NAV.length}, 1fr)` }}>
                 {EASE_MAIN_NAV.map(({ id, label, href }) => {
                   const active = id === easeActiveNavId;
                   return (
-                    <Link
-                      key={id}
-                      href={href}
-                      className={cn(
-                        "flex shrink-0 flex-col items-center gap-px rounded-md px-1 py-0.5 text-[8px] font-semibold uppercase leading-tight tracking-wide text-black",
-                        active
-                          ? "border border-[#FFCC80] bg-[#FFF3E0] text-black"
-                          : "border border-transparent text-black",
+                    <div key={id} className="relative flex justify-center">
+                      <Link
+                        href={href}
+                        className={cn(
+                          "flex flex-col items-center gap-px rounded-md px-1 py-0.5 text-[8px] font-semibold uppercase leading-tight tracking-wide text-black",
+                          active
+                            ? "border border-[#FFCC80] bg-[#FFF3E0] text-[#EF6614]"
+                            : "border border-transparent text-black",
+                        )}
+                      >
+                        <EaseMenuIcon id={id} active={active} size={24} label={label} />
+                        {label}
+                      </Link>
+                      {SOON_NAV_IDS.has(id) && (
+                        <span className="pointer-events-none absolute right-0 top-0 whitespace-nowrap rounded-full bg-red-500 px-1 py-px text-[6px] font-bold leading-none text-white shadow-sm">
+                          Soon
+                        </span>
                       )}
-                    >
-                      <EaseMenuIcon id={id} active={active} size={24} label={label} />
-                      {label}
-                    </Link>
+                    </div>
                   );
                 })}
               </div>

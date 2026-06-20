@@ -97,6 +97,9 @@ export type Testimonial = {
   avatar: string;
   rating: number;
   text: string;
+  trip?: string;
+  tripIcon?: "heart" | "palm" | "plane";
+  featured?: boolean;
 };
 
 export type { BlogPost, BlogCategory } from "@/lib/blog-api";
@@ -140,9 +143,9 @@ export const POPULAR_DESTINATIONS: DestinationCard[] = [
 ];
 
 export const TESTIMONIALS: Testimonial[] = [
-  { id: "m1", name: "Ananya Mehta", location: "Mumbai, India", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80", rating: 5, text: "Flawless coordination, boutique hotels, and thoughtful touches throughout our Europe tour. Felt truly five-star." },
-  { id: "m2", name: "James Porter", location: "London, UK", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80", rating: 5, text: "The Rajasthan itinerary balanced culture and comfort perfectly. Private guides made every monument come alive." },
-  { id: "m3", name: "Priya & Rahul", location: "Bengaluru, India", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&q=80", rating: 5, text: "Our honeymoon in the Maldives was seamless—from seaplane transfers to candlelit dinners on the sand." },
+  { id: "m1", name: "Ananya Mehta", location: "Mumbai, India", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80", rating: 5, text: "Flawless coordination, boutique hotels, and thoughtful touches throughout our Europe tour. Felt truly like a dream!", trip: "Europe Honeymoon", tripIcon: "heart" },
+  { id: "m2", name: "James Porter", location: "London, UK", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80", rating: 5, text: "The Maldives itinerary balanced luxury and comfort perfectly. Private guides made every moment one to cherish.", trip: "Maldives Getaway", tripIcon: "palm", featured: true },
+  { id: "m3", name: "Priya & Rahul", location: "Bengaluru, India", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&q=80", rating: 5, text: "Our first international trip and it was seamless—from visa assistance to handpicked experiences. Couldn't have asked for more.", trip: "Switzerland Vacation", tripIcon: "plane" },
 ];
 
 export const TRAVEL_CATEGORIES: TravelCategory[] = [

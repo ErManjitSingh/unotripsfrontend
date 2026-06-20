@@ -1,10 +1,5 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { HeroFloatingChrome } from "@/components/home/hero-floating-chrome";
 import { HeroSplitBackground } from "@/components/home/hero-split-background";
-import { HERO_DESTINATION_SLIDES } from "@/lib/ease-hero-images";
+import { HolidayPackagesSearchBar, TrustBadgesBar } from "@/components/home/holiday-packages-search-bar";
 import type { HeroSearchCatalog } from "@/lib/hero-search-catalog";
 import { cn } from "@/lib/utils";
 
@@ -13,63 +8,51 @@ export type HeroSectionProps = {
   className?: string;
 };
 
-const INTERVAL_MS = 2800;
-
-/**
- * EaseMyTrip-style hero — rotating destination + matching banner image,
- * search, category pills half on / half below banner edge.
- */
 export function HeroSection({ searchCatalog, className }: HeroSectionProps) {
-  const [index, setIndex] = useState(0);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setIndex((prev) => (prev + 1) % HERO_DESTINATION_SLIDES.length);
-    }, INTERVAL_MS);
-    return () => clearInterval(id);
-  }, []);
-
-  const destination = HERO_DESTINATION_SLIDES[index].name;
-
   return (
     <section
-      className={cn(
-        "relative z-20 w-full overflow-visible bg-white pb-7 sm:pb-8",
-        className,
-      )}
+      className={cn("relative z-20 w-full -mt-[68px] sm:-mt-[72px]", className)}
     >
-      <div className="relative h-[350px] w-full overflow-visible">
+      <div className="relative w-full min-h-[500px] sm:min-h-[600px] lg:min-h-[700px]">
+        {/* Full-bleed slideshow */}
         <div className="absolute inset-0 overflow-hidden">
-          <HeroSplitBackground activeIndex={index} />
+          <HeroSplitBackground />
         </div>
 
-        {/* Headings — upper hero, above search */}
-        <div className="absolute inset-x-0 top-0 z-10 flex h-[46%] flex-col items-center justify-end px-4 pb-1 text-center sm:px-6">
-          <h1 className="font-script max-w-4xl text-[3.5rem] font-normal leading-[1.05] tracking-wide text-white drop-shadow-[0_4px_28px_rgba(0,0,0,0.55)]">
-            <span className="inline-flex flex-wrap items-baseline justify-center gap-[0.25em]">
-              <span className="relative inline-block min-w-[8.5rem] text-center sm:min-w-[10rem]">
-                <AnimatePresence mode="wait">
-                  <motion.span
-                    key={destination}
-                    initial={{ opacity: 0, y: -18 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 18 }}
-                    transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
-                    className="inline-block"
-                  >
-                    {destination}
-                  </motion.span>
-                </AnimatePresence>
-              </span>
-              <span>Tour Packages</span>
-            </span>
-          </h1>
-          <p className="mt-1.5 max-w-3xl text-sm font-black leading-tight tracking-tight text-white drop-shadow-[0_2px_18px_rgba(0,0,0,0.5)] sm:mt-2 sm:text-base md:text-lg">
-            Where Every Experience Counts!
-          </p>
-        </div>
+        {/* Content — headline + search card + trust bar all inside the banner */}
+        <div
+          className="relative z-40 flex w-full flex-col items-center px-3 pb-6 sm:pb-4 sm:px-6 lg:px-8 min-h-[500px] sm:min-h-[600px] lg:min-h-[700px]"
+        >
+          {/* Headline */}
+          <div className="flex flex-col items-center pt-[88px] text-center sm:pt-[110px]">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="h-px w-8 bg-amber-400/70 sm:w-12" />
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-400 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] sm:text-xs">
+                Incredible India
+              </p>
+              <span className="h-px w-8 bg-amber-400/70 sm:w-12" />
+            </div>
+            <h1 className="max-w-2xl text-2xl font-black leading-tight text-white drop-shadow-[0_4px_32px_rgba(0,0,0,0.95)] sm:text-4xl md:text-5xl">
+              Your Next{" "}
+              <span className="text-amber-400">Adventure</span>
+              {" "}Awaits
+            </h1>
+            <p className="mt-2 text-[13px] font-medium text-white/80 drop-shadow-md sm:mt-3 sm:text-base">
+              Discover amazing places at best prices
+            </p>
+            <div className="mt-3 h-4 sm:h-8" aria-hidden />
+          </div>
 
-        <HeroFloatingChrome catalog={searchCatalog} />
+          {/* Search card */}
+          <div className="mt-4 sm:mt-6 w-full max-w-5xl">
+            <HolidayPackagesSearchBar catalog={searchCatalog} />
+          </div>
+
+          {/* Trust badges — white card, fully inside the banner */}
+          <div className="mt-3 w-full max-w-5xl">
+            <TrustBadgesBar />
+          </div>
+        </div>
       </div>
     </section>
   );

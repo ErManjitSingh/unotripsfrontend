@@ -32,7 +32,7 @@ export function HotelsMoroccoBanner() {
             </span>
           </div>
 
-          <div className="relative min-h-[100px] flex-1 sm:min-h-[112px]">
+          <div className="relative min-h-[100px] flex-1 overflow-hidden sm:min-h-[112px]">
             <Image
               src={MOROCCO_IMAGE}
               alt=""
@@ -54,9 +54,6 @@ export function HotelsMoroccoBanner() {
             </span>
           </div>
 
-          <span className="absolute bottom-2.5 right-3 z-20 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-medium text-white/95">
-            Ad
-          </span>
         </Link>
       </div>
     </aside>

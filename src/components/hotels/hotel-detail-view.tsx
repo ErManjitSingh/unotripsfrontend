@@ -119,10 +119,10 @@ function DetailSearchStrip({
     }
   }, [bookingContext, isEditing]);
 
-  const checkInLabel = formatHotelDateFromIso(bookingContext.check_in ?? "");
-  const checkOutLabel = formatHotelDateFromIso(bookingContext.check_out ?? "");
+  const checkInFmt  = formatHotelDateFromIso(bookingContext.check_in ?? "");
+  const checkOutFmt = formatHotelDateFromIso(bookingContext.check_out ?? "");
   const checkOutMin = checkInIso ? addDaysToIso(checkInIso, 1) : addDaysToIso(localDateInputString(today), 1);
-  const roomsGuestsLabel = `${bookingContext.guests} Guest${bookingContext.guests !== 1 ? "s" : ""} in ${bookingContext.rooms} Room${bookingContext.rooms !== 1 ? "s" : ""}`;
+  const roomsGuestsLabel = `${bookingContext.guests} Guest${bookingContext.guests !== 1 ? "s" : ""}, ${bookingContext.rooms} Room${bookingContext.rooms !== 1 ? "s" : ""}`;
 
   const enterEditMode = () => setIsEditing(true);
 
@@ -135,117 +135,108 @@ function DetailSearchStrip({
   };
 
   const handleApply = () => {
-    onApply({
-      check_in: checkInIso,
-      check_out: checkOutIso,
-      rooms,
-      guests,
-    });
+    onApply({ check_in: checkInIso, check_out: checkOutIso, rooms, guests });
     setIsEditing(false);
   };
 
-  const hotelField = (
-    <div className="rounded-lg border border-[#e0e0e0] bg-white px-3 py-2.5 sm:rounded-none sm:border-0 sm:border-r sm:border-[#EEEEEE]">
-      <p className="text-[10px] text-[#9E9E9E]">City name, Location or Specific hotel</p>
-      <p className="mt-0.5 truncate text-[13px] font-semibold text-[#212121] sm:text-sm">{hotelName}</p>
-    </div>
-  );
+  const fieldDivider = "border-[#EEEEEE] border-b sm:border-b-0 sm:border-r";
 
   return (
-    <section className="border-b border-[#90caf9] bg-[#e3f2fd] py-3">
+    <section className="border-b border-slate-200 bg-white py-3 shadow-sm">
       <form
-        className="mx-auto flex w-full max-w-[1320px] flex-col gap-2 px-3 sm:flex-row sm:items-stretch sm:gap-0 sm:px-4 lg:px-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (isEditing) handleApply();
-        }}
+        className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6"
+        onSubmit={(e) => { e.preventDefault(); if (isEditing) handleApply(); }}
       >
-        <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-4 sm:gap-0 sm:overflow-visible sm:rounded-l-md sm:border sm:border-[#bbdefb] sm:bg-white">
-          {hotelField}
+        <div className="overflow-visible rounded-2xl border border-slate-200 bg-white shadow-[0_4px_24px_-6px_rgba(0,0,0,0.12),0_1px_4px_rgba(0,0,0,0.06)] sm:flex sm:items-stretch">
+          <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-stretch">
 
-          {isEditing ? (
-            <>
-              <HotelDateField
-                className="overflow-hidden rounded-lg border border-[#e0e0e0] bg-white sm:rounded-none sm:border-0 sm:border-r sm:border-[#EEEEEE]"
-                label="Check-in"
-                iso={checkInIso}
-                minIso={localDateInputString(today)}
-                onIsoChange={(iso) => {
-                  setCheckInIso(iso);
-                  setCheckOutIso((prev) => (!prev || prev <= iso ? addDaysToIso(iso, 1) : prev));
-                }}
-                onAfterSelect={() => {
-                  requestAnimationFrame(() => openNativeDatePicker(checkOutRef.current));
-                }}
-              />
-              <HotelDateField
-                className="overflow-hidden rounded-lg border border-[#e0e0e0] bg-white sm:rounded-none sm:border-0 sm:border-r sm:border-[#EEEEEE]"
-                label="Check-out"
-                iso={checkOutIso}
-                minIso={checkOutMin}
-                inputRef={checkOutRef}
-                onIsoChange={setCheckOutIso}
-              />
-              <HotelRoomsGuestsField
-                className="overflow-visible rounded-lg border border-[#e0e0e0] bg-white sm:rounded-none sm:border-0"
-                rooms={rooms}
-                guests={guests}
-                onRoomsChange={setRooms}
-                onGuestsChange={setGuests}
-              />
-            </>
-          ) : (
-            [
-              { label: "Check-in", value: checkInLabel.main, sub: checkInLabel.sub },
-              { label: "Check-out", value: checkOutLabel.main, sub: checkOutLabel.sub },
-              { label: "Rooms/Guests", value: roomsGuestsLabel },
-            ].map((field, i) => (
-              <div
-                key={field.label}
-                className={cn(
-                  "rounded-lg border border-[#e0e0e0] bg-white px-3 py-2.5 sm:rounded-none sm:border-0",
-                  i < 2 && "sm:border-r sm:border-[#EEEEEE]",
-                )}
-              >
-                <p className="text-[10px] text-[#9E9E9E]">{field.label}</p>
-                <p className="mt-0.5 truncate text-[13px] font-semibold text-[#212121] sm:text-sm">
-                  {field.value}
-                </p>
-                {"sub" in field && field.sub ? (
-                  <p className="truncate text-[11px] text-[#757575]">{field.sub}</p>
-                ) : null}
+            {/* Destination — always readonly */}
+            <div className={cn("flex min-w-0 items-start gap-3 px-4 py-3.5 sm:flex-[1.5] sm:px-5 sm:py-4", fieldDivider)}>
+              <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#757575]" strokeWidth={1.5} aria-hidden />
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9E9E9E]">Destination</p>
+                <p className="mt-0.5 truncate text-[15px] font-bold leading-tight text-[#212121]">{hotelName}</p>
               </div>
-            ))
+            </div>
+
+            {/* Date + rooms — editable or readonly */}
+            {isEditing ? (
+              <>
+                <HotelDateField
+                  className={cn(fieldDivider, "sm:flex-1")}
+                  label="Check-In"
+                  iso={checkInIso}
+                  minIso={localDateInputString(today)}
+                  onIsoChange={(iso) => { setCheckInIso(iso); setCheckOutIso((prev) => (!prev || prev <= iso ? addDaysToIso(iso, 1) : prev)); }}
+                  onAfterSelect={() => requestAnimationFrame(() => openNativeDatePicker(checkOutRef.current))}
+                />
+                <HotelDateField
+                  className={cn(fieldDivider, "sm:flex-1")}
+                  label="Check-Out"
+                  iso={checkOutIso}
+                  minIso={checkOutMin}
+                  inputRef={checkOutRef}
+                  onIsoChange={setCheckOutIso}
+                />
+                <HotelRoomsGuestsField
+                  className="overflow-visible sm:flex-1"
+                  rooms={rooms}
+                  guests={guests}
+                  onRoomsChange={setRooms}
+                  onGuestsChange={setGuests}
+                />
+              </>
+            ) : (
+              <>
+                {[
+                  { icon: <BedDouble className="h-5 w-5" strokeWidth={1.5} aria-hidden />, label: "Check-In",      value: checkInFmt.main,  sub: checkInFmt.sub  },
+                  { icon: <BedDouble className="h-5 w-5" strokeWidth={1.5} aria-hidden />, label: "Check-Out",     value: checkOutFmt.main, sub: checkOutFmt.sub },
+                  { icon: <Users className="h-5 w-5" strokeWidth={1.5} aria-hidden />,     label: "Rooms & Guests", value: roomsGuestsLabel                       },
+                ].map((f, i) => (
+                  <div key={f.label} className={cn("flex min-w-0 items-start gap-3 px-4 py-3.5 sm:flex-1 sm:px-5 sm:py-4", i < 2 && fieldDivider)}>
+                    <span className="mt-0.5 shrink-0 text-[#757575]">{f.icon}</span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9E9E9E]">{f.label}</p>
+                      <p className="mt-0.5 truncate text-[15px] font-bold leading-tight text-[#212121]">{f.value}</p>
+                      {f.sub && <p className="mt-0.5 truncate text-xs text-[#757575]">{f.sub}</p>}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          {isEditing ? (
+            <div className="flex flex-col gap-2 border-t border-slate-100 p-3 sm:flex-row sm:items-center sm:border-l sm:border-t-0 sm:p-3">
+              <button
+                type="button"
+                onClick={exitEditMode}
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl border-2 border-slate-200 bg-white px-5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-white shadow-[0_4px_14px_-4px_rgba(234,88,12,0.5)] transition hover:bg-primary/90"
+              >
+                <Search className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                Update
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center border-t border-slate-100 p-3 sm:border-l sm:border-t-0 sm:p-4">
+              <button
+                type="button"
+                onClick={enterEditMode}
+                className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-[0_4px_14px_-4px_rgba(234,88,12,0.5)] transition hover:bg-primary/90 sm:w-auto sm:px-6"
+              >
+                <Search className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+                Modify Search
+              </button>
+            </div>
           )}
         </div>
-
-        {isEditing ? (
-          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-stretch">
-            <button
-              type="button"
-              onClick={exitEditMode}
-              className="inline-flex shrink-0 items-center justify-center rounded-md border border-[#1976D2] bg-white px-5 py-2.5 text-sm font-semibold text-[#1976D2] transition hover:bg-[#E3F2FD] sm:rounded-none sm:px-4"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-[#1976D2] bg-[#2196F3] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#1976D2] sm:rounded-none sm:rounded-r-md sm:px-6"
-            >
-              <Search className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-              Update
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={enterEditMode}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md border border-[#1976D2] bg-[#2196F3] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#1976D2] sm:rounded-none sm:rounded-r-md sm:px-6"
-          >
-            <Search className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-            Modify Search
-          </button>
-        )}
       </form>
     </section>
   );
@@ -295,32 +286,39 @@ function DetailGallery({
       </button>
 
       <div className="grid min-h-[160px] grid-rows-2 gap-2 sm:min-h-0 sm:gap-2.5">
+        {/* Top-right photo */}
         <button
           type="button"
           onClick={() => onOpenPhoto(indexOf(videoThumb))}
           className="group relative cursor-zoom-in overflow-hidden rounded-lg text-left sm:rounded-tr-xl"
         >
-          <Image src={videoThumb} alt="" fill unoptimized className="object-cover" sizes="30vw" />
-          <div className="absolute inset-0 bg-black/35" />
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-white">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#212121] shadow-md">
-              <Play className="ml-0.5 h-5 w-5 fill-current" aria-hidden />
-            </span>
-            <span className="text-sm font-semibold">Videos({hotel.videoCount})</span>
-          </div>
+          <Image src={videoThumb} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="30vw" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+          {hotel.videoCount > 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-white">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#212121] shadow-md">
+                <Play className="ml-0.5 h-5 w-5 fill-current" aria-hidden />
+              </span>
+              <span className="text-xs font-semibold drop-shadow">{hotel.videoCount} Video{hotel.videoCount !== 1 ? "s" : ""}</span>
+            </div>
+          )}
         </button>
 
+        {/* Bottom-right photo — shows remaining count overlay */}
         <button
           type="button"
           onClick={() => onOpenPhoto(indexOf(roomImg))}
           className="group relative cursor-zoom-in overflow-hidden rounded-lg text-left sm:rounded-br-xl"
         >
-          <Image src={roomImg} alt="" fill unoptimized className="object-cover" sizes="30vw" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-3 py-2 text-white">
-            <span className="text-sm font-semibold">Room({hotel.roomPhotoCount})</span>
-            <ChevronRight className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-          </div>
+          <Image src={roomImg} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="30vw" />
+          {photoCount > 3 ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/45 text-white">
+              <span className="text-2xl font-black">+{photoCount - 3}</span>
+              <span className="mt-0.5 text-xs font-semibold tracking-wide">more photos</span>
+            </div>
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+          )}
         </button>
       </div>
     </div>
