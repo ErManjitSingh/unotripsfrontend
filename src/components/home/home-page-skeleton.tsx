@@ -17,11 +17,11 @@ function SectionShell({
   );
 }
 
-/** Matches `Navbar` ease (~72px) + `HeroSection` (300px) + floating chrome. */
+/** Matches `Navbar` ease (~72px) + `HeroSection` image + search panel + pills. */
 export function NavbarHeroSkeleton() {
   return (
-    <div className="relative mb-24 w-full overflow-visible bg-[#0c0a09] sm:mb-28 md:mb-32">
-      <div className="relative h-[300px] w-full overflow-hidden">
+    <div className="relative w-full overflow-visible bg-[#0c0a09]">
+      <div className="relative h-[520px] w-full overflow-hidden">
         <div className="absolute inset-0 z-0 bg-slate-800" aria-hidden />
         <div
           className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-black/55 via-black/35 to-black/70"

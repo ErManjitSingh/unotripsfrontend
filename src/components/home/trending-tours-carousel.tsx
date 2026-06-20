@@ -2,42 +2,29 @@
 
 import { Children, isValidElement } from "react";
 import { cn } from "@/lib/utils";
-import { Navigation } from "swiper/modules";
 import { Swiper, SwiperSlide } from "swiper/react";
+import type { Swiper as SwiperType } from "swiper";
 import "swiper/css";
-import "swiper/css/navigation";
 
 type Props = {
   children: React.ReactNode;
   className?: string;
+  onSwiper?: (swiper: SwiperType) => void;
 };
 
-/** Booking-style row: up to 4 packages visible on xl; arrows step a full “page”. */
-export function TrendingToursCarousel({ children, className }: Props) {
+/** Booking-style row: up to 4 packages visible on xl; external nav buttons control it. */
+export function TrendingToursCarousel({ children, className, onSwiper }: Props) {
   return (
     <Swiper
-      modules={[Navigation]}
-      navigation
+      onSwiper={onSwiper}
       spaceBetween={16}
-      slidesPerView={1.08}
+      slidesPerView={1.5}
       slidesPerGroup={1}
       watchOverflow
       breakpoints={{
-        640: {
-          slidesPerView: 2,
-          slidesPerGroup: 2,
-          spaceBetween: 14,
-        },
-        1024: {
-          slidesPerView: 3,
-          slidesPerGroup: 3,
-          spaceBetween: 16,
-        },
-        1280: {
-          slidesPerView: 4,
-          slidesPerGroup: 4,
-          spaceBetween: 16,
-        },
+        640: { slidesPerView: 2, slidesPerGroup: 2, spaceBetween: 14 },
+        1024: { slidesPerView: 3, slidesPerGroup: 3, spaceBetween: 16 },
+        1280: { slidesPerView: 4, slidesPerGroup: 4, spaceBetween: 16 },
       }}
       className={cn("trending-packages-swiper", className)}
     >

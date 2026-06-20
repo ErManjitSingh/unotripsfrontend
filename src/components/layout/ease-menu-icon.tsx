@@ -48,7 +48,7 @@ export function EaseMenuIcon({
         role={label ? "img" : undefined}
         aria-label={label}
         aria-hidden={label ? undefined : true}
-        className="block shrink-0 bg-no-repeat mix-blend-multiply"
+        className={cn("block shrink-0 bg-no-repeat", !active && "mix-blend-multiply")}
         style={style}
       />
     </span>

@@ -89,11 +89,10 @@ export function HotelsExclusiveOffers() {
     return out;
   }, [offersQ.data]);
 
-  // Filhal: demo offers jab tak live package offers API se na aayein
   const cards = apiCards.length > 0 ? apiCards.slice(0, 10) : DEMO_EXCLUSIVE_OFFERS;
 
-  const isLoading = false;
-  const isError = false;
+  const isLoading = offersQ.isLoading;
+  const isError = offersQ.isError;
 
   return (
     <section className="border-b border-slate-200/60 bg-gradient-to-b from-white to-orange-50/25 py-12 sm:py-14">
