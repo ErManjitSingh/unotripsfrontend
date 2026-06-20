@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="g" x1="0.2" y1="0" x2="0.8" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#FFD000"/>
+      <stop offset="55%" stop-color="#FF8C00"/>
+      <stop offset="100%" stop-color="#FF4500"/>
+    </linearGradient>
+  </defs>
+
+  <!-- U shape: outer path + inner hollow via evenodd -->
+  <path fill="url(#g)" fill-rule="evenodd" d="
+    M 5,5
+    L 5,62
+    C 5,88 27,96 50,96
+    C 73,96 95,88 95,62
+    L 95,30
+    L 65,5
+    Z
+    M 28,5
+    L 28,60
+    C 28,74 38,76 50,76
+    C 62,76 72,74 72,60
+    L 72,5
+    Z
+  "/>
+
+  <!-- Paper plane: white triangle at top-right notch -->
+  <polygon fill="white" points="65,5 95,5 95,30"/>
+
+  <!-- White swoosh lines inside the U bowl -->
+  <path stroke="white" stroke-width="3.5" stroke-linecap="round" fill="none"
+        d="M 33,76 Q 50,89 67,76"/>
+  <path stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none" opacity="0.65"
+        d="M 37,82 Q 50,94 63,82"/>
+</svg>
