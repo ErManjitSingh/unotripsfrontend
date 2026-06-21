@@ -61,7 +61,10 @@ async function handle(
   devLog(method, target.pathname + target.search);
 
   // POST/PATCH need longer timeout due to Razorpay API calls in booking service
-  const timeoutMs = method === "POST" || method === "PATCH" ? 30_000 : 15_000;
+  // GET uses 60s: featured_image is stored as base64 in DB (~1.7MB per response);
+  // cold calls from local dev to Supabase Singapore can take 20-55s over WAN.
+  // On prod, backend is co-located with DB so cold calls are <500ms.
+  const timeoutMs = method === "POST" || method === "PATCH" ? 30_000 : 60_000;
 
   try {
     const upstream = await fetchBackendWithRetry(

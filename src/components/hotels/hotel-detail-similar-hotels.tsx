@@ -43,8 +43,8 @@ function SimilarHotelCard({ hotel, city }: { hotel: HotelListing; city: HotelCit
         ) : null}
       </div>
 
-      <div className="flex flex-1 flex-col p-3">
-        <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#212121] group-hover:text-[#2196F3]">
+      <div className="flex flex-1 flex-col p-2.5">
+        <h3 className="line-clamp-2 text-[13px] font-bold leading-snug text-[#212121] group-hover:text-[#EF6614]">
           {hotel.name}
         </h3>
         <span className="mt-1 flex items-center gap-0.5" aria-label={`${hotel.stars} stars`}>

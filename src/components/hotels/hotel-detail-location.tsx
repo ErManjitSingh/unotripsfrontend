@@ -45,7 +45,7 @@ export function HotelDetailLocation({
         href={mapsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#2196F3] hover:underline"
+        className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#EF6614] hover:underline"
       >
         Open in Google Maps
         <ExternalLink className="h-3.5 w-3.5" aria-hidden />
@@ -69,7 +69,7 @@ export function HotelDetailLocation({
           <ul className="mt-2 space-y-1.5">
             {nearbyAttractions.map((place) => (
               <li key={place} className="flex items-start gap-2 text-[13px] text-[#424242]">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#2196F3]" aria-hidden />
+                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#EF6614]" aria-hidden />
                 {place}
               </li>
             ))}

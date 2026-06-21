@@ -4,6 +4,15 @@ import Image from "next/image";
 import type { HotelBookingSelection } from "@/lib/hotels-catalog";
 import { cn, formatInrAmount } from "@/lib/utils";
 
+function getMealPlanLabel(packageName: string): string {
+  const n = packageName.toLowerCase();
+  if (n.includes("room only") || n.includes("(ep)")) return "Room Only";
+  if (n.includes("breakfast") && !n.includes("dinner") && !n.includes("lunch")) return "Bed & Breakfast";
+  if (n.includes("map") || (n.includes("breakfast") && n.includes("dinner") && !n.includes("lunch"))) return "Half Board";
+  if (n.includes("full board") || n.includes("(ap)") || (n.includes("lunch") && n.includes("dinner"))) return "Full Board";
+  return packageName.replace(/\s*\([A-Z]+\)\s*/g, "").trim();
+}
+
 type HotelBookingPaymentStepProps = {
   selection: HotelBookingSelection;
   nights: number;
@@ -111,7 +120,7 @@ export function HotelBookingPaymentStep({
           <h2 className="text-sm font-bold uppercase tracking-wide">Booking Summary</h2>
           <p className="mt-2 text-[14px] font-bold text-[#212121]">{hotel.name}</p>
           <p className="mt-1 text-[12px] text-[#616161]">{roomType.name}</p>
-          <p className="text-[12px] text-[#616161]">{ratePlan.packageName}</p>
+          <p className="text-[12px] text-[#616161]">{getMealPlanLabel(ratePlan.packageName)}</p>
           <dl className="mt-3 space-y-1.5 border-t border-[#eee] pt-3 text-[12px]">
             <div className="flex justify-between">
               <dt className="text-[#757575]">Rooms</dt>
@@ -126,9 +135,12 @@ export function HotelBookingPaymentStep({
               <dd>{nights}</dd>
             </div>
           </dl>
-          <div className="mt-3 flex justify-between border-t border-[#eee] pt-3">
-            <span className="font-bold">Amount Payable</span>
-            <span className="text-lg font-bold">₹ {formatInrAmount(grandTotal)}</span>
+          <div className="mt-3 border-t border-[#eee] pt-3">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-[13px]">Amount Payable</span>
+              <span className="text-lg font-bold text-[#EF6614]">₹ {formatInrAmount(grandTotal)}</span>
+            </div>
+            <p className="mt-1 text-[10px] text-[#2E7D32]">✓ Confirmed · Incl. all taxes &amp; fees</p>
           </div>
         </section>
       </aside>
