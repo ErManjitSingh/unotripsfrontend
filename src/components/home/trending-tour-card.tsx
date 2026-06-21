@@ -152,7 +152,7 @@ export function TrendingTourCard({ tour }: { tour: TourPackage }) {
         className="flex flex-1 flex-col gap-1.5 p-3 outline-none focus-visible:ring-2 focus-visible:ring-primary/30 sm:p-3.5"
       >
         {/* Title */}
-        <h3 className="line-clamp-2 text-left text-[15px] font-bold leading-snug text-slate-900 group-hover:underline sm:text-base">
+        <h3 className="truncate text-left text-[15px] font-bold leading-snug text-slate-900 sm:text-base">
           {tour.title}
         </h3>
 

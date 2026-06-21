@@ -8,7 +8,6 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import {
   Accessibility,
-  BedDouble,
   Car,
   Check,
   ChevronLeft,
@@ -17,8 +16,6 @@ import {
   Dumbbell,
   Heart,
   ImageOff,
-  Tag,
-  Users,
   Waves,
   Wifi,
   type LucideIcon,
@@ -47,7 +44,6 @@ function amenityIcon(name: string): LucideIcon {
   if (/room.service|concierge/.test(n)) return ConciergeBell;
   if (/wheelchair|accessible/.test(n)) return Accessibility;
   if (/gym|fitness|workout/.test(n)) return Dumbbell;
-  if (/bed|king|queen/.test(n)) return BedDouble;
   return Check;
 }
 
@@ -60,14 +56,6 @@ function amenityLabel(name: string): string {
   if (/wheelchair|accessible/.test(n)) return "Wheelchair Access";
   if (/gym|fitness/.test(n)) return "Gym";
   return name;
-}
-
-function bedLabel(roomType: string): string {
-  const t = roomType.toLowerCase();
-  if (t.includes("king")) return "1 king bed";
-  if (t.includes("twin")) return "2 twin beds";
-  if (t.includes("double")) return "1 double bed";
-  return "1 comfortable bed";
 }
 
 function stopParentSwipe(e: React.SyntheticEvent) {
@@ -95,9 +83,6 @@ export function HotelGridCard({ hotel }: HotelGridCardProps) {
     [hotel.originalPrice, hotel.price],
   );
   const savings = Math.max(0, hotel.originalPrice - hotel.price);
-
-  const roomTitle =
-    hotel.defaultRoomType !== "Room" ? hotel.defaultRoomType : "Standard Double Room";
   const showLastRoom = hotel.dealOfDay || hotel.roomOptionsCount <= 1;
 
   // Show max 3 amenity pills + overflow count
@@ -214,19 +199,16 @@ export function HotelGridCard({ hotel }: HotelGridCardProps) {
 
       {/* Card body */}
       <div className="flex flex-1 flex-col">
-        {/* Title row */}
-        <div className="px-4 pt-4">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="line-clamp-1 text-[15px] font-bold leading-snug text-[#212121]">
-              {roomTitle}
-            </h3>
-          </div>
-          <p className="mt-1 line-clamp-1 text-[12px] text-[#757575]">{hotel.name}</p>
+        {/* Hotel name — main highlight */}
+        <div className="px-4 pt-3">
+          <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-[#212121]">
+            {hotel.name}
+          </h3>
         </div>
 
         {/* Amenity pills — single non-wrapping row */}
         {shownAmenities.length > 0 && (
-          <div className="mx-4 mt-3 flex min-w-0 items-center gap-x-3 overflow-hidden border-t border-[#f0f0f0] pt-3">
+          <div className="mx-4 mt-2 flex min-w-0 items-center gap-x-3 overflow-hidden border-t border-[#f0f0f0] pt-2">
             {shownAmenities.map((item) => {
               const Icon = amenityIcon(item);
               return (
@@ -247,76 +229,47 @@ export function HotelGridCard({ hotel }: HotelGridCardProps) {
           </div>
         )}
 
-        {/* "Lowest price available!" banner */}
-        <div className="mx-4 mt-3 flex items-center gap-2 rounded-lg bg-[#fff4f0] px-3 py-2">
-          <Tag className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
-          <span className="text-[12px] font-bold text-primary">Lowest price available!</span>
-        </div>
-
-        {/* Pricing details */}
-        <div className="mx-4 mt-3 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold text-[#212121]">
-              Lowest price per night
-            </span>
-            {discount !== null && (
-              <span className="text-[10px] font-semibold text-[#e12d2d]">
-                Best price today!
-              </span>
-            )}
-          </div>
-
-          <p className="flex items-center gap-1.5 text-[12px] text-[#555]">
-            <Users className="h-3.5 w-3.5 text-[#888]" aria-hidden />
-            2 adults
-            <span className="text-[#ccc]">•</span>
-            <BedDouble className="h-3.5 w-3.5 text-[#888]" aria-hidden />
-            {bedLabel(roomTitle)}
-          </p>
-
-          <div className="flex items-center gap-4 text-[11px] text-[#555]">
-            <span className="flex items-center gap-1">
-              <Check className="h-3.5 w-3.5 text-[#008009]" strokeWidth={2.5} aria-hidden />
-              {hotel.freeCancellation ? "Free cancellation" : "Non-refundable (Low price)"}
-            </span>
-            <span className="flex items-center gap-1">
-              <Check className="h-3.5 w-3.5 text-[#008009]" strokeWidth={2.5} aria-hidden />
-              Book and pay now
-            </span>
-          </div>
-
-          {/* Price row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+        {/* Pricing pod */}
+        <div className="mx-3 mt-2 rounded-xl border border-[#ebebeb] bg-[#fdf9f7] px-3.5 py-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-[#b8b8b8]">
+                Starting from
+              </p>
+              <p className="mt-0.5 text-[21px] font-extrabold leading-none text-primary">
+                ₹{formatInrAmount(hotel.price)}
+                <span className="ml-1 text-[11px] font-medium text-[#c0c0c0]">/night</span>
+              </p>
+              <p className="mt-1 text-[10px] text-[#c8c8c8]">
+                + ₹{formatInrAmount(hotel.taxes)} taxes &amp; fees
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1.5 pt-0.5">
               {discount !== null && (
-                <>
-                  <span className="text-[12px] text-[#9e9e9e] line-through">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-[#c0c0c0] line-through">
                     ₹{formatInrAmount(hotel.originalPrice)}
                   </span>
-                  <span className="rounded bg-[#e12d2d] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  <span className="rounded-[4px] bg-[#e12d2d] px-1.5 py-0.5 text-[10px] font-extrabold text-white">
                     -{discount}%
                   </span>
-                </>
+                </div>
+              )}
+              {savings > 0 && (
+                <div className="flex items-center gap-1 rounded-md bg-[#f0faf1] px-2 py-1 text-[10px] font-bold text-[#1a7a2e]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#1a7a2e]" aria-hidden />
+                  Save ₹{formatInrAmount(savings)}
+                </div>
               )}
             </div>
-            {savings > 0 && (
-              <span className="rounded bg-[#e8f5e9] px-2 py-0.5 text-[11px] font-bold text-[#008009]">
-                You save ₹{formatInrAmount(savings)}
-              </span>
-            )}
           </div>
-
-          <p className="text-[24px] font-bold leading-none text-primary">
-            ₹{formatInrAmount(hotel.price)}
-          </p>
-          <p className="text-[12px] text-[#9e9e9e]">+ ₹{formatInrAmount(hotel.taxes)} taxes</p>
         </div>
 
-        {/* Book button row */}
-        <div className="mt-auto border-t border-[#eee] p-4">
+        {/* Book button */}
+        <div className="mt-auto px-3 pb-3 pt-2.5">
           <Link
             href={href}
-            className="flex w-full items-center justify-center rounded-lg bg-primary py-3 text-sm font-bold text-white transition hover:bg-primary/90"
+            className="flex w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#e8651c] to-[#c94e0a] py-3 text-[13px] font-extrabold tracking-wide text-white shadow-[0_3px_10px_rgba(201,78,10,0.38)] transition active:scale-[0.98] active:brightness-95 hover:shadow-[0_5px_16px_rgba(201,78,10,0.48)] hover:brightness-105"
           >
             Book Now
           </Link>

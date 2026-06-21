@@ -7,7 +7,7 @@ import { HotelsExclusiveOffers } from "@/components/hotels/hotels-exclusive-offe
 import { HotelsPopularDestinationsSection } from "@/components/hotels/hotels-popular-destinations-section";
 import { HotelsPopularHotelsSection } from "@/components/hotels/hotels-popular-hotels-section";
 import { HotelsPageCta } from "@/components/hotels/hotels-page-cta";
-import { fetchHotelDestinations } from "@/lib/hotels-api";
+import { fetchFeaturedHotels, fetchHotelDestinations } from "@/lib/hotels-api";
 import { hotelHref, toHotelDestinationOptions } from "@/lib/hotels-catalog";
 import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
 
@@ -24,8 +24,12 @@ export const metadata: Metadata = {
 };
 
 export default async function HotelsPage() {
-  const destinations = await fetchHotelDestinations();
+  const [destinations, featuredHotels] = await Promise.all([
+    fetchHotelDestinations(),
+    fetchFeaturedHotels(),
+  ]);
   const first = destinations[0];
+  const ctaHotel = featuredHotels[0] ?? null;
 
   return (
     <>
@@ -46,7 +50,7 @@ export default async function HotelsPage() {
             }
           />
           <HotelsExclusiveOffers />
-          <HotelsPageCta />
+          <HotelsPageCta hotel={ctaHotel} />
         </div>
       </main>
       <Footer />

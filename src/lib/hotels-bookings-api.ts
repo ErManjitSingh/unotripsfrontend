@@ -79,9 +79,11 @@ export async function fetchHotelBookingById(
 export async function createHotelBooking(
   accessToken: string,
   payload: CreateBookingPayload,
+  extraHeaders?: Record<string, string>,
 ): Promise<BookingWithOrder> {
   return apiDataWithAuth<BookingWithOrder>("/v1/bookings", accessToken, {
     method: "POST",
+    headers: extraHeaders,
     body: JSON.stringify({
       ...payload,
       children: payload.children ?? 0,
