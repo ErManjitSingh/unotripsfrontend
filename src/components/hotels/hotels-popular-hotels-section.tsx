@@ -1,12 +1,12 @@
 import { HotelsPopularHotelsPreview } from "@/components/hotels/hotels-popular-hotels-preview";
-import { fetchAllHotels } from "@/lib/hotels-api";
+import { fetchFeaturedHotels } from "@/lib/hotels-api";
 
 type HotelsPopularHotelsSectionProps = {
   viewMoreHref: string;
 };
 
 export async function HotelsPopularHotelsSection({ viewMoreHref }: HotelsPopularHotelsSectionProps) {
-  const { hotels } = await fetchAllHotels(50);
+  const hotels = await fetchFeaturedHotels();
 
   if (!hotels.length) {
     return (

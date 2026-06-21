@@ -127,7 +127,7 @@ export function HotelWriteReviewPanel({
       <div
         id="write-review"
         className={cn(
-          "scroll-mt-24 flex items-center gap-2 rounded-xl border border-[#e0e0e0] bg-[#fafafa] p-5 text-sm text-[#757575]",
+          "scroll-mt-24 flex items-center gap-2 rounded-lg border border-[#f0f0f0] bg-[#fafafa] p-4 text-sm text-[#9E9E9E]",
           className,
         )}
       >
@@ -142,39 +142,38 @@ export function HotelWriteReviewPanel({
       <div
         id="write-review"
         className={cn(
-          "scroll-mt-24 rounded-xl border border-[#BBDEFB] bg-gradient-to-br from-[#E3F2FD] to-white p-5 sm:p-6",
+          "scroll-mt-24 rounded-lg border border-[#f0f0f0] bg-[#fafafa] p-5 sm:p-6",
           className,
         )}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2196F3] text-white">
-              <LogIn className="h-5 w-5" aria-hidden />
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#212121] text-white">
+              <LogIn className="h-4 w-4" aria-hidden />
             </span>
             <div>
-              <h3 className="text-base font-bold text-[#1565C0]">Write a review</h3>
-              <p className="mt-1 text-[13px] leading-relaxed text-[#424242]">
-                Login to share your stay experience at {hotel.name}. Only guests who completed a
-                booking can submit a review.
+              <h3 className="text-[14px] font-bold text-[#212121]">Write a review</h3>
+              <p className="mt-1 text-[12px] leading-relaxed text-[#757575]">
+                Login to share your stay experience. Only guests who completed a booking can submit a review.
               </p>
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             <Link
               href={`/login?redirect=${encodeURIComponent(loginReturnUrl)}`}
-              className="inline-flex items-center justify-center rounded-lg bg-[#2196F3] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#1976D2]"
+              className="inline-flex items-center justify-center rounded-lg bg-[#212121] px-5 py-2 text-[13px] font-bold text-white transition hover:bg-[#333]"
             >
               Login
             </Link>
             <Link
               href={`/signup?redirect=${encodeURIComponent(loginReturnUrl)}`}
-              className="inline-flex items-center justify-center rounded-lg border border-[#2196F3] bg-white px-5 py-2.5 text-sm font-bold text-[#2196F3] transition hover:bg-[#f5f9ff]"
+              className="inline-flex items-center justify-center rounded-lg border border-[#d5d5d5] bg-white px-5 py-2 text-[13px] font-bold text-[#212121] transition hover:border-[#212121]"
             >
               Sign up
             </Link>
           </div>
         </div>
-      </div>
+</div>
     );
   }
 
@@ -235,13 +234,13 @@ export function HotelWriteReviewPanel({
     <div
       id="write-review"
       className={cn(
-        "scroll-mt-24 rounded-xl border border-[#e0e0e0] bg-[#fafafa] p-5 sm:p-6",
+        "scroll-mt-24 rounded-lg border border-[#f0f0f0] bg-[#fafafa] p-5 sm:p-6",
         className,
       )}
     >
-      <h3 className="text-base font-bold text-[#212121]">Write a review</h3>
-      <p className="mt-1 text-[13px] text-[#616161]">
-        Signed in as <strong>{auth.user?.name || auth.user?.email || "Guest"}</strong>
+      <h3 className="text-[14px] font-bold text-[#212121]">Write a review</h3>
+      <p className="mt-1 text-[12px] text-[#9E9E9E]">
+        Signed in as <span className="font-semibold text-[#424242]">{auth.user?.name || auth.user?.email || "Guest"}</span>
       </p>
 
       {bookingsLoading ? (
@@ -250,24 +249,23 @@ export function HotelWriteReviewPanel({
           Loading your stays…
         </p>
       ) : bookings.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-[#ccc] bg-white p-4 text-[13px] text-[#616161]">
-          <p className="font-semibold text-[#212121]">No completed stay found for this hotel</p>
+        <div className="mt-4 rounded-lg border border-dashed border-[#e0e0e0] bg-white p-4 text-[12px] text-[#9E9E9E]">
+          <p className="font-semibold text-[#424242]">No completed stay found for this hotel</p>
           <p className="mt-1">
-            You can review this property after a confirmed booking and checkout. Book a room first,
-            then come back here to share feedback.
+            You can review this property after a confirmed booking and checkout.
           </p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label htmlFor="review-booking" className="text-[12px] font-semibold text-[#424242]">
+            <label htmlFor="review-booking" className="text-[12px] font-semibold text-[#616161]">
               Your stay
             </label>
             <select
               id="review-booking"
               value={bookingId}
               onChange={(e) => setBookingId(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-[#e0e0e0] bg-white px-3 py-2.5 text-sm text-[#212121] outline-none focus:border-[#2196F3] focus:ring-1 focus:ring-[#2196F3]"
+              className="mt-1.5 w-full rounded-lg border border-[#e0e0e0] bg-white px-3 py-2.5 text-sm text-[#212121] outline-none focus:border-[#212121] focus:ring-1 focus:ring-[#21212120]"
             >
               {bookings.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -278,14 +276,14 @@ export function HotelWriteReviewPanel({
           </div>
 
           <div>
-            <p className="text-[12px] font-semibold text-[#424242]">Your rating</p>
+            <p className="text-[12px] font-semibold text-[#616161]">Your rating</p>
             <div className="mt-1.5">
               <InteractiveStarRating value={rating} onChange={setRating} />
             </div>
           </div>
 
           <div>
-            <label htmlFor="review-title" className="text-[12px] font-semibold text-[#424242]">
+            <label htmlFor="review-title" className="text-[12px] font-semibold text-[#616161]">
               Review title
             </label>
             <input
@@ -295,12 +293,12 @@ export function HotelWriteReviewPanel({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Summarize your experience"
-              className="mt-1.5 w-full rounded-lg border border-[#e0e0e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#2196F3] focus:ring-1 focus:ring-[#2196F3]"
+              className="mt-1.5 w-full rounded-lg border border-[#e0e0e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#212121] focus:ring-1 focus:ring-[#21212120]"
             />
           </div>
 
           <div>
-            <label htmlFor="review-comment" className="text-[12px] font-semibold text-[#424242]">
+            <label htmlFor="review-comment" className="text-[12px] font-semibold text-[#616161]">
               Your review
             </label>
             <textarea
@@ -310,7 +308,7 @@ export function HotelWriteReviewPanel({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="What did you like? How was the room, service, and location?"
-              className="mt-1.5 w-full resize-y rounded-lg border border-[#e0e0e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#2196F3] focus:ring-1 focus:ring-[#2196F3]"
+              className="mt-1.5 w-full resize-y rounded-lg border border-[#e0e0e0] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#212121] focus:ring-1 focus:ring-[#21212120]"
             />
           </div>
 

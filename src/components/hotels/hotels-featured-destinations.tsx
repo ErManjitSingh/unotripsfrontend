@@ -155,9 +155,15 @@ export function HotelsFeaturedDestinations() {
   }, [next, isPaused]);
 
   useEffect(() => {
-    if (!thumbRef.current) return;
-    const el = thumbRef.current.children[active] as HTMLElement | undefined;
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    const container = thumbRef.current;
+    if (!container) return;
+    const el = container.children[active] as HTMLElement | undefined;
+    if (!el) return;
+    // Scroll only the thumbnail strip — never the page
+    container.scrollTo({
+      left: el.offsetLeft - container.offsetWidth / 2 + el.offsetWidth / 2,
+      behavior: "smooth",
+    });
   }, [active]);
 
   const handlePrev = () => { prev(); resetTimer(); };
