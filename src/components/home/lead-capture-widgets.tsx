@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Phone, MessageCircle, ChevronRight, User, MapPin, Send, Bot } from "lucide-react";
 import { useRef } from "react";
 
-const WHATSAPP_NUMBER = "919999999999";
+const WHATSAPP_NUMBER = "918353096965";
 const WHATSAPP_MSG = "Hi! I'm interested in booking a trip. Can you help me?";
 const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MSG)}`;
 
@@ -273,7 +273,7 @@ function StickyMobileBar() {
 
         {/* Call pill */}
         <a
-          href="tel:+919999999999"
+          href="tel:+918353096965"
           className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-[12px] font-bold text-white shadow-[0_4px_12px_rgba(234,88,12,0.35)] transition active:brightness-90"
         >
           <Phone className="h-4 w-4" strokeWidth={2} />
@@ -404,7 +404,7 @@ const BOT_RESPONSES: { keywords: string[]; reply: string }[] = [
   },
   {
     keywords: ["expert", "agent", "call", "talk", "support", "help", "human"],
-    reply: `Our travel experts are available 24/7. 📞 Call us: +91 99999 99999 or WhatsApp us now! <a href="${whatsappHref}" target="_blank" class="underline font-semibold">Chat on WhatsApp →</a>`,
+    reply: `Our travel experts are available 24/7. 📞 Call us: +91 83530 96965 or WhatsApp us now! <a href="${whatsappHref}" target="_blank" class="underline font-semibold">Chat on WhatsApp →</a>`,
   },
   {
     keywords: ["goa"],
@@ -428,7 +428,7 @@ const BOT_RESPONSES: { keywords: string[]; reply: string }[] = [
   },
   {
     keywords: ["hi", "hello", "hey", "namaste"],
-    reply: "Hey there! 👋 I'm Voya, your personal travel assistant from UNO Trips. I can help you find packages, check prices, or connect you with an expert. What are you looking for?",
+    reply: "Hey there! 👋 I'm Prana AI, your personal travel assistant from UNO Trips. I can help you find packages, check prices, or connect you with an expert. What are you looking for?",
   },
 ];
 
@@ -437,13 +437,13 @@ function getBotReply(input: string): string {
   for (const { keywords, reply } of BOT_RESPONSES) {
     if (keywords.some((k) => lower.includes(k))) return reply;
   }
-  return "Great question! 🤔 I'll connect you with one of our travel experts who can help you better. You can also call us at +91 99999 99999 or browse our packages above!";
+  return "Great question! 🤔 I'll connect you with one of our travel experts who can help you better. You can also call us at +91 83530 96965 or browse our packages above!";
 }
 
 function ChatbotWidget() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { from: "bot", text: "Hey! 👋 I'm Voya, your UNO Trips travel assistant. Ask me anything about packages, pricing or bookings!" },
+    { from: "bot", text: "Hey! 👋 I'm Prana AI, your UNO Trips travel assistant. Ask me anything about packages, pricing or bookings!" },
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
@@ -477,7 +477,7 @@ function ChatbotWidget() {
               <Bot className="h-5 w-5 text-white" strokeWidth={1.8} />
             </div>
             <div className="flex-1">
-              <p className="text-[13px] font-bold text-white">Voya · UNO Trips</p>
+              <p className="text-[13px] font-bold text-white">Prana AI · UNO Trips</p>
               <div className="flex items-center gap-1">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                 <span className="text-[10px] text-white/80">Online · replies instantly</span>
