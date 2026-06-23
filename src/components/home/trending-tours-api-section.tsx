@@ -43,12 +43,14 @@ import { TrendingTours }              from "@/components/home/TrendingTours";
 import { ApiState }                   from "@/components/ui/api-state";
 import { TrendingToursSectionSkeleton } from "@/components/home/home-page-skeleton";
 import { useFeaturedPackages }        from "@/hooks/use-packages";
+import type { PaginatedPackages }     from "@/services/packages";
 
-export function TrendingToursApiSection() {
-  // ONE query — no parallel duplicate.
-  // useFeaturedPackages calls listPackages({ sort: "featured", limit: 12 })
-  // React Query staleTime: 5 min — no refetch on tab switch or remount.
-  const { data, isLoading, isError, refetch } = useFeaturedPackages(4);
+interface Props {
+  initialData?: PaginatedPackages | null;
+}
+
+export function TrendingToursApiSection({ initialData }: Props) {
+  const { data, isLoading, isError, refetch } = useFeaturedPackages(4, initialData ?? undefined);
 
   const tours = data?.items ?? [];
 

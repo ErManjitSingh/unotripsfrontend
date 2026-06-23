@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import { Suspense } from "react";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
@@ -11,6 +12,8 @@ import {
 } from "@/components/home/home-async-sections";
 import { HomeHotelsSection } from "@/components/home/home-hotels-section";
 import { TrendingToursApiSection } from "@/components/home/trending-tours-api-section";
+import { fetchAllHotels } from "@/lib/hotels-api";
+import { listPackages } from "@/services/packages";
 import {
   BlogPreviewSectionSkeleton,
   SummerEscapesSkeleton,
@@ -28,6 +31,18 @@ import { LeadCaptureWidgets } from "@/components/home/lead-capture-widgets";
 
 export const dynamic = "force-dynamic";
 
+const getHomepageHotels = unstable_cache(
+  () => fetchAllHotels(4),
+  ["homepage-hotels-4"],
+  { revalidate: 300 },
+);
+
+const getHomepagePackages = unstable_cache(
+  () => listPackages({ sort: "featured", limit: 4 }),
+  ["homepage-packages-4"],
+  { revalidate: 300 },
+);
+
 export const metadata: Metadata = {
   title: "UNO Trips — Travel Made Simple | Best Tour & Holiday Packages",
   description:
@@ -39,7 +54,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [hotelsData, packagesData] = await Promise.all([
+    getHomepageHotels().catch(() => null),
+    getHomepagePackages().catch(() => null),
+  ]);
+
   return (
     <>
       <main>
@@ -59,8 +79,8 @@ export default function HomePage() {
             <Suspense fallback={<SummerEscapesSkeleton />}>
               <SummerEscapesWithCounts />
             </Suspense>
-            <TrendingToursApiSection />
-            <HomeHotelsSection />
+            <TrendingToursApiSection initialData={packagesData} />
+            <HomeHotelsSection initialData={hotelsData} />
             <WhyChooseUs />
             <div className="py-5 sm:py-6">
               <SpecialOffers />

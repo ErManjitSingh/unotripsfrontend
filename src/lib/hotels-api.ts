@@ -551,7 +551,17 @@ export async function fetchFeaturedHotels(): Promise<HotelListing[]> {
 export async function fetchAllHotels(
   limit = 50,
 ): Promise<{ hotels: HotelListing[]; total: number }> {
-  return searchHotels({ page: 1, limit, sort: "popular" });
+  const q = new URLSearchParams({
+    page: "1",
+    limit: String(limit),
+    sort: "popular",
+  });
+  const raw = await apiFetch<ApiHotelSearchResponse>(
+    `/v1/hotels/search?${q.toString()}`,
+    { next: { revalidate: 300 } },
+  );
+  if (!raw?.hotels) return { hotels: [], total: 0 };
+  return { hotels: raw.hotels.map(mapApiHotelToListing), total: raw.total };
 }
 
 export async function fetchPopularDestinations(): Promise<ApiDestination[]> {
