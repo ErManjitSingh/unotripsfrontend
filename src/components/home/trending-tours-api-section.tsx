@@ -48,7 +48,7 @@ export function TrendingToursApiSection() {
   // ONE query — no parallel duplicate.
   // useFeaturedPackages calls listPackages({ sort: "featured", limit: 12 })
   // React Query staleTime: 5 min — no refetch on tab switch or remount.
-  const { data, isLoading, isError, refetch } = useFeaturedPackages(12);
+  const { data, isLoading, isError, refetch } = useFeaturedPackages(4);
 
   const tours = data?.items ?? [];
 

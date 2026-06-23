@@ -41,10 +41,17 @@ function getMealPlanLabel(packageName: string): string {
   return packageName.replace(/\s*\([A-Z]+\)\s*/g, "").trim();
 }
 
+const PLAN_SUFFIX_TO_MEALS: Record<string, string | null> = {
+  ep:  null,
+  cp:  "breakfast",
+  map: "breakfast,dinner",
+  ap:  "breakfast,lunch,dinner",
+};
+
 function mealPlanPayloadFromRatePlan(ratePlan: HotelRoomRatePlan) {
   const suffix = ratePlan.id.split("-").pop() ?? "ep";
   return {
-    meal_plan: suffix === "ep" ? null : suffix,
+    meal_plan: PLAN_SUFFIX_TO_MEALS[suffix] ?? null,
     meal_plan_label: ratePlan.packageName,
     meal_plan_price: ratePlan.mealAddOn,
   };
@@ -176,7 +183,6 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const [processing, setProcessing] = useState(false);
   const [bookingRef, setBookingRef] = useState("");
   const [apiBooking, setApiBooking] = useState<BookingWithOrder | null>(null);
-  const [confirmedPrice, setConfirmedPrice] = useState<number | null>(null);
   const [apiBookingId, setApiBookingId] = useState<string | null>(
     () => searchParams.get("booking_id"),
   );
@@ -207,7 +213,6 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const holdExpired = holdSec === 0;
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const idempotencyKeyRef = useRef(crypto.randomUUID());
-  const autoBookingAttempted = useRef(false);
 
   useEffect(() => {
     if (countdownRef.current) clearInterval(countdownRef.current);
@@ -372,57 +377,6 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     // eslint-disable-next-line react-hooks/exhaustive-deps — intentionally runs only when auth.user changes
   }, [auth?.user]);
 
-  // ── Auto-create booking on load to get the real API price (avoids estimate mismatch) ──
-  useEffect(() => {
-    if (autoBookingAttempted.current || !auth?.isAuthenticated || !auth?.user || !selection || confirmedPrice !== null || apiBooking) return;
-
-    const token = auth.getAccessToken();
-    if (!token) return;
-
-    const nameParts = (auth.user.name || "").trim().split(/\s+/);
-    const fName = nameParts[0];
-    const userEmail = auth.user.email || "";
-    const userPhone = (auth.user.phone || "").replace(/\D/g, "").slice(-10);
-    if (!fName || !userEmail || userPhone.length < 10) return;
-
-    const ci = localCheckIn || checkInIso;
-    const co = localCheckOut || checkOutIso;
-    if (!ci || !co) return;
-
-    autoBookingAttempted.current = true;
-    let cancelled = false;
-
-    void createHotelBooking(token, {
-      hotel_id: selection.hotel.id,
-      room_type_id: selection.roomType.id,
-      check_in: ci,
-      check_out: co,
-      adults: displayAdults + childrenAges.filter((a) => a >= 12).length,
-      children: localChildren,
-      children_ages: childrenAges,
-      rooms: displayRooms,
-      guest: {
-        first_name: fName,
-        last_name: nameParts.slice(1).join(" ") || fName,
-        email: userEmail,
-        phone: userPhone,
-        country_code: "+91",
-      },
-      ...mealPlanPayloadFromRatePlan(selection.ratePlan),
-    }, { "X-Idempotency-Key": idempotencyKeyRef.current })
-      .then((created) => {
-        if (cancelled) return;
-        setConfirmedPrice(created.total_amount);
-        if (auth.user?.id) upsertCachedBooking(auth.user.id, created);
-        // Reset key so "Proceed" creates a fresh booking with the user's actual form details
-        idempotencyKeyRef.current = crypto.randomUUID();
-      })
-      .catch(() => { /* silently fail — estimate shown as fallback */ });
-
-    return () => { cancelled = true; };
-  // Only re-run when auth status changes — autoBookingAttempted guards against re-runs
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth?.isAuthenticated, auth?.user]);
 
   const persistPendingCheckout = useCallback(
     (bookingId?: string) => {
@@ -494,14 +448,16 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const extraBedAvailable = roomType.extraBedPrice != null;
   const extraBedPricePerNight = roomType.extraBedPrice ?? 0;
   const chargeableChildCount = childrenAges.filter((a) => a >= 6 && a <= 11).length;
+  const roomBasePriceForChild = ratePlan.roomBasePrice ?? 0;
   const estimatedChildCharges = chargeableChildCount > 0
     ? extraBedAvailable
       ? Math.round(extraBedPricePerNight * chargeableChildCount * displayNights)
-      : Math.round((ratePlan.roomBasePrice ?? 0) * 0.5 * chargeableChildCount * displayNights)
+      : Math.round(roomBasePriceForChild * 0.5 * chargeableChildCount * displayNights)
     : 0;
+  const childChargeUnknown = chargeableChildCount > 0 && !extraBedAvailable && roomBasePriceForChild === 0;
   // Warning: children aged 6-11 but room doesn't offer extra bed
   const extraBedWarning = chargeableChildCount > 0 && !extraBedAvailable
-    ? `Extra bed not available for this room. Consider adding another room for ${chargeableChildCount} child${chargeableChildCount > 1 ? "ren" : ""} (age 6-11).`
+    ? `Extra bed not listed for this room. Child charges (age 6–11) will be confirmed at check-in by the hotel.`
     : null;
   // Warning: total occupancy exceeds capacity
   const occupancyExceeded = adultEquivalent > maxOccupancy * displayRooms && neededRooms > availableRoomCount;
@@ -517,7 +473,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const taxes = ratePlan.taxes * displayNights * displayRooms;
   const discount = ratePlan.discountAmount * displayNights * displayRooms;
   const estimatedTotal = roomTotal + taxes - discount + estimatedChildCharges;
-  const payTotal = apiBooking?.total_amount ?? confirmedPrice ?? estimatedTotal;
+  const payTotal = apiBooking?.total_amount ?? estimatedTotal;
 
   const guestFullName = `${title} ${firstName} ${lastName}`.trim();
 
@@ -1353,10 +1309,10 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                     <div className="flex items-center justify-between rounded-xl bg-[#fafafa] px-3 py-2.5">
                       <div>
                         <p className="text-[12px] font-bold text-[#1a1a1a]">
-                          {(apiBooking || confirmedPrice) ? "Amount Payable" : "Est. Total"}
+                          {apiBooking ? "Amount Payable" : "Est. Total"}
                         </p>
                         <p className="text-[10px] text-[#9E9E9E]">
-                          {(apiBooking || confirmedPrice) ? "Confirmed · incl. taxes & fees" : "Calculating…"}
+                          {apiBooking ? "Confirmed · incl. taxes & fees" : "Estimated · incl. taxes & fees"}
                         </p>
                       </div>
                       <p className="text-[26px] font-extrabold leading-none text-[#EF6614]">₹{formatInrAmount(payTotal)}</p>

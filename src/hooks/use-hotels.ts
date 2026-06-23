@@ -21,6 +21,7 @@ export function useAllHotels(limit = 50) {
   return useQuery({
     queryKey: ["hotels", "all", limit],
     queryFn: () => getAllHotels(limit),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

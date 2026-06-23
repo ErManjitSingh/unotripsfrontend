@@ -8,14 +8,13 @@ import { HeroPromoBanner } from "@/components/home/hero-promo-banner";
 import {
   BlogPreviewSection,
   TestimonialsSection,
-  TrendingToursSection,
 } from "@/components/home/home-async-sections";
 import { HomeHotelsSection } from "@/components/home/home-hotels-section";
+import { TrendingToursApiSection } from "@/components/home/trending-tours-api-section";
 import {
   BlogPreviewSectionSkeleton,
   SummerEscapesSkeleton,
   TestimonialsSectionSkeleton,
-  TrendingToursSectionSkeleton,
 } from "@/components/home/home-page-skeleton";
 import { SummerEscapesWithCounts } from "@/components/home/summer-escapes-with-counts";
 import { WhyChooseUs } from "@/components/home/WhyChooseUs";
@@ -60,12 +59,8 @@ export default function HomePage() {
             <Suspense fallback={<SummerEscapesSkeleton />}>
               <SummerEscapesWithCounts />
             </Suspense>
-            <Suspense fallback={<TrendingToursSectionSkeleton />}>
-              <TrendingToursSection />
-            </Suspense>
-            <Suspense fallback={<SummerEscapesSkeleton />}>
-              <HomeHotelsSection />
-            </Suspense>
+            <TrendingToursApiSection />
+            <HomeHotelsSection />
             <WhyChooseUs />
             <div className="py-5 sm:py-6">
               <SpecialOffers />
