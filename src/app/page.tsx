@@ -54,10 +54,19 @@ export const metadata: Metadata = {
   },
 };
 
+// Race each server-side fetch against a 3-second deadline.
+// If the backend is slow (DB cold, Redis miss), we return null and let
+// the client components fetch on their own — page never blocks past 3s.
+// When the backend IS fast (Redis hit), data arrives well within 3s and
+// is passed as initialData → page renders with content, no skeleton.
+function withTimeout<T>(p: Promise<T | null>, ms: number): Promise<T | null> {
+  return Promise.race([p, new Promise<null>((res) => setTimeout(() => res(null), ms))]);
+}
+
 export default async function HomePage() {
   const [hotelsData, packagesData] = await Promise.all([
-    getHomepageHotels().catch(() => null),
-    getHomepagePackages().catch(() => null),
+    withTimeout(getHomepageHotels().catch(() => null), 3000),
+    withTimeout(getHomepagePackages().catch(() => null), 3000),
   ]);
 
   // Only hydrate client components when server actually got real data.
