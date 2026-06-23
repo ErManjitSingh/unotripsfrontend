@@ -60,6 +60,12 @@ export default async function HomePage() {
     getHomepagePackages().catch(() => null),
   ]);
 
+  // Only hydrate client components when server actually got real data.
+  // If the server fetch failed or returned empty, pass undefined so the
+  // client component falls back to its own React Query fetch.
+  const hotelsInitial   = (hotelsData?.hotels?.length   ?? 0) > 0 ? hotelsData   : undefined;
+  const packagesInitial = (packagesData?.items?.length  ?? 0) > 0 ? packagesData : undefined;
+
   return (
     <>
       <main>
@@ -79,8 +85,8 @@ export default async function HomePage() {
             <Suspense fallback={<SummerEscapesSkeleton />}>
               <SummerEscapesWithCounts />
             </Suspense>
-            <TrendingToursApiSection initialData={packagesData} />
-            <HomeHotelsSection initialData={hotelsData} />
+            <TrendingToursApiSection initialData={packagesInitial} />
+            <HomeHotelsSection initialData={hotelsInitial} />
             <WhyChooseUs />
             <div className="py-5 sm:py-6">
               <SpecialOffers />
