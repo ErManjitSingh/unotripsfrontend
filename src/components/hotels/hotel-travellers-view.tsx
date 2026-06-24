@@ -118,7 +118,7 @@ function clearDraft(key: string): void {
 }
 
 // ── Booking hold countdown (must match backend PENDING_EXPIRES_MINUTES) ──────
-const HOLD_MINUTES = 15;
+const HOLD_MINUTES = process.env.NODE_ENV === "development" ? 60 : 15;
 
 function holdSecondsRemaining(createdAt: string): number {
   const created = new Date(createdAt).getTime();
@@ -562,7 +562,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       // ── Open Razorpay directly — no separate payment step ────────────────
       const keyId   = getRazorpayKeyId();
       const orderId = created.razorpay_order_id;
-      if (!keyId || !orderId) {
+
+      // Dev mock orders skip the Razorpay popup — go to payment step instead
+      if (!keyId || !orderId || orderId.startsWith("order_mock_")) {
         setStep("payment");
         window.scrollTo({ top: 0, behavior: "smooth" });
         setContinuing(false);
@@ -635,6 +637,53 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
 
     setProcessing(true);
     setFormError(null);
+
+    // Dev mock: skip Razorpay popup and verify immediately with dummy IDs
+    if (orderId.startsWith("order_mock_")) {
+      try {
+        const verified = await verifyHotelBookingPayment(token, bookingId, {
+          razorpay_order_id:   orderId,
+          razorpay_payment_id: `pay_mock_${Date.now()}`,
+          razorpay_signature:  "mock_signature",
+        });
+        const confirmed = verified as unknown as BookingWithOrder;
+        const nextBooking: BookingWithOrder = {
+          ...(apiBooking ?? {
+            id: bookingId,
+            confirmation_number: bookingRef,
+            status: "confirmed",
+            hotel_id: hotel.id,
+            hotel_name: hotel.name,
+            hotel_city: city.name,
+            hotel_thumbnail: hotel.images[0] ?? "",
+            room_type_id: roomType.id,
+            room_name: roomType.name,
+            check_in: checkInIso,
+            check_out: checkOutIso,
+            nights,
+            adults: guests,
+            children: 0,
+            rooms,
+            total_amount: payTotal,
+            currency: "INR",
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }),
+          ...confirmed,
+          status: confirmed.status ?? "confirmed",
+        };
+        setApiBooking(nextBooking);
+        setBookingRef(nextBooking.confirmation_number || bookingRef);
+        if (auth?.user?.id) upsertCachedBooking(auth.user.id, nextBooking);
+        setStep("confirmed");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : "Mock payment verification failed.");
+      } finally {
+        setProcessing(false);
+      }
+      return;
+    }
 
     try {
       await openRazorpayCheckout({
@@ -775,51 +824,138 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
 
         <div className="mx-auto w-full max-w-[1320px] px-3 py-5 sm:px-4 lg:px-6">
           {step === "confirmed" ? (
-            <section className="mx-auto max-w-2xl rounded-xl border border-[#c8e6c9] bg-white p-8 text-center shadow-sm">
-              <CircleCheck className="mx-auto h-16 w-16 text-[#2E7D32]" strokeWidth={1.5} aria-hidden />
-              <h1 className="mt-4 text-2xl font-bold text-[#212121]">Booking Confirmed!</h1>
-              <p className="mt-2 text-[14px] text-[#616161]">
-                Your reservation at <strong>{hotel.name}</strong> is confirmed.
-              </p>
-              <p className="mt-4 rounded-lg bg-[#f5f5f5] px-4 py-3 text-sm">
-                Booking ID: <span className="font-bold text-[#212121]">{bookingRef}</span>
-              </p>
-              <dl className="mt-4 space-y-2 text-left text-[13px]">
-                <div className="flex justify-between border-b border-[#eee] pb-2">
-                  <dt className="text-[#757575]">Room</dt>
-                  <dd className="font-semibold">{roomType.name}</dd>
+            <div className="mx-auto max-w-2xl space-y-4">
+
+              {/* ── Success hero banner ── */}
+              <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#1B5E20] via-[#2E7D32] to-[#388E3C] px-6 py-8 text-center text-white shadow-lg">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-white/20 ring-4 ring-white/30">
+                  <CircleCheck className="h-9 w-9 text-white" strokeWidth={2} />
                 </div>
-                <div className="flex justify-between border-b border-[#eee] pb-2">
-                  <dt className="text-[#757575]">Check-In</dt>
-                  <dd className="font-semibold">{checkInLabel.main || "—"}</dd>
+                <h1 className="mt-4 text-2xl font-extrabold tracking-tight">Booking Confirmed!</h1>
+                <p className="mt-1 text-[14px] text-green-100">
+                  Your stay at <span className="font-semibold text-white">{hotel.name}</span> is all set.
+                </p>
+                {/* Booking ID pill */}
+                <div className="mx-auto mt-5 inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2 ring-1 ring-white/30">
+                  <span className="text-[11px] font-medium text-green-100 uppercase tracking-widest">Booking ID</span>
+                  <span className="text-[15px] font-extrabold tracking-wider text-white">{bookingRef}</span>
                 </div>
-                <div className="flex justify-between border-b border-[#eee] pb-2">
-                  <dt className="text-[#757575]">Check-Out</dt>
-                  <dd className="font-semibold">{checkOutLabel.main || "—"}</dd>
+                <p className="mt-3 text-[11px] text-green-200">
+                  Confirmation details sent to {email}
+                </p>
+              </div>
+
+              {/* ── Voucher card ── */}
+              <div className="overflow-hidden rounded-2xl border border-[#e0e0e0] bg-white shadow-sm">
+
+                {/* Hotel identity strip */}
+                <div className="flex items-center gap-4 border-b border-[#f0f0f0] px-5 py-4">
+                  <div className="relative h-14 w-[72px] shrink-0 overflow-hidden rounded-lg">
+                    <Image
+                      src={hotel.images[0] ?? ""}
+                      alt={hotel.name}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                      sizes="72px"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-extrabold text-[#1a1a1a]">{hotel.name}</p>
+                    <p className="mt-0.5 text-[12px] text-[#757575]">{city.name}</p>
+                    <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-[#E8F5E9] px-2 py-0.5 text-[10px] font-bold text-[#2E7D32]">
+                      <CircleCheck className="h-3 w-3" strokeWidth={2.5} />
+                      Confirmed
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between pt-1">
-                  <dt className="text-[#757575]">Amount Paid</dt>
-                  <dd className="text-lg font-bold">₹ {formatInrAmount(apiBooking?.total_amount ?? payTotal)}</dd>
+
+                {/* ── Stay timeline ── */}
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-5">
+                  {/* Check-in */}
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9E9E9E]">Check-in</p>
+                    <p className="mt-1 text-[18px] font-extrabold text-[#1a1a1a]">{checkInLabel.main || "—"}</p>
+                    <p className="text-[11px] text-[#757575]">From 2:00 PM</p>
+                  </div>
+                  {/* Nights pill */}
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="h-px w-8 bg-[#e0e0e0]" />
+                    <span className="rounded-full border border-[#e0e0e0] bg-white px-3 py-1 text-[11px] font-bold text-[#424242]">
+                      {displayNights}N
+                    </span>
+                    <div className="h-px w-8 bg-[#e0e0e0]" />
+                  </div>
+                  {/* Check-out */}
+                  <div className="text-right">
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9E9E9E]">Check-out</p>
+                    <p className="mt-1 text-[18px] font-extrabold text-[#1a1a1a]">{checkOutLabel.main || "—"}</p>
+                    <p className="text-[11px] text-[#757575]">Until 12:00 PM</p>
+                  </div>
                 </div>
-              </dl>
-              <p className="mt-4 text-[12px] text-[#757575]">
-                Confirmation sent to {email}
-              </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
+
+                {/* ── Booking details grid ── */}
+                <div className="grid grid-cols-2 gap-px bg-[#f0f0f0]">
+                  {[
+                    { label: "Room Type",   value: roomType.name },
+                    { label: "Meal Plan",   value: mealLabel },
+                    { label: "Rooms",       value: `${displayRooms} room${displayRooms > 1 ? "s" : ""}` },
+                    { label: "Guests",      value: `${displayAdults} guest${displayAdults > 1 ? "s" : ""}` },
+                    { label: "Guest Name",  value: guestFullName },
+                    { label: "Mobile",      value: mobile },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="bg-white px-4 py-3">
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-[#9E9E9E]">{label}</p>
+                      <p className="mt-0.5 text-[13px] font-semibold text-[#1a1a1a]">{value || "—"}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ── Amount paid strip ── */}
+                <div className="flex items-center justify-between border-t border-[#f0f0f0] bg-[#FFF8F3] px-5 py-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-[#9E9E9E]">Amount Paid</p>
+                    <p className="text-[10px] text-[#757575]">Incl. all taxes &amp; fees</p>
+                  </div>
+                  <p className="text-2xl font-extrabold text-[#EF6614]">
+                    ₹ {formatInrAmount(apiBooking?.total_amount ?? payTotal)}
+                  </p>
+                </div>
+              </div>
+
+              {/* ── What to carry info ── */}
+              <div className="rounded-2xl border border-[#FFF3E0] bg-[#FFF8F3] px-5 py-4">
+                <p className="text-[12px] font-bold text-[#E65100] uppercase tracking-wider">What to carry at check-in</p>
+                <ul className="mt-2 space-y-1.5">
+                  {[
+                    "This booking confirmation (screenshot or printout)",
+                    "A valid government-issued photo ID (Aadhaar / Passport / Driving Licence)",
+                    "Original credit/debit card used for payment (if requested)",
+                  ].map((tip) => (
+                    <li key={tip} className="flex items-start gap-2 text-[12px] text-[#616161]">
+                      <span className="mt-0.5 text-[#EF6614]">•</span>
+                      {tip}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* ── CTA buttons ── */}
+              <div className="flex flex-wrap gap-3">
                 <Link
                   href="/hotels"
-                  className="rounded-md bg-[#EF6614] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#E65100]"
+                  className="flex-1 rounded-xl bg-[#EF6614] py-3 text-center text-[14px] font-bold text-white shadow-sm transition hover:bg-[#E65100]"
                 >
-                  Book More Hotels
+                  Book Another Hotel
                 </Link>
                 <Link
                   href={detailHref}
-                  className="rounded-md border border-[#e0e0e0] bg-white px-6 py-2.5 text-sm font-semibold text-[#424242] hover:bg-[#fafafa]"
+                  className="flex-1 rounded-xl border border-[#e0e0e0] bg-white py-3 text-center text-[14px] font-semibold text-[#424242] transition hover:border-[#bdbdbd] hover:bg-[#fafafa]"
                 >
                   View Hotel
                 </Link>
               </div>
-            </section>
+            </div>
           ) : step === "payment" ? (
             <>
               {/* ── Hold countdown / expiry banner ── */}
@@ -863,6 +999,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   mobile={mobile}
                   processing={processing}
                   paymentError={formError}
+                  isMockOrder={apiBooking?.razorpay_order_id?.startsWith("order_mock_")}
                   onBack={() => { setStep("travellers"); setApiBooking(null); }}
                   onPay={() => void handlePay()}
                 />

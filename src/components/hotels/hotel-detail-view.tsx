@@ -30,7 +30,7 @@ import { HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booki
 import { HotelDetailReviews } from "@/components/hotels/hotel-detail-reviews";
 import { HotelDetailSimilarHotels } from "@/components/hotels/hotel-detail-similar-hotels";
 import { HotelDetailTabs, type HotelDetailTabId } from "@/components/hotels/hotel-detail-tabs";
-import { HotelPhotoLightbox } from "@/components/hotels/hotel-photo-lightbox";
+import { HotelPhotoGalleryModal } from "@/components/hotels/hotel-photo-gallery-modal";
 import type { ApiReview } from "@/lib/hotels-api";
 import {
   addDaysToIso,
@@ -372,16 +372,11 @@ function DetailGallery({
 }: {
   hotel: HotelListing;
   photos: string[];
-  onOpenPhoto: (index: number) => void;
+  onOpenPhoto: () => void;
 }) {
   const main = photos[0] ?? hotel.images[0] ?? hotel.images[hotel.images.length - 1];
   const roomImg = photos[1] ?? hotel.images[1] ?? main;
   const videoThumb = photos[2] ?? hotel.images[2] ?? main;
-
-  const indexOf = (src: string) => {
-    const idx = photos.indexOf(src);
-    return idx >= 0 ? idx : 0;
-  };
 
   const photoCount = photos.length || hotel.propertyPhotoCount;
   const [activeSlide, setActiveSlide] = useState(0);
@@ -406,7 +401,7 @@ function DetailGallery({
             <button
               key={i}
               type="button"
-              onClick={() => onOpenPhoto(i)}
+              onClick={() => onOpenPhoto()}
               className="relative h-full w-full shrink-0 snap-center overflow-hidden"
             >
               <Image src={src} alt={i === 0 ? hotel.name : ""} fill unoptimized className="object-cover" sizes="100vw" priority={i === 0} />
@@ -439,10 +434,10 @@ function DetailGallery({
       >
       <button
         type="button"
-        onClick={() => onOpenPhoto(0)}
+        onClick={() => onOpenPhoto()}
         className="group relative min-h-[200px] cursor-zoom-in overflow-hidden rounded-lg text-left sm:min-h-0 sm:rounded-l-xl"
       >
-        <Image src={main} alt={hotel.name} fill unoptimized className="object-cover" sizes="60vw" priority />
+        <Image src={main} alt={hotel.name} fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="60vw" priority />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-3 py-2.5 text-white sm:px-4 sm:py-3">
           <span className="text-sm font-semibold sm:text-base">
@@ -459,7 +454,7 @@ function DetailGallery({
         {/* Top-right photo */}
         <button
           type="button"
-          onClick={() => onOpenPhoto(indexOf(videoThumb))}
+          onClick={() => onOpenPhoto()}
           className="group relative cursor-zoom-in overflow-hidden rounded-lg text-left sm:rounded-tr-xl"
         >
           <Image src={videoThumb} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="30vw" />
@@ -477,7 +472,7 @@ function DetailGallery({
         {/* Bottom-right photo — shows remaining count overlay */}
         <button
           type="button"
-          onClick={() => onOpenPhoto(indexOf(roomImg))}
+          onClick={() => onOpenPhoto()}
           className="group relative cursor-zoom-in overflow-hidden rounded-lg text-left sm:rounded-br-xl"
         >
           <Image src={roomImg} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="30vw" />
@@ -761,7 +756,7 @@ export function HotelDetailView({
   const searchParams = useSearchParams();
   const listingHref = hotelHref(city.slug);
   const [activeTab, setActiveTab] = useState<HotelDetailTabId>("rooms");
-  const [lightbox, setLightbox] = useState({ open: false, index: 0 });
+  const [gallery, setGallery] = useState<{ open: boolean; initialPhotoIndex?: number }>({ open: false });
   const [roomSelection, setRoomSelection] = useState<RoomSelection | null>(null);
   const [stickyVisible, setStickyVisible] = useState(false);
   const gallerySentinelRef = useRef<HTMLDivElement>(null);
@@ -802,18 +797,14 @@ export function HotelDetailView({
     return list;
   }, [hotel.images, roomTypes]);
 
-  const openPhoto = useCallback((index: number) => {
+  const openPhoto = useCallback(() => {
     if (allPhotos.length === 0) return;
-    setLightbox({ open: true, index: index % allPhotos.length });
+    setGallery({ open: true });
   }, [allPhotos.length]);
 
-  const openPhotoBySrc = useCallback(
-    (src: string) => {
-      const idx = allPhotos.indexOf(src);
-      openPhoto(idx >= 0 ? idx : 0);
-    },
-    [allPhotos, openPhoto],
-  );
+  const openPhotoBySrc = useCallback(() => {
+    setGallery({ open: true });
+  }, []);
 
   const scrollToRooms = useCallback(() => {
     setActiveTab("rooms");
@@ -1013,12 +1004,12 @@ export function HotelDetailView({
         />
       </main>
 
-      <HotelPhotoLightbox
-        images={allPhotos}
-        initialIndex={lightbox.index}
-        open={lightbox.open}
-        onClose={() => setLightbox((s) => ({ ...s, open: false }))}
-        title={hotel.name}
+      <HotelPhotoGalleryModal
+        open={gallery.open}
+        onClose={() => setGallery({ open: false })}
+        hotelName={hotel.name}
+        photoCategories={photoCategories}
+        allPhotos={allPhotos}
       />
 
       <Footer />

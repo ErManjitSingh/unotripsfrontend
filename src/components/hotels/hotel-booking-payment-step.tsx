@@ -24,6 +24,7 @@ type HotelBookingPaymentStepProps = {
   mobile: string;
   processing: boolean;
   paymentError?: string | null;
+  isMockOrder?: boolean;
   onBack: () => void;
   onPay: () => void;
 };
@@ -39,6 +40,7 @@ export function HotelBookingPaymentStep({
   mobile,
   processing,
   paymentError,
+  isMockOrder,
   onBack,
   onPay,
 }: HotelBookingPaymentStepProps) {
@@ -110,7 +112,11 @@ export function HotelBookingPaymentStep({
               processing && "cursor-wait opacity-80",
             )}
           >
-            {processing ? "Opening Razorpay…" : `Pay ₹ ${formatInrAmount(grandTotal)}`}
+            {processing
+              ? (isMockOrder ? "Confirming…" : "Opening Razorpay…")
+              : isMockOrder
+                ? `[TEST] Simulate Pay ₹ ${formatInrAmount(grandTotal)}`
+                : `Pay ₹ ${formatInrAmount(grandTotal)}`}
           </button>
         </div>
       </div>
