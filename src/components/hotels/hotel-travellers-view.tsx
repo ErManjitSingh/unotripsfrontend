@@ -270,10 +270,17 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     }
   }, [neededRooms, displayRooms, availableRoomCount]);
 
-  // ── Clear draft once booking is confirmed ──────────────────────────────────
+  // ── Clear draft + pending checkout once booking is confirmed ──────────────
   useEffect(() => {
-    if (step === "confirmed") clearDraft(storageKey);
-  }, [step, storageKey]);
+    if (step === "confirmed") {
+      clearDraft(storageKey);
+      if (apiBookingId) {
+        import("@/lib/pending-checkout-storage").then(({ removePendingCheckout }) => {
+          removePendingCheckout(apiBookingId);
+        });
+      }
+    }
+  }, [step, storageKey, apiBookingId]);
 
   const handleAdultsChange = useCallback((newAdults: number) => {
     if (newAdults < 1) return;
