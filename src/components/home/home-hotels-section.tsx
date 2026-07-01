@@ -1,20 +1,23 @@
+"use client";
+
 import { HandpickedHotelsSlider } from "@/components/home/handpicked-hotels-slider";
-import { fetchAllHotels } from "@/lib/hotels-api";
+import { SummerEscapesSkeleton } from "@/components/home/home-page-skeleton";
+import { useHomepageHotels } from "@/hooks/use-homepage";
+import type { HotelListing } from "@/lib/hotels-catalog";
 
-export async function HomeHotelsSection() {
-  const { hotels, total } = await fetchAllHotels(50);
+interface Props {
+  initialData?: { hotels: HotelListing[]; total: number } | null;
+}
 
-  if (!hotels.length) {
-    return (
-      <section className="bg-white py-10">
-        <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
-          <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600">
-            No hotels available from the API right now.
-          </p>
-        </div>
-      </section>
-    );
-  }
+export function HomeHotelsSection({ initialData }: Props) {
+  const { data, isLoading } = useHomepageHotels(4, initialData ?? undefined);
+
+  if (isLoading) return <SummerEscapesSkeleton />;
+
+  const hotels = data?.hotels ?? [];
+  const total = data?.total ?? 0;
+
+  if (!hotels.length) return null;
 
   return <HandpickedHotelsSlider hotels={hotels} total={total} />;
 }

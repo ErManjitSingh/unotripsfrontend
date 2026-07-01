@@ -30,7 +30,7 @@ import { HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booki
 import { HotelDetailReviews } from "@/components/hotels/hotel-detail-reviews";
 import { HotelDetailSimilarHotels } from "@/components/hotels/hotel-detail-similar-hotels";
 import { HotelDetailTabs, type HotelDetailTabId } from "@/components/hotels/hotel-detail-tabs";
-import { HotelPhotoLightbox } from "@/components/hotels/hotel-photo-lightbox";
+import { HotelPhotoGalleryModal } from "@/components/hotels/hotel-photo-gallery-modal";
 import type { ApiReview } from "@/lib/hotels-api";
 import {
   addDaysToIso,
@@ -372,16 +372,11 @@ function DetailGallery({
 }: {
   hotel: HotelListing;
   photos: string[];
-  onOpenPhoto: (index: number) => void;
+  onOpenPhoto: () => void;
 }) {
   const main = photos[0] ?? hotel.images[0] ?? hotel.images[hotel.images.length - 1];
   const roomImg = photos[1] ?? hotel.images[1] ?? main;
   const videoThumb = photos[2] ?? hotel.images[2] ?? main;
-
-  const indexOf = (src: string) => {
-    const idx = photos.indexOf(src);
-    return idx >= 0 ? idx : 0;
-  };
 
   const photoCount = photos.length || hotel.propertyPhotoCount;
   const [activeSlide, setActiveSlide] = useState(0);
@@ -406,7 +401,7 @@ function DetailGallery({
             <button
               key={i}
               type="button"
-              onClick={() => onOpenPhoto(i)}
+              onClick={() => onOpenPhoto()}
               className="relative h-full w-full shrink-0 snap-center overflow-hidden"
             >
               <Image src={src} alt={i === 0 ? hotel.name : ""} fill unoptimized className="object-cover" sizes="100vw" priority={i === 0} />
@@ -433,65 +428,63 @@ function DetailGallery({
         )}
       </div>
 
-      {/* ── Desktop: original grid (hidden on mobile) ── */}
+      {/* ── Desktop: 5-photo mosaic (hidden on mobile) ── */}
       <div
-        className="hidden sm:grid h-[min(480px,62vw)] min-h-[320px] grid-cols-[1.65fr_1fr] gap-2.5"
+        className="hidden sm:grid min-h-[320px] grid-rows-2 gap-2 overflow-hidden rounded-xl"
+        style={{ height: "min(480px,55vw)", gridTemplateColumns: "1.5fr 1fr 1fr" }}
       >
-      <button
-        type="button"
-        onClick={() => onOpenPhoto(0)}
-        className="group relative min-h-[200px] cursor-zoom-in overflow-hidden rounded-lg text-left sm:min-h-0 sm:rounded-l-xl"
-      >
-        <Image src={main} alt={hotel.name} fill unoptimized className="object-cover" sizes="60vw" priority />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-3 py-2.5 text-white sm:px-4 sm:py-3">
-          <span className="text-sm font-semibold sm:text-base">
-            Property Photos ({photoCount})
-          </span>
-          <span className="flex items-center gap-1 text-sm font-semibold">
-            View All
-            <ChevronRight className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-          </span>
-        </div>
-      </button>
-
-      <div className="grid min-h-[160px] grid-rows-2 gap-2 sm:min-h-0 sm:gap-2.5">
-        {/* Top-right photo */}
+        {/* Main photo — spans 2 rows */}
         <button
           type="button"
-          onClick={() => onOpenPhoto(indexOf(videoThumb))}
-          className="group relative cursor-zoom-in overflow-hidden rounded-lg text-left sm:rounded-tr-xl"
+          onClick={() => onOpenPhoto()}
+          className="group relative row-span-2 cursor-zoom-in overflow-hidden rounded-l-xl text-left"
         >
-          <Image src={videoThumb} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="30vw" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+          <Image src={main} alt={hotel.name} fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="50vw" priority />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between text-white">
+            <span className="text-[13px] font-semibold drop-shadow">
+              {photoCount} photos
+            </span>
+            <span className="flex items-center gap-1 rounded-lg bg-white/20 px-2.5 py-1 text-[12px] font-semibold backdrop-blur-sm">
+              View all <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+            </span>
+          </div>
+        </button>
+
+        {/* Top-center */}
+        <button type="button" onClick={() => onOpenPhoto()} className="group relative cursor-zoom-in overflow-hidden text-left">
+          <Image src={photos[1] ?? hotel.images[1] ?? main} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
+        </button>
+
+        {/* Top-right */}
+        <button type="button" onClick={() => onOpenPhoto()} className="group relative cursor-zoom-in overflow-hidden rounded-tr-xl text-left">
+          <Image src={photos[2] ?? hotel.images[2] ?? main} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
           {hotel.videoCount > 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-white">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-[#212121] shadow-md">
-                <Play className="ml-0.5 h-5 w-5 fill-current" aria-hidden />
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#212121] shadow-md">
+                <Play className="ml-0.5 h-4 w-4 fill-current" aria-hidden />
               </span>
-              <span className="text-xs font-semibold drop-shadow">{hotel.videoCount} Video{hotel.videoCount !== 1 ? "s" : ""}</span>
+              <span className="text-[11px] font-semibold drop-shadow">{hotel.videoCount} video{hotel.videoCount !== 1 ? "s" : ""}</span>
             </div>
           )}
         </button>
 
-        {/* Bottom-right photo — shows remaining count overlay */}
-        <button
-          type="button"
-          onClick={() => onOpenPhoto(indexOf(roomImg))}
-          className="group relative cursor-zoom-in overflow-hidden rounded-lg text-left sm:rounded-br-xl"
-        >
-          <Image src={roomImg} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="30vw" />
-          {photoCount > 3 ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/45 text-white">
-              <span className="text-2xl font-black">+{photoCount - 3}</span>
-              <span className="mt-0.5 text-xs font-semibold tracking-wide">more photos</span>
+        {/* Bottom-center */}
+        <button type="button" onClick={() => onOpenPhoto()} className="group relative cursor-zoom-in overflow-hidden text-left">
+          <Image src={photos[3] ?? hotel.images[3] ?? roomImg} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
+        </button>
+
+        {/* Bottom-right — +N overlay */}
+        <button type="button" onClick={() => onOpenPhoto()} className="group relative cursor-zoom-in overflow-hidden rounded-br-xl text-left">
+          <Image src={photos[4] ?? hotel.images[4] ?? roomImg} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
+          {photoCount > 5 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white transition group-hover:bg-black/60">
+              <span className="text-[22px] font-black">+{photoCount - 5}</span>
+              <span className="mt-0.5 text-[11px] font-semibold tracking-wide">more photos</span>
             </div>
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
           )}
         </button>
       </div>
-      </div>{/* end desktop grid */}
     </div>
   );
 }
@@ -761,7 +754,7 @@ export function HotelDetailView({
   const searchParams = useSearchParams();
   const listingHref = hotelHref(city.slug);
   const [activeTab, setActiveTab] = useState<HotelDetailTabId>("rooms");
-  const [lightbox, setLightbox] = useState({ open: false, index: 0 });
+  const [gallery, setGallery] = useState<{ open: boolean; initialPhotoIndex?: number }>({ open: false });
   const [roomSelection, setRoomSelection] = useState<RoomSelection | null>(null);
   const [stickyVisible, setStickyVisible] = useState(false);
   const gallerySentinelRef = useRef<HTMLDivElement>(null);
@@ -802,18 +795,14 @@ export function HotelDetailView({
     return list;
   }, [hotel.images, roomTypes]);
 
-  const openPhoto = useCallback((index: number) => {
+  const openPhoto = useCallback(() => {
     if (allPhotos.length === 0) return;
-    setLightbox({ open: true, index: index % allPhotos.length });
+    setGallery({ open: true });
   }, [allPhotos.length]);
 
-  const openPhotoBySrc = useCallback(
-    (src: string) => {
-      const idx = allPhotos.indexOf(src);
-      openPhoto(idx >= 0 ? idx : 0);
-    },
-    [allPhotos, openPhoto],
-  );
+  const openPhotoBySrc = useCallback(() => {
+    setGallery({ open: true });
+  }, []);
 
   const scrollToRooms = useCallback(() => {
     setActiveTab("rooms");
@@ -854,87 +843,31 @@ export function HotelDetailView({
           onApply={handleApplySearch}
         />
 
-        {/* ── Full-width sticky hotel header ── */}
-        <div className="sticky top-[116px] z-30 w-full border-b border-[#e0e0e0] bg-white shadow-sm sm:top-[132px] lg:top-[72px]">
+        {/* ── Compact sticky anchor bar (always visible, minimal) ── */}
+        <div className="sticky top-[116px] z-30 w-full border-b border-[#e8e8e8] bg-white/95 shadow-sm backdrop-blur-sm sm:top-[132px] lg:top-[72px]">
           <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
-            <div className="flex flex-col gap-1.5 py-2.5 lg:flex-row lg:items-center lg:justify-between lg:py-3">
-              <div className="min-w-0 flex-1">
-                {/* Row 1: badge + name + stars */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-[#fff3eb] px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.12em] text-[#EF6614]">UNO Stays</span>
-                  <h1 className="text-[18px] font-bold text-[#212121] sm:text-[20px]">{hotel.name}</h1>
-                  <span className="flex items-center gap-0.5" aria-label={`${hotel.stars} stars`}>
-                    {Array.from({ length: hotel.stars }).map((_, i) => (
-                      <Star key={i} className="h-3.5 w-3.5 fill-[#FFC107] text-[#FFC107]" aria-hidden />
-                    ))}
-                  </span>
-                </div>
-                {/* Row 2: location + rating + reviews + tags */}
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span className="flex items-center gap-0.5 text-[12px] text-[#757575]">
-                    <MapPin className="h-3 w-3 shrink-0 text-[#EF6614]" aria-hidden />
-                    {hotel.area}, {city.name}
-                    {hotel.nearbyLandmark && <><span className="mx-1 text-[#d5d5d5]">·</span>{hotel.nearbyLandmark}</>}
-                  </span>
-                  <span className="text-[#d5d5d5]">|</span>
-                  {hotel.rating > 0 && (
-                    <span className="rounded bg-[#008009] px-1.5 py-0.5 text-[11px] font-bold text-white">{hotel.rating.toFixed(1)}</span>
-                  )}
-                  <button type="button" onClick={scrollToReviews} className="text-[11px] font-semibold text-[#EF6614] hover:underline">
-                    {hotel.reviewCount > 0 ? `${hotel.reviewCount} reviews` : "Reviews"}
-                  </button>
-                  {hotel.amenities.length > 0 && <span className="text-[11px] text-[#9E9E9E]">· {hotel.amenities.length} amenities</span>}
-                  <HotelTagBadgeList tags={hotel.tags.slice(0, 2)} />
-                  {/* highlights inline on larger screens */}
-                  {hotel.freeCancellation && (
-                    <span className="hidden items-center gap-0.5 rounded border border-[#d1fae5] bg-[#f0fdf4] px-1.5 py-0.5 text-[10px] font-semibold text-[#166534] sm:inline-flex">
-                      <Check className="h-2.5 w-2.5" aria-hidden />Free cancellation
-                    </span>
-                  )}
-                  {hotel.freeBreakfast && (
-                    <span className="hidden items-center gap-0.5 rounded border border-[#fef9c3] bg-[#fefce8] px-1.5 py-0.5 text-[10px] font-semibold text-[#854d0e] sm:inline-flex">
-                      <Utensils className="h-2.5 w-2.5" aria-hidden />Breakfast
-                    </span>
-                  )}
-                  {hotel.freeParking && (
-                    <span className="hidden items-center gap-0.5 rounded border border-[#e0e7ff] bg-[#eef2ff] px-1.5 py-0.5 text-[10px] font-semibold text-[#3730a3] sm:inline-flex">
-                      <Car className="h-2.5 w-2.5" aria-hidden />Free parking
-                    </span>
-                  )}
-                </div>
+            <div className="flex items-center justify-between gap-3 py-2.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <h2 className="truncate text-[14px] font-bold text-[#212121] sm:text-[15px]">{hotel.name}</h2>
+                <span className="hidden items-center gap-0.5 sm:flex" aria-label={`${hotel.stars} stars`}>
+                  {Array.from({ length: hotel.stars }).map((_, i) => (
+                    <Star key={i} className="h-3 w-3 fill-[#FFC107] text-[#FFC107]" aria-hidden />
+                  ))}
+                </span>
+                {hotel.rating > 0 && (
+                  <span className="hidden rounded bg-[#008009] px-1.5 py-0.5 text-[10px] font-bold text-white sm:inline">{hotel.rating.toFixed(1)}</span>
+                )}
               </div>
-
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {(() => {
-                  const mapsUrl = hotel.latitude && hotel.longitude
-                    ? `https://www.google.com/maps?q=${hotel.latitude},${hotel.longitude}`
-                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hotel.name}, ${city.name}`)}`;
-                  return (
-                    <a
-                      href={mapsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 rounded-lg border border-[#e0e0e0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#424242] shadow-sm transition hover:border-[#EF6614]/40 hover:text-[#EF6614]"
-                    >
-                      <MapPin className="h-3.5 w-3.5 text-[#EF6614]" aria-hidden />
-                      View on Map
-                      <ExternalLink className="h-3 w-3 opacity-50" aria-hidden />
-                    </a>
-                  );
-                })()}
+              <div className="flex shrink-0 items-center gap-2">
+                <p className="hidden text-[13px] font-bold text-[#EF6614] sm:block">
+                  ₹{formatInrAmount(hotel.price)}<span className="text-[11px] font-normal text-[#9E9E9E]">/night</span>
+                </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (navigator.share) {
-                      void navigator.share({ title: hotel.name, url: window.location.href });
-                    } else {
-                      void navigator.clipboard.writeText(window.location.href);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 rounded-lg border border-[#e0e0e0] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#424242] shadow-sm transition hover:border-[#EF6614]/40 hover:text-[#EF6614]"
+                  onClick={scrollToRooms}
+                  className="rounded-xl bg-[#EF6614] px-4 py-2 text-[12px] font-bold text-white transition hover:bg-[#d95d10]"
                 >
-                  <Share2 className="h-3.5 w-3.5" aria-hidden />
-                  Share
+                  View Rooms
                 </button>
               </div>
             </div>
@@ -955,6 +888,101 @@ export function HotelDetailView({
             <span className="font-medium text-[#212121]">{hotel.name}</span>
           </nav>
 
+          {/* ── Hotel identity ── */}
+          <div className="mb-4 sm:mb-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex-1 min-w-0">
+                {/* Brand + rating row */}
+                <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                  <span className="rounded-full bg-[#fff3eb] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#EF6614]">UNO Stays</span>
+                  <span className="flex items-center gap-0.5" aria-label={`${hotel.stars} stars`}>
+                    {Array.from({ length: hotel.stars }).map((_, i) => (
+                      <Star key={i} className="h-3.5 w-3.5 fill-[#FFC107] text-[#FFC107]" aria-hidden />
+                    ))}
+                  </span>
+                  {hotel.rating > 0 && (
+                    <span className="rounded-md bg-[#008009] px-2 py-0.5 text-[11px] font-bold text-white">{hotel.rating.toFixed(1)}</span>
+                  )}
+                  {hotel.reviewCount > 0 && (
+                    <button type="button" onClick={scrollToReviews} className="text-[12px] font-semibold text-[#EF6614] hover:underline">
+                      {hotel.reviewCount} reviews
+                    </button>
+                  )}
+                  {hotel.amenities.length > 0 && (
+                    <span className="text-[11px] text-[#9E9E9E]">· {hotel.amenities.length} amenities</span>
+                  )}
+                </div>
+
+                {/* Hotel name */}
+                <h1 className="text-[22px] font-black leading-tight text-[#212121] sm:text-[26px]">{hotel.name}</h1>
+
+                {/* Location */}
+                <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[13px] text-[#757575]">
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-[#EF6614]" aria-hidden />
+                  {hotel.area}, {city.name}
+                  {hotel.nearbyLandmark && (
+                    <><span className="mx-1 text-[#d5d5d5]">·</span><span>{hotel.nearbyLandmark}</span></>
+                  )}
+                </p>
+
+                {/* Highlight badges */}
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  {hotel.freeCancellation && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[#d1fae5] bg-[#f0fdf4] px-2.5 py-1 text-[11px] font-semibold text-[#166534]">
+                      <Check className="h-3 w-3" aria-hidden />Free cancellation
+                    </span>
+                  )}
+                  {hotel.freeBreakfast && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[#fef9c3] bg-[#fefce8] px-2.5 py-1 text-[11px] font-semibold text-[#854d0e]">
+                      <Utensils className="h-3 w-3" aria-hidden />Breakfast included
+                    </span>
+                  )}
+                  {hotel.freeParking && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-[#e0e7ff] bg-[#eef2ff] px-2.5 py-1 text-[11px] font-semibold text-[#3730a3]">
+                      <Car className="h-3 w-3" aria-hidden />Free parking
+                    </span>
+                  )}
+                  <HotelTagBadgeList tags={hotel.tags.slice(0, 2)} />
+                </div>
+              </div>
+
+              {/* Map + Share actions */}
+              <div className="flex shrink-0 items-center gap-2">
+                {(() => {
+                  const mapsUrl = hotel.latitude && hotel.longitude
+                    ? `https://www.google.com/maps?q=${hotel.latitude},${hotel.longitude}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hotel.name}, ${city.name}`)}`;
+                  return (
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 rounded-xl border border-[#e0e0e0] bg-white px-3 py-2 text-[12px] font-semibold text-[#424242] shadow-sm transition hover:border-[#EF6614]/40 hover:text-[#EF6614]"
+                    >
+                      <MapPin className="h-3.5 w-3.5 text-[#EF6614]" aria-hidden />
+                      View on Map
+                      <ExternalLink className="h-3 w-3 opacity-50" aria-hidden />
+                    </a>
+                  );
+                })()}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (navigator.share) {
+                      void navigator.share({ title: hotel.name, url: window.location.href });
+                    } else {
+                      void navigator.clipboard.writeText(window.location.href);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-[#e0e0e0] bg-white px-3 py-2 text-[12px] font-semibold text-[#424242] shadow-sm transition hover:border-[#EF6614]/40 hover:text-[#EF6614]"
+                >
+                  <Share2 className="h-3.5 w-3.5" aria-hidden />
+                  Share
+                </button>
+              </div>
+            </div>
+          </div>
+
           <GallerySidebarLayout
             gallery={<DetailGallery hotel={hotel} photos={allPhotos} onOpenPhoto={openPhoto} />}
             sidebar={
@@ -970,12 +998,35 @@ export function HotelDetailView({
           <div ref={gallerySentinelRef} className="h-px" aria-hidden />
 
           <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
-            {/* Urgency strip */}
-            <div className="flex items-center gap-2 rounded-lg border border-[#fef3c7] bg-[#fffbeb] px-4 py-2.5">
-              <span className="text-base">🔥</span>
-              <p className="text-[12px] font-semibold text-[#92400e]">
-                High demand — this hotel has been booked {Math.max(3, Math.round(hotel.reviewCount / 10))} times in the last 24 hours
-              </p>
+            {/* Trust badges */}
+            <div className="flex flex-wrap items-center gap-4 rounded-xl border border-[#e8e8e8] bg-white px-4 py-3">
+              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#424242]">
+                <ShieldCheck className="h-4 w-4 text-[#008009]" aria-hidden />
+                Secure booking
+              </div>
+              <span className="text-[#e0e0e0]">|</span>
+              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#424242]">
+                <Check className="h-4 w-4 text-[#2196F3]" aria-hidden />
+                Instant confirmation
+              </div>
+              {hotel.reviewCount > 0 && (
+                <>
+                  <span className="text-[#e0e0e0]">|</span>
+                  <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#424242]">
+                    <Users className="h-4 w-4 text-[#EF6614]" aria-hidden />
+                    {hotel.reviewCount}+ guests reviewed
+                  </div>
+                </>
+              )}
+              {hotel.freeCancellation && (
+                <>
+                  <span className="text-[#e0e0e0]">|</span>
+                  <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#166534]">
+                    <Check className="h-4 w-4" aria-hidden />
+                    Free cancellation
+                  </div>
+                </>
+              )}
             </div>
             <HotelDetailTabs
               hotel={hotel}
@@ -1013,12 +1064,12 @@ export function HotelDetailView({
         />
       </main>
 
-      <HotelPhotoLightbox
-        images={allPhotos}
-        initialIndex={lightbox.index}
-        open={lightbox.open}
-        onClose={() => setLightbox((s) => ({ ...s, open: false }))}
-        title={hotel.name}
+      <HotelPhotoGalleryModal
+        open={gallery.open}
+        onClose={() => setGallery({ open: false })}
+        hotelName={hotel.name}
+        photoCategories={photoCategories}
+        allPhotos={allPhotos}
       />
 
       <Footer />

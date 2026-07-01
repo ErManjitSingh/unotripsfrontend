@@ -21,17 +21,37 @@ export type UserBooking = {
   confirmation_number: string;
   status: string;
   hotel_id: string;
+  hotel_slug?: string;
   hotel_name: string;
   hotel_city: string;
   hotel_thumbnail: string;
   room_type_id: string;
   room_name: string;
+  meal_plan?: string | null;
+  meal_plan_label?: string | null;
   check_in: string;
   check_out: string;
   nights: number;
   adults: number;
   children: number;
+  children_ages?: number[];
   rooms: number;
+  guest?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone?: string | null;
+    special_requests?: string | null;
+  };
+  amount_breakdown?: {
+    room_charges: number;
+    meal_charges: number;
+    child_charges: number;
+    taxes: number;
+    service_fee: number;
+    discount: number;
+    total: number;
+  };
   total_amount: number;
   currency: string;
   created_at: string;
@@ -60,6 +80,10 @@ export async function fetchUserBookings(accessToken: string): Promise<UserBookin
     accessToken,
   );
   return Array.isArray(data) ? data : (data.items ?? []);
+}
+
+export async function fetchBookingById(accessToken: string, bookingId: string): Promise<UserBooking> {
+  return apiDataWithAuth<UserBooking>(`/v1/bookings/${bookingId}`, accessToken);
 }
 
 export async function changeAccountPassword(

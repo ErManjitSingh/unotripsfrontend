@@ -63,9 +63,18 @@ function applyAuthResponse(
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [session, setSession] = useState<StoredAuthSession | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Initialise synchronously from localStorage so the page never flashes a loader
+  // when the user already has a valid session stored.
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const stored = loadAuthSession();
+    return stored?.user ?? null;
+  });
+  const [session, setSession] = useState<StoredAuthSession | null>(() => loadAuthSession());
+  // Only show a loading spinner when there is NO cached session at all.
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    const stored = loadAuthSession();
+    return !stored; // false = we have a cached session, show UI immediately
+  });
 
   const bootstrap = useCallback(async () => {
     const stored = loadAuthSession();
@@ -74,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // We already have a cached session — UI is visible. Refresh silently.
     try {
       let { tokens } = stored;
       const { user: storedUser } = stored;
