@@ -277,14 +277,14 @@ export function PackageDetailView({
   }), [rooms, selectedHotels, selectedCab, addons, payType]);
 
   const breakdown = useMemo(() => {
-    const base = calcTotalWithOptions(custState, hotelGroups, cabOptions);
+    const base = calcTotalWithOptions(custState, hotelGroups, cabOptions, tour.priceINR);
     return {
       ...base,
       sightseeing: sightTotal,
       activities:  actTotal,
       total:       base.total + sightTotal + actTotal,
     };
-  }, [custState, hotelGroups, cabOptions, sightTotal, actTotal]);
+  }, [custState, hotelGroups, cabOptions, sightTotal, actTotal, tour.priceINR]);
 
   const token  = tokenAmount(breakdown.total);
   const payAmt = payType === "token" ? token : breakdown.total;

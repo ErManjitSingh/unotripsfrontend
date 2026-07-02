@@ -196,10 +196,21 @@ export const TERMS_AND_CONDITIONS: Array<{ title: string; body: string }> = [
 ];
 
 // ── Price engine ──────────────────────────────────────────────────────────────
+//
+// basePricePerPerson is ALWAYS the real package.priceINR (base_price from the
+// backend) — never omit it. It used to default to the hardcoded
+// BASE_PRICE_PER_PERSON demo constant, which meant the optimistic price shown
+// while customizing never matched the authoritative POST /calculate-price
+// total charged at checkout (e.g. showing ~₹19,000 while browsing, then
+// jumping to ₹46,000+ at "Confirm & Pay"). BASE_PRICE_PER_PERSON is now only
+// a fallback for demo/no-package-data contexts.
 
-export function calcTotal(state: Omit<CustomizerState, "pay">): PriceBreakdown {
+export function calcTotal(
+  state: Omit<CustomizerState, "pay">,
+  basePricePerPerson: number = BASE_PRICE_PER_PERSON,
+): PriceBreakdown {
   const persons = state.adults + Math.round(state.children * CHILD_PRICE_FACTOR);
-  const base    = BASE_PRICE_PER_PERSON * Math.max(1, persons);
+  const base    = basePricePerPerson * Math.max(1, persons);
 
   // Use whichever hotels/cabs are active (real or demo)
   const hotels  = state.hotels;  // indices into whatever array the component uses
@@ -219,9 +230,10 @@ export function calcTotalWithOptions(
   state:  Omit<CustomizerState, "pay">,
   hotels: DestinationHotels[],
   cabs:   CabOption[],
+  basePricePerPerson: number = BASE_PRICE_PER_PERSON,
 ): PriceBreakdown {
   const persons     = state.adults + Math.round(state.children * CHILD_PRICE_FACTOR);
-  const base        = BASE_PRICE_PER_PERSON * Math.max(1, persons);
+  const base        = basePricePerPerson * Math.max(1, persons);
   const hotelDelta  = state.hotels.reduce((sum, sel, i) => sum + (hotels[i]?.opts[sel]?.extra ?? 0) * state.rooms, 0);
   const cabDelta    = cabs[state.cab]?.extra ?? 0;
   const addons      = state.addons.filter((a) => a.on).reduce((s, a) => s + a.price * Math.max(1, persons), 0);

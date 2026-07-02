@@ -59,6 +59,8 @@ import {
   type HotelRoomType,
 } from "@/lib/hotels-catalog";
 
+export type { HotelListing };
+
 import { apiJson } from "@/lib/api";
 
 // ── Public API types ──────────────────────────────────────────────────────────
@@ -760,12 +762,27 @@ export async function fetchHotelDestinations(): Promise<
 
   const destinations = Array.from(map.values());
 
+  // Enriching (live search call for price/image) EVERY city here made this
+  // function fire one /v1/hotels/search request per unique city with a
+  // hotel — 40-60+ parallel calls, 15-20s+ SSR render. That's well past
+  // typical serverless/edge function timeouts, so the whole destinations
+  // list (and with it, the search dropdown) silently failed to render in
+  // production. The dropdown only needs city/state/country/slug — it
+  // never needed the enriched image/price. Only the "Popular Destinations"
+  // cards need those, and that section already only displays a handful,
+  // so enrich the top N by hotel count and leave the rest with their
+  // cheap defaults from the map-building step above.
+  const ENRICH_LIMIT = 16;
+  const byCount = [...destinations].sort((a, b) => b.hotelCount - a.hotelCount);
+  const toEnrich = new Set(byCount.slice(0, ENRICH_LIMIT).map((d) => d.slug));
+
   const enriched = await Promise.all(
     destinations.map(async (dest) => {
       const needsSearch =
-        dest.imageUrl      === DEFAULT_DESTINATION_IMAGE ||
-        dest.startingPrice <= 0 ||
-        dest.hotelCount    === 0;
+        toEnrich.has(dest.slug) &&
+        (dest.imageUrl      === DEFAULT_DESTINATION_IMAGE ||
+         dest.startingPrice <= 0 ||
+         dest.hotelCount    === 0);
 
       if (!needsSearch) return dest;
 
