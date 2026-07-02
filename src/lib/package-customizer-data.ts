@@ -242,8 +242,24 @@ export function calcTotalWithOptions(
   return { base, hotel: hotelDelta, cab: cabDelta, addons, disc, total };
 }
 
-export function tokenAmount(total: number): number {
-  return Math.round(total * TOKEN_PERCENT);
+/**
+ * Mirrors the backend's exact token calculation (day_options_service.py's
+ * calculate_price): "percent" packages take a % of total, "fixed" packages
+ * take a flat configured amount capped at total. This used to always
+ * assume 40% of total regardless of the package's real token_type/
+ * token_amount — for a "fixed" package with no token_amount configured
+ * (real_token_amount=0), that showed a token option (e.g. "₹18,400 (40%)")
+ * that would always fail the backend's minimum-payment check at checkout.
+ */
+export function tokenAmount(
+  total: number,
+  tokenType: string = "percent",
+  configuredAmount: number = TOKEN_PERCENT * 100,
+): number {
+  if (tokenType === "percent") {
+    return Math.round(total * (configuredAmount / 100));
+  }
+  return Math.round(Math.min(configuredAmount, total));
 }
 
 export function fmtINR(n: number): string {
