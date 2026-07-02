@@ -593,6 +593,18 @@ function RoomTypeCard({
                       <span className="font-semibold text-[#2E7D32]">−₹{formatInrAmount(discountTotal)}</span>
                     </div>
                   )}
+                  {roomType.extraBedPrice != null && (
+                    <div className="flex items-center justify-between border-t border-[#f0f0f0] pt-2 text-[12px]">
+                      <span className="text-[#757575]">Children (age 6–11)</span>
+                      <span className="font-medium text-[#1a1a1a]">+₹{formatInrAmount(roomType.extraBedPrice)}/child/night</span>
+                    </div>
+                  )}
+                  {roomType.extraBedPrice == null && (
+                    <div className="flex items-center justify-between border-t border-[#f0f0f0] pt-2 text-[12px]">
+                      <span className="text-[#757575]">Children (age 6–11)</span>
+                      <span className="font-medium text-[#1a1a1a]">50% of room rate/child/night</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Grand total + CTA */}
@@ -602,6 +614,7 @@ function RoomTypeCard({
                     <p className="text-[24px] font-extrabold leading-none text-[#EF6614]">₹{formatInrAmount(grandTotal)}</p>
                   </div>
                   <p className="mt-0.5 text-right text-[10px] text-[#9E9E9E]">All taxes &amp; fees included</p>
+                  <p className="mt-0.5 text-right text-[10px] text-[#9E9E9E]">Child charges (age 6–11) added at checkout</p>
 
                   <div className="mt-3">
                     {selectedPlan.nonRefundable ? (

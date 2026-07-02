@@ -107,6 +107,24 @@ export type ApiHotel = {
   photo_categories?: ApiPhotoCategory[];
 };
 
+type ApiRatePlanPrices = {
+  ep?: number | null;
+  cp?: number | null;
+  map?: number | null;
+  ap?: number | null;
+};
+
+type ApiChannelRates = {
+  room:      ApiRatePlanPrices;
+  extra_bed: ApiRatePlanPrices;
+};
+
+type ApiRates = {
+  website?: ApiChannelRates;
+  staff?:   ApiChannelRates;
+  agent?:   ApiChannelRates;
+};
+
 export type ApiRoomType = {
   id: string;
   hotel_id: string;
@@ -123,6 +141,7 @@ export type ApiRoomType = {
   available: boolean;
   available_count: number;
   meal_plans?: ApiMealPlans;
+  rates?: ApiRates | null;
   price_is_for_dates?: boolean;
   total_price?: number | null;
   nightly_breakdown?: { date: string; price: number }[];
@@ -232,19 +251,61 @@ function getHotelGstRate(pricePerNight: number): number {
 }
 
 function roomTaxes(pricePerNight: number): number {
-  const gstRate = getHotelGstRate(pricePerNight);
-  const gst     = Math.round(pricePerNight * gstRate);
-  const tcs     = Math.round((pricePerNight + gst) * 0.005);
+  const gst = Math.round(pricePerNight * getHotelGstRate(pricePerNight));
+  const tcs = Math.round(pricePerNight * 0.005);
   return gst + tcs;
 }
 
 function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
-  const basePrice    = Math.round(room.price_per_night);
-  const originalBase = Math.round(
-    room.original_price ?? basePrice + Math.max(400, basePrice * 0.2),
-  );
+  const web = room.rates?.website;
 
-  const makePlan = (
+  // ── New per-plan pricing (rates.website) ─────────────────────────────────
+  if (web?.room?.ep) {
+    const ep  = Math.round(web.room.ep);
+    const cp  = web.room.cp  ? Math.round(web.room.cp)  : null;
+    const map = web.room.map ? Math.round(web.room.map) : null;
+    const ap  = web.room.ap  ? Math.round(web.room.ap)  : null;
+
+    const originalBase = room.original_price != null ? Math.round(room.original_price) : null;
+
+    const makePlan = (
+      suffix:       string,
+      packageName:  string,
+      benefits:     string[],
+      planPrice:    number,
+      showBestValueBadge?: boolean,
+    ): HotelRoomRatePlan => {
+      const originalPrice = originalBase != null ? originalBase + (planPrice - ep) : planPrice;
+      return {
+        id: `${room.id}-${suffix}`,
+        packageName,
+        benefits,
+        roomBasePrice: ep,
+        mealAddOn: planPrice - ep,
+        originalPrice,
+        price: planPrice,
+        taxes: roomTaxes(planPrice),
+        discountAmount: originalBase != null ? Math.max(0, originalPrice - planPrice) : 0,
+        nonRefundable: false,
+        couponCode: "",
+        showBestValueBadge,
+      };
+    };
+
+    const plans: HotelRoomRatePlan[] = [
+      makePlan("ep", "Room Only (EP)", ["No meals included"], ep),
+    ];
+    if (cp)  plans.push(makePlan("cp",  "With Breakfast (CP)",  ["Breakfast included"],                    cp));
+    if (map) plans.push(makePlan("map", "Half Board (MAP)",     ["Breakfast included", "Dinner included"], map, true));
+    if (ap)  plans.push(makePlan("ap",  "Full Board (AP)",      ["Breakfast included", "Lunch included", "Dinner included"], ap));
+    return plans;
+  }
+
+  // ── Legacy pricing (price_per_night + meal_plans addon) ──────────────────
+  const basePrice    = Math.round(room.price_per_night);
+  const originalBase = room.original_price != null ? Math.round(room.original_price) : null;
+
+  const makeLegacyPlan = (
     suffix:           string,
     packageName:      string,
     mealBenefits:     string[],
@@ -252,7 +313,7 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
     showBestValueBadge?: boolean,
   ): HotelRoomRatePlan => {
     const price         = basePrice + mealCost;
-    const originalPrice = originalBase + mealCost;
+    const originalPrice = originalBase != null ? originalBase + mealCost : price;
     return {
       id: `${room.id}-${suffix}`,
       packageName,
@@ -262,15 +323,15 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
       originalPrice,
       price,
       taxes: roomTaxes(price),
-      discountAmount: Math.max(0, originalPrice - price),
+      discountAmount: originalBase != null ? Math.max(0, originalPrice - price) : 0,
       nonRefundable: false,
-      couponCode: "UNOHOTELS",
+      couponCode: "",
       showBestValueBadge,
     };
   };
 
   const plans: HotelRoomRatePlan[] = [
-    makePlan("ep", "Room Only (EP)", ["No meals included"], 0),
+    makeLegacyPlan("ep", "Room Only (EP)", ["No meals included"], 0),
   ];
 
   const mp = room.meal_plans;
@@ -281,39 +342,13 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
   const dinner    = Math.round(mp.dinner    ?? 0);
 
   if (breakfast > 0) {
-    plans.push(
-      makePlan(
-        "cp",
-        "With Breakfast (CP)",
-        [`Breakfast included — ₹${breakfast}/night`],
-        breakfast,
-      ),
-    );
+    plans.push(makeLegacyPlan("cp", "With Breakfast (CP)", [`Breakfast included — ₹${breakfast}/night`], breakfast));
   }
   if (breakfast > 0 && dinner > 0) {
-    plans.push(
-      makePlan(
-        "map",
-        "Half Board (MAP)",
-        [`Breakfast — ₹${breakfast}/night`, `Dinner — ₹${dinner}/night`],
-        breakfast + dinner,
-        true,
-      ),
-    );
+    plans.push(makeLegacyPlan("map", "Half Board (MAP)", [`Breakfast — ₹${breakfast}/night`, `Dinner — ₹${dinner}/night`], breakfast + dinner, true));
   }
   if (breakfast > 0 && lunch > 0 && dinner > 0) {
-    plans.push(
-      makePlan(
-        "ap",
-        "Full Board (AP)",
-        [
-          `Breakfast — ₹${breakfast}/night`,
-          `Lunch — ₹${lunch}/night`,
-          `Dinner — ₹${dinner}/night`,
-        ],
-        breakfast + lunch + dinner,
-      ),
-    );
+    plans.push(makeLegacyPlan("ap", "Full Board (AP)", [`Breakfast — ₹${breakfast}/night`, `Lunch — ₹${lunch}/night`, `Dinner — ₹${dinner}/night`], breakfast + lunch + dinner));
   }
 
   return plans;
@@ -414,7 +449,7 @@ export function mapApiRoomsToHotelRoomTypes(
   rooms: ApiRoomType[],
 ): HotelRoomType[] {
   return rooms
-    .filter((r) => r.available)
+    .filter((r) => r.available && (r.price_per_night > 0 || (r.rates?.website?.room?.ep ?? 0) > 0))
     .map((room) => {
       const image = room.images[0] ?? hotel.images[0] ?? "";
       const tags  = [
@@ -432,7 +467,7 @@ export function mapApiRoomsToHotelRoomTypes(
         amenities:    room.amenities,
         availableCount: room.available_count,
         maxOccupancy: room.max_occupancy ?? 2,
-        extraBedPrice: room.extra_bed_price ?? null,
+        extraBedPrice: room.rates?.website?.extra_bed?.ep ?? room.extra_bed_price ?? null,
         tags,
         ratePlans:    buildRoomRatePlans(room),
       };
@@ -516,7 +551,17 @@ export async function fetchFeaturedHotels(): Promise<HotelListing[]> {
 export async function fetchAllHotels(
   limit = 50,
 ): Promise<{ hotels: HotelListing[]; total: number }> {
-  return searchHotels({ page: 1, limit, sort: "popular" });
+  const q = new URLSearchParams({
+    page: "1",
+    limit: String(limit),
+    sort: "popular",
+  });
+  const raw = await apiFetch<ApiHotelSearchResponse>(
+    `/v1/hotels/search?${q.toString()}`,
+    { next: { revalidate: 300 } },
+  );
+  if (!raw?.hotels) return { hotels: [], total: 0 };
+  return { hotels: raw.hotels.map(mapApiHotelToListing), total: raw.total };
 }
 
 export async function fetchPopularDestinations(): Promise<ApiDestination[]> {
@@ -907,9 +952,19 @@ export async function getHotelDetailBundle(
 
   // ── STEP 3: Build the bundle from the detail response — no extra calls ────
 
-  const hotel      = mapApiHotelToListing(detail);
+  let hotel        = mapApiHotelToListing(detail);
   const city       = buildCityFromDetail(detail);   // ← extracted from detail, zero API call
   const roomTypes  = mapApiRoomsToHotelRoomTypes(hotel, detail.rooms);
+
+  // If hotel-level starting_price is 0 (not set), derive it from the cheapest EP rate
+  if (hotel.price === 0 && detail.rooms.length > 0) {
+    const minEp = Math.min(
+      ...detail.rooms
+        .map((r) => r.rates?.website?.room?.ep ?? r.price_per_night ?? 0)
+        .filter((p) => p > 0),
+    );
+    if (minEp > 0) hotel = { ...hotel, price: minEp };
+  }
   const policies   = mapApiPoliciesToBullets(detail.policies);
 
   const photoCategories: HotelPhotoCategory[] = (

@@ -18,6 +18,7 @@ export {
 export type {
   ApiHotel,
   ApiHotelDetail,
+  HotelListing,
   HotelSearchParams,
   HotelDetailBundle,
   HotelDestinationListing,
