@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { HotelSearchParams } from "@/services/hotels";
+import type { HotelListing, HotelSearchParams } from "@/services/hotels";
 import {
   getAllHotels,
   getFeaturedHotels,
@@ -17,10 +17,16 @@ export function useHotels(params?: HotelSearchParams) {
   });
 }
 
-export function useAllHotels(limit = 50) {
+export function useAllHotels(
+  limit = 50,
+  initialData?: { hotels: HotelListing[]; total: number },
+) {
   return useQuery({
     queryKey: ["hotels", "all", limit],
     queryFn: () => getAllHotels(limit),
+    staleTime: 5 * 60 * 1000,
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
   });
 }
 

@@ -13,11 +13,6 @@
 import { getFeaturedBlogPosts, getTestimonials } from "@/lib/cms-api";
 import { BlogPreview }            from "@/components/home/BlogPreview";
 import { Testimonials }           from "@/components/home/Testimonials";
-import { TrendingToursApiSection } from "@/components/home/trending-tours-api-section";
-
-export function TrendingToursSection() {
-  return <TrendingToursApiSection />;
-}
 
 export async function BlogPreviewSection() {
   // getFeaturedBlogPosts returns BlogPost[] directly (not wrapped)

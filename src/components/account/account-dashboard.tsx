@@ -268,55 +268,71 @@ function StatCard({
 
 function NextTripSpotlight({ booking }: { booking: UserBooking }) {
   const days = daysUntilCheckIn(booking.check_in);
-  const citySlug = booking.hotel_city.trim().toLowerCase().replace(/\s+/g, "-");
-  const hotelPath = `/hotel/${citySlug}/${booking.hotel_id}`;
+  const hotelPath = `/account/bookings/${booking.id}`;
+  const nights = booking.check_in && booking.check_out
+    ? Math.round((new Date(booking.check_out).getTime() - new Date(booking.check_in).getTime()) / 86_400_000)
+    : null;
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-white/60 shadow-[0_20px_60px_rgba(21,101,192,0.15)]">
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0D47A1]/90 via-[#1565C0]/85 to-[#1976D2]/75" />
-      {booking.hotel_thumbnail ? (
-        <Image
-          src={booking.hotel_thumbnail}
-          alt=""
-          fill
-          className="object-cover opacity-30"
-          sizes="(max-width: 1024px) 100vw, 1152px"
-          unoptimized
-        />
-      ) : null}
-      <div className="dashboard-shine pointer-events-none absolute inset-0" />
-      <div className="relative flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:p-8">
-        <div className="flex-1 text-white">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wider backdrop-blur-md">
-            <Zap className="h-3.5 w-3.5 text-[#FFD54F]" aria-hidden />
-            Next adventure
-          </span>
-          <h2 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">{booking.hotel_name}</h2>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-white/85">
-            <MapPin className="h-4 w-4 text-[#FFB74D]" aria-hidden />
-            {booking.hotel_city} · {booking.room_name}
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-sm font-semibold backdrop-blur-md">
-              <CalendarDays className="h-4 w-4" aria-hidden />
-              {formatDate(booking.check_in)} → {formatDate(booking.check_out)}
-            </span>
-            {days !== null && days >= 0 ? (
-              <span className="inline-flex items-center gap-2 rounded-xl bg-[#EF6614] px-3 py-2 text-sm font-bold shadow-lg">
-                <Clock className="h-4 w-4" aria-hidden />
-                {days === 0 ? "Check-in today!" : `${days} day${days !== 1 ? "s" : ""} to go`}
-              </span>
-            ) : null}
+    <section className="overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-sm">
+      <div className="flex flex-col sm:flex-row">
+        {/* Thumbnail */}
+        {booking.hotel_thumbnail ? (
+          <div className="relative h-44 w-full shrink-0 sm:h-auto sm:w-52">
+            <Image src={booking.hotel_thumbnail} alt={booking.hotel_name} fill className="object-cover" sizes="208px" unoptimized />
           </div>
-        </div>
-        <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
-          <p className="text-2xl font-black text-white">{formatMoney(booking.total_amount, booking.currency)}</p>
-          <Button asChild className="h-12 rounded-xl bg-white px-6 font-bold text-[#1565C0] shadow-xl hover:bg-white/95">
-            <Link href={hotelPath}>
-              View stay details
-              <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
+        ) : (
+          <div className="flex h-44 w-full shrink-0 items-center justify-center bg-[#FFF3E0] sm:h-auto sm:w-52">
+            <Hotel className="h-10 w-10 text-[#EF6614]" aria-hidden />
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="flex flex-1 flex-col justify-between gap-4 p-5">
+          <div>
+            {/* Badge */}
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF3E0] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#EF6614]">
+              <Zap className="h-3 w-3" aria-hidden />
+              Next trip
+            </span>
+            <h2 className="mt-2 text-[18px] font-black text-[#212121] leading-snug">{booking.hotel_name}</h2>
+            <p className="mt-1 flex items-center gap-1 text-[13px] text-[#757575]">
+              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {booking.hotel_city}
+              {booking.room_name ? <> · <span className="text-[#424242]">{booking.room_name}</span></> : null}
+            </p>
+
+            {/* Date row */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-[#e8e8e8] bg-[#f5f5f5] px-3 py-1.5 text-[12px] font-semibold text-[#424242]">
+                <CalendarDays className="h-3.5 w-3.5 text-[#9E9E9E]" aria-hidden />
+                {formatDate(booking.check_in)} – {formatDate(booking.check_out)}
+                {nights ? <span className="text-[#9E9E9E]">· {nights}N</span> : null}
+              </span>
+              {days !== null && days >= 0 ? (
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-bold",
+                  days === 0 ? "bg-emerald-100 text-emerald-700" : "bg-[#FFF3E0] text-[#EF6614]"
+                )}>
+                  <Clock className="h-3.5 w-3.5" aria-hidden />
+                  {days === 0 ? "Check-in today!" : `${days} day${days !== 1 ? "s" : ""} to go`}
+                </span>
+              ) : null}
+            </div>
+          </div>
+
+          {/* Bottom row */}
+          <div className="flex items-center justify-between gap-3 border-t border-[#f0f0f0] pt-4">
+            <div>
+              <p className="text-[11px] text-[#9E9E9E]">Total paid</p>
+              <p className="text-[20px] font-black text-[#212121]">{formatMoney(booking.total_amount, booking.currency)}</p>
+            </div>
+            <Link href={hotelPath}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#EF6614] px-5 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#E65100]"
+            >
+              View details <ArrowRight className="h-4 w-4" aria-hidden />
             </Link>
-          </Button>
+          </div>
         </div>
       </div>
     </section>
@@ -331,36 +347,33 @@ function IncompleteBookingCard({
   resumeHref: string;
 }) {
   return (
-    <article className="overflow-hidden rounded-2xl border-2 border-[#FFB74D] bg-gradient-to-br from-[#FFF8E1] via-white to-[#FFF3E0] shadow-[0_8px_32px_rgba(239,102,20,0.12)]">
-      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FF9800] text-white shadow-lg shadow-[#FF9800]/30">
-          <AlertTriangle className="h-7 w-7" aria-hidden />
+    <article className="flex items-center gap-4 overflow-hidden rounded-xl border border-[#f0e8d8] bg-white pl-0 shadow-sm">
+      <div className="w-1 self-stretch shrink-0 rounded-l-xl bg-[#EF6614]" />
+      <div className="flex flex-1 flex-col gap-3 py-4 pr-4 sm:flex-row sm:items-center">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#FFF3E0] text-[#E65100]">
+          <AlertTriangle className="h-4.5 w-4.5 h-[18px] w-[18px]" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#E65100]">
-            Checkout incomplete · Payment pending
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[#E65100]">
+            Payment pending
           </p>
-          <h3 className="mt-1 text-lg font-bold text-[#212121]">{booking.hotel_name}</h3>
-          <p className="mt-0.5 text-[13px] text-[#616161]">
+          <h3 className="mt-0.5 text-[14px] font-bold text-[#212121]">{booking.hotel_name}</h3>
+          <p className="text-[12px] text-[#757575]">
             {booking.hotel_city} · {formatDate(booking.check_in)} – {formatDate(booking.check_out)}
           </p>
-          <p className="mt-2 text-[13px] leading-relaxed text-[#757575]">
-            You reached checkout for this hotel but <strong>payment was not completed</strong>. Complete
-            payment now to confirm your booking.
-          </p>
           {booking.confirmation_number ? (
-            <p className="mt-1 text-[11px] text-[#9E9E9E]">
+            <p className="mt-0.5 text-[10px] text-[#bdbdbd]">
               Ref: <span className="font-mono">{booking.confirmation_number}</span>
             </p>
           ) : null}
         </div>
-        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
-          <p className="text-center text-lg font-black text-[#EF6614] sm:text-right">
+        <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+          <p className="text-[15px] font-black text-[#EF6614]">
             {formatMoney(booking.total_amount, booking.currency)}
           </p>
-          <Button asChild className="h-11 rounded-xl bg-[#EF6614] px-6 font-bold shadow-md hover:bg-[#E65100]">
+          <Button asChild size="sm" className="h-9 rounded-lg bg-[#EF6614] px-4 text-[12px] font-bold hover:bg-[#E65100]">
             <Link href={resumeHref}>
-              <CreditCard className="mr-2 h-4 w-4" aria-hidden />
+              <CreditCard className="mr-1.5 h-3.5 w-3.5" aria-hidden />
               Complete payment
             </Link>
           </Button>
@@ -372,22 +385,20 @@ function IncompleteBookingCard({
 
 function IncompletePendingCard({ pending }: { pending: PendingCheckout }) {
   return (
-    <article className="overflow-hidden rounded-2xl border-2 border-dashed border-[#FFB74D] bg-white p-5 shadow-sm sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#FFF3E0] text-[#E65100]">
-          <AlertTriangle className="h-6 w-6" aria-hidden />
+    <article className="flex items-center gap-4 overflow-hidden rounded-xl border border-[#f0e8d8] bg-white pl-0 shadow-sm">
+      <div className="w-1 self-stretch shrink-0 rounded-l-xl bg-amber-400" />
+      <div className="flex flex-1 flex-col gap-3 py-4 pr-4 sm:flex-row sm:items-center">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#FFF3E0] text-[#E65100]">
+          <AlertTriangle className="h-[18px] w-[18px]" aria-hidden />
         </div>
         <div className="flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#E65100]">Payment not done</p>
-          <h3 className="font-bold text-[#212121]">{pending.hotelName}</h3>
-          <p className="text-[13px] text-[#616161]">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[#E65100]">Payment not done</p>
+          <h3 className="mt-0.5 text-[14px] font-bold text-[#212121]">{pending.hotelName}</h3>
+          <p className="text-[12px] text-[#757575]">
             {pending.hotelCity} · {formatDate(pending.checkIn)} – {formatDate(pending.checkOut)}
           </p>
-          <p className="mt-1 text-[12px] text-[#757575]">
-            Checkout was not completed — payment is still pending.
-          </p>
         </div>
-        <Button asChild className="shrink-0 rounded-xl bg-[#2196F3] font-bold hover:bg-[#1976D2]">
+        <Button asChild size="sm" className="shrink-0 h-9 rounded-lg bg-[#EF6614] px-4 text-[12px] font-bold hover:bg-[#E65100]">
           <Link href={resumeCheckoutHref(pending)}>Resume checkout</Link>
         </Button>
       </div>
@@ -414,113 +425,114 @@ function BookingCard({
   onCancel?: (booking: UserBooking) => void;
   cancelLoading?: boolean;
 }) {
-  const citySlug = booking.hotel_city.trim().toLowerCase().replace(/\s+/g, "-");
-  const hotelPath = `/hotel/${citySlug}/${booking.hotel_id}`;
+  const hotelPath = `/account/bookings/${booking.id}`;
   const status = statusStyles(booking.status);
   const daysLeft = daysUntilCheckIn(booking.check_in);
 
   return (
     <article
-      className="group overflow-hidden rounded-2xl border border-white/80 bg-white/95 shadow-[0_8px_32px_rgba(15,23,42,0.08)] backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(33,150,243,0.15)]"
+      className="group flex overflow-hidden rounded-xl border border-[#ebebeb] bg-white shadow-sm transition duration-200 hover:border-[#d0d0d0] hover:shadow-md"
       style={{ animationDelay: `${index * 60}ms` }}
     >
-      <div className="flex flex-col lg:flex-row">
-        <div className="relative h-48 w-full shrink-0 overflow-hidden lg:h-auto lg:w-56">
-          {booking.hotel_thumbnail ? (
-            <>
-              <Image
-                src={booking.hotel_thumbnail}
-                alt={booking.hotel_name}
-                fill
-                className="object-cover transition duration-500 group-hover:scale-105"
-                sizes="(max-width: 1024px) 100vw, 224px"
-                unoptimized
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-            </>
-          ) : (
-            <div className="flex h-full min-h-[12rem] items-center justify-center bg-gradient-to-br from-[#E3F2FD] to-[#BBDEFB]">
-              <Hotel className="h-12 w-12 text-[#1976D2]/40" aria-hidden />
-            </div>
+      {/* Thumbnail — fixed 130px, full height */}
+      <div className="relative w-[130px] shrink-0 overflow-hidden">
+        {booking.hotel_thumbnail ? (
+          <>
+            <Image
+              src={booking.hotel_thumbnail}
+              alt={booking.hotel_name}
+              fill
+              className="object-cover transition duration-500 group-hover:scale-105"
+              sizes="130px"
+              unoptimized
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent" />
+          </>
+        ) : (
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#E3F2FD] to-[#BBDEFB]">
+            <Hotel className="h-8 w-8 text-[#1976D2]/40" aria-hidden />
+          </div>
+        )}
+        <span
+          className={cn(
+            "absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize ring-1 ring-inset backdrop-blur-md",
+            status.badge,
           )}
-          <span
-            className={cn(
-              "absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ring-1 ring-inset backdrop-blur-md",
-              status.badge,
-            )}
-          >
-            <span className={cn("h-1.5 w-1.5 rounded-full", status.dot)} />
-            {booking.status.replace(/_/g, " ")}
-          </span>
-        </div>
+        >
+          <span className={cn("h-1.5 w-1.5 rounded-full", status.dot)} />
+          {booking.status.replace(/_/g, " ")}
+        </span>
+      </div>
 
-        <div className="flex flex-1 flex-col gap-3 p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-bold tracking-tight text-[#212121] group-hover:text-[#1976D2] transition-colors">
-                {booking.hotel_name}
-              </h3>
-              <p className="mt-0.5 flex items-center gap-1 text-[13px] text-[#757575]">
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-[#EF6614]" aria-hidden />
-                {booking.hotel_city}
-              </p>
-            </div>
-            <p className="text-xl font-black text-[#EF6614]">
-              {formatMoney(booking.total_amount, booking.currency)}
+      {/* Content */}
+      <div className="flex flex-1 flex-col justify-between gap-2 p-4">
+        {/* Top: name + price */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-[15px] font-bold text-[#212121] transition-colors group-hover:text-[#1565C0]">
+              {booking.hotel_name}
+            </h3>
+            <p className="mt-0.5 flex items-center gap-1 text-[12px] text-[#757575]">
+              <MapPin className="h-3 w-3 shrink-0 text-[#EF6614]" aria-hidden />
+              {booking.hotel_city}
             </p>
           </div>
+          <p className="shrink-0 text-[17px] font-black text-[#EF6614]">
+            {formatMoney(booking.total_amount, booking.currency)}
+          </p>
+        </div>
 
-          <div className="flex flex-wrap gap-2">
+        {/* Date row */}
+        <div className="flex items-center gap-1.5 text-[12px] text-[#616161]">
+          <CalendarDays className="h-3.5 w-3.5 shrink-0 text-[#9E9E9E]" aria-hidden />
+          {formatDate(booking.check_in)}
+          <span className="text-[#bdbdbd]">→</span>
+          {formatDate(booking.check_out)}
+        </div>
+
+        {/* Bottom: chips + actions */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {[
               { icon: BedDouble, label: booking.room_name },
-              { icon: Moon, label: `${booking.nights} night${booking.nights !== 1 ? "s" : ""}` },
+              { icon: Moon, label: `${booking.nights}N` },
               { icon: Users, label: `${booking.adults} guest${booking.adults !== 1 ? "s" : ""}` },
             ].map(({ icon: Icon, label }) => (
               <span
                 key={label}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#f5f7fa] px-2.5 py-1 text-[11px] font-medium text-[#616161]"
+                className="inline-flex items-center gap-1 rounded-md bg-[#f5f7fa] px-2 py-0.5 text-[11px] font-medium text-[#616161]"
               >
-                <Icon className="h-3.5 w-3.5 text-[#9E9E9E]" aria-hidden />
+                <Icon className="h-3 w-3 text-[#9E9E9E]" aria-hidden />
                 {label}
               </span>
             ))}
           </div>
-
-          <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#E3F2FD]/60 to-[#FFF3E0]/50 px-3 py-2.5">
-            <CalendarDays className="h-4 w-4 shrink-0 text-[#1976D2]" aria-hidden />
-            <p className="text-[13px] font-medium text-[#424242]">
-              {formatDate(booking.check_in)}
-              <span className="mx-2 text-[#bdbdbd]">→</span>
-              {formatDate(booking.check_out)}
-            </p>
-          </div>
-
-          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-[#f0f0f0] pt-4">
-            <p className="text-[11px] font-medium text-[#9E9E9E]">
-              Confirmation · <span className="font-mono text-[#616161]">{booking.confirmation_number}</span>
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              {onCancel && canCancelBooking(booking) ? (
-                <button
-                  type="button"
-                  disabled={cancelLoading}
-                  onClick={() => onCancel(booking)}
-                  className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-[12px] font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
-                >
-                  {cancelLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
-                  Cancel booking
-                </button>
-              ) : null}
-              <Link
-                href={hotelPath}
-                className="inline-flex items-center gap-1 rounded-full bg-[#2196F3] px-4 py-2 text-[12px] font-bold text-white shadow-md shadow-[#2196F3]/25 transition hover:bg-[#1976D2] hover:shadow-lg"
+          <div className="flex items-center gap-2">
+            {onCancel && canCancelBooking(booking) ? (
+              <button
+                type="button"
+                disabled={cancelLoading}
+                onClick={() => onCancel(booking)}
+                className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2.5 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
               >
-                View hotel
-                <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-            </div>
+                {cancelLoading ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
+                Cancel
+              </button>
+            ) : null}
+            <Link
+              href={hotelPath}
+              className="inline-flex items-center gap-1 rounded-md bg-[#2196F3] px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-[#1976D2]"
+            >
+              View hotel
+              <ChevronRight className="h-3 w-3" aria-hidden />
+            </Link>
           </div>
         </div>
+
+        {/* Confirmation ref */}
+        <p className="text-[10px] text-[#bdbdbd]">
+          Ref: <span className="font-mono">{booking.confirmation_number}</span>
+        </p>
       </div>
     </article>
   );
@@ -533,9 +545,23 @@ type AccountDashboardProps = {
 export function AccountDashboard({ onLogout }: AccountDashboardProps) {
   const { user: sessionUser, getAccessToken, updateUser } = useAuth();
   const [profile, setProfile] = useState<AuthUser | null>(sessionUser);
-  const [bookings, setBookings] = useState<UserBooking[]>([]);
-  const [localPending, setLocalPending] = useState<PendingCheckout[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Initialise from localStorage cache so the page never shows a skeleton
+  const [bookings, setBookings] = useState<UserBooking[]>(() => {
+    if (!sessionUser) return [];
+    const cached = getCachedBookings(sessionUser.id);
+    const pending = getPendingCheckoutsForUser(sessionUser.id, sessionUser.email);
+    return mergeBookings(cached, pendingBookingsForMerge(pending));
+  });
+  const [localPending, setLocalPending] = useState<PendingCheckout[]>(() => {
+    if (!sessionUser) return [];
+    return getPendingCheckoutsForUser(sessionUser.id, sessionUser.email);
+  });
+  // Only show skeleton if there is truly nothing cached yet
+  const [loading, setLoading] = useState(() => {
+    if (!sessionUser) return false;
+    return getCachedBookings(sessionUser.id).length === 0;
+  });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"bookings" | "reviews" | "profile">("bookings");
   const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
@@ -543,8 +569,8 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
   const [refreshing, setRefreshing] = useState(false);
 
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(sessionUser?.name ?? "");
+  const [phone, setPhone] = useState(sessionUser?.phone?.replace(/\D/g, "").slice(-10) ?? "");
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -558,7 +584,7 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
     }
 
     if (options?.silent) setRefreshing(true);
-    else setLoading(true);
+    else if (bookings.length === 0) setLoading(true); // only show skeleton when truly empty
     setLoadError(null);
     try {
       const profileData = await fetchAccountProfile(token);
@@ -703,576 +729,320 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
   ];
 
   return (
-    <div className="lg:grid lg:grid-cols-[minmax(260px,300px)_1fr] lg:items-start lg:gap-8">
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:sticky lg:top-24 lg:block lg:space-y-4">
-        <div className="overflow-hidden rounded-3xl border border-white/80 bg-white/90 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.08)] backdrop-blur-md">
+    <div className="lg:grid lg:grid-cols-[260px_1fr] lg:items-start lg:gap-6">
+
+      {/* ── Sidebar ── */}
+      <aside className="hidden lg:sticky lg:top-24 lg:block lg:space-y-3">
+        {/* Profile card */}
+        <div className="rounded-2xl border border-[#e8e8e8] bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2196F3] to-[#1565C0] text-lg font-black text-white shadow-lg">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#EF6614] text-[15px] font-black text-white">
               {displayUser.avatar ? (
-                <Image src={displayUser.avatar} alt="" width={56} height={56} className="h-full w-full rounded-2xl object-cover" unoptimized />
-              ) : (
-                userInitials(displayUser.name)
-              )}
+                <Image src={displayUser.avatar} alt="" width={48} height={48} className="h-full w-full rounded-xl object-cover" unoptimized />
+              ) : userInitials(displayUser.name)}
             </div>
             <div className="min-w-0">
-              <p className="truncate font-bold text-[#212121]">{displayUser.name}</p>
-              <p className="truncate text-[12px] text-[#757575]">{displayUser.email}</p>
+              <p className="truncate text-[14px] font-bold text-[#212121]">{displayUser.name}</p>
+              <p className="truncate text-[11px] text-[#9E9E9E]">{displayUser.email}</p>
             </div>
           </div>
-          <div className="mt-4 rounded-2xl bg-gradient-to-br from-[#FFF8E1] to-[#FFF3E0] p-4">
-            <div className="flex items-center gap-2">
-              <Star className="h-4 w-4 text-[#FF9800]" aria-hidden />
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#E65100]">{loyalty.tier}</p>
+          {/* Loyalty progress */}
+          <div className="mt-4 border-t border-[#f0f0f0] pt-4">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1 text-[11px] font-bold text-[#FF9800]">
+                <Star className="h-3.5 w-3.5" aria-hidden />{loyalty.tier}
+              </span>
+              <span className="text-[10px] text-[#9E9E9E]">{confirmedBookings.length} trips</span>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/80">
-              <div className="h-full rounded-full bg-gradient-to-r from-[#FF9800] to-[#EF6614]" style={{ width: `${loyalty.progress}%` }} />
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#f0f0f0]">
+              <div className="h-full rounded-full bg-gradient-to-r from-[#FF9800] to-[#EF6614] transition-all duration-700" style={{ width: `${loyalty.progress}%` }} />
             </div>
-            <p className="mt-2 text-[11px] text-[#757575]">{loyalty.next}</p>
+            <p className="mt-1.5 text-[11px] text-[#9E9E9E]">{loyalty.next}</p>
           </div>
         </div>
 
-        <nav className="space-y-1 rounded-3xl border border-white/80 bg-white/90 p-2 shadow-sm backdrop-blur-md">
-          {(
-            [
-              { id: "bookings" as const, label: "My bookings", icon: Plane },
-              { id: "reviews" as const, label: "My reviews", icon: MessageSquare },
-              { id: "profile" as const, label: "Profile", icon: Shield },
-            ] as const
-          ).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveTab(item.id)}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition",
-                activeTab === item.id ? "bg-gradient-to-r from-[#2196F3] to-[#1976D2] text-white shadow-md" : "text-[#616161] hover:bg-[#f5f7fa]",
-              )}
+        {/* Nav */}
+        <nav className="rounded-2xl border border-[#e8e8e8] bg-white p-2 shadow-sm">
+          {([
+            { id: "bookings" as const, label: "My Bookings", icon: Plane },
+            { id: "reviews" as const,  label: "My Reviews",  icon: MessageSquare },
+            { id: "profile" as const,  label: "Profile",     icon: Shield },
+          ] as const).map((item) => (
+            <button key={item.id} type="button" onClick={() => setActiveTab(item.id)}
+              className={cn("flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-[13px] font-semibold transition",
+                activeTab === item.id ? "bg-[#EF6614] text-white" : "text-[#424242] hover:bg-[#f5f5f5]")}
             >
-              <item.icon className="h-4 w-4" aria-hidden />
-              {item.label}
+              <item.icon className="h-4 w-4 shrink-0" aria-hidden />{item.label}
             </button>
           ))}
         </nav>
 
-        <div className="grid gap-2">
+        {/* Quick links */}
+        <div className="space-y-2">
           {[
-            { href: "/hotels", label: "Book hotels", icon: Hotel },
-            { href: "/packages", label: "Packages", icon: Globe2 },
+            { href: "/hotels",   label: "Book hotels",  icon: Hotel },
+            { href: "/packages", label: "Packages",     icon: Globe2 },
           ].map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="flex items-center gap-3 rounded-2xl border border-[#e8e8e8] bg-white/90 px-4 py-3 text-sm font-semibold text-[#424242] shadow-sm transition hover:border-[#2196F3]/30 hover:text-[#1976D2]"
+            <Link key={link.href} href={link.href}
+              className="flex items-center gap-3 rounded-xl border border-[#e8e8e8] bg-white px-4 py-3 text-[13px] font-semibold text-[#424242] transition hover:border-[#EF6614]/30 hover:text-[#EF6614]"
             >
-              <link.icon className="h-4 w-4 text-[#2196F3]" aria-hidden />
-              {link.label}
-              <ChevronRight className="ml-auto h-4 w-4 text-[#bdbdbd]" aria-hidden />
+              <link.icon className="h-4 w-4 text-[#EF6614]" aria-hidden />{link.label}
+              <ChevronRight className="ml-auto h-4 w-4 text-[#e0e0e0]" aria-hidden />
             </Link>
           ))}
+          <button type="button" onClick={() => void onLogout()}
+            className="flex w-full items-center gap-3 rounded-xl border border-[#e8e8e8] bg-white px-4 py-3 text-[13px] font-semibold text-[#757575] transition hover:border-red-200 hover:text-red-600"
+          >
+            <LogOut className="h-4 w-4" aria-hidden />Sign out
+          </button>
         </div>
       </aside>
 
-      <div className="space-y-6 sm:space-y-8">
-      {/* Hero welcome card */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0D47A1] via-[#1565C0] to-[#1976D2] p-6 text-white shadow-[0_24px_60px_rgba(13,71,161,0.4)] sm:p-8">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-10 h-48 w-48 rounded-full bg-[#EF6614]/20 blur-3xl" />
-        <div className="pointer-events-none absolute right-8 top-8 opacity-[0.07]">
-          <Sparkles className="h-32 w-32" aria-hidden />
-        </div>
+      {/* ── Main content ── */}
+      <div className="space-y-5">
 
-        <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4 sm:gap-5">
-            <div className="relative">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 text-2xl font-black backdrop-blur-sm ring-2 ring-white/30 sm:h-20 sm:w-20 sm:text-3xl">
-                {displayUser.avatar ? (
-                  <Image
-                    src={displayUser.avatar}
-                    alt=""
-                    width={80}
-                    height={80}
-                    className="h-full w-full rounded-2xl object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  userInitials(displayUser.name)
-                )}
-              </div>
-              <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#EF6614] ring-2 ring-[#1976D2]">
-                <BadgeCheck className="h-3.5 w-3.5 text-white" aria-hidden />
-              </span>
+        {/* Profile header bar */}
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#e8e8e8] bg-white px-5 py-4 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EF6614] text-[14px] font-black text-white">
+              {displayUser.avatar ? (
+                <Image src={displayUser.avatar} alt="" width={44} height={44} className="h-full w-full rounded-xl object-cover" unoptimized />
+              ) : userInitials(displayUser.name)}
             </div>
-
             <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-white/70">
-                {getGreeting()} · Your travel hub
-              </p>
-              <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
-                {firstName}, ready for your next trip?
-              </h1>
-              <p className="mt-1 max-w-sm text-sm text-white/80">
-                Bookings, payments, and profile — all in one premium dashboard.
-              </p>
-              <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-wide backdrop-blur-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                {displayUser.role === "guest" ? "Guest member" : displayUser.role}
-                <span className="text-white/50">·</span>
-                Since {memberSince}
-              </span>
+              <p className="text-[13px] text-[#9E9E9E]">{getGreeting()}</p>
+              <p className="text-[16px] font-bold text-[#212121]">{displayUser.name}</p>
             </div>
           </div>
-
-          <div className="flex flex-wrap gap-2 sm:flex-col sm:items-stretch">
-            <Button
-              asChild
-              className="h-11 rounded-xl bg-white font-bold text-[#1565C0] shadow-lg hover:bg-white/95"
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => void loadDashboard({ silent: true })} disabled={refreshing}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e8e8e8] px-3 py-2 text-[12px] font-semibold text-[#616161] transition hover:bg-[#f5f5f5] disabled:opacity-50"
             >
-              <Link href="/hotels">
-                <Hotel className="mr-2 h-4 w-4" aria-hidden />
-                Book a hotel
-              </Link>
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-xl border-white/40 bg-white/10 font-semibold text-white backdrop-blur-sm hover:bg-white/20 hover:text-white"
-              onClick={() => void onLogout()}
+              <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} aria-hidden />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+            <Link href="/hotels"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#EF6614] px-4 py-2 text-[12px] font-bold text-white transition hover:bg-[#E65100]"
             >
-              <LogOut className="mr-2 h-4 w-4" aria-hidden />
-              Logout
-            </Button>
+              <Hotel className="h-3.5 w-3.5" aria-hidden />Book hotel
+            </Link>
+            <button type="button" onClick={() => void onLogout()}
+              className="hidden rounded-lg border border-[#e8e8e8] px-3 py-2 text-[12px] font-semibold text-[#757575] transition hover:border-red-200 hover:text-red-600 lg:inline-flex"
+            >
+              <LogOut className="h-3.5 w-3.5" aria-hidden />
+            </button>
           </div>
         </div>
-      </section>
 
-      {activeTab === "bookings" && nextTrip ? <NextTripSpotlight booking={nextTrip} /> : null}
-
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-[#616161]">Overview</p>
-        <button
-          type="button"
-          onClick={() => void loadDashboard({ silent: true })}
-          disabled={refreshing}
-          className="inline-flex items-center gap-2 rounded-full border border-[#e0e0e0] bg-white px-4 py-2 text-[12px] font-bold text-[#616161] shadow-sm transition hover:border-[#2196F3]/30 hover:text-[#1976D2] disabled:opacity-60"
-        >
-          <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} aria-hidden />
-          Refresh
-        </button>
-      </div>
-
-      {/* Stats row */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { label: "Confirmed trips", value: String(confirmedBookings.length), sub: confirmedBookings.length === 1 ? "booking" : "bookings", icon: Plane, gradient: "from-[#2196F3] to-[#1565C0]", glow: "shadow-[#2196F3]/20" },
-          { label: "Upcoming stays", value: String(upcomingCount), sub: upcomingCount ? "get packing" : "plan a trip", icon: TrendingUp, gradient: "from-[#00897B] to-[#00695C]", glow: "shadow-emerald-500/20" },
-          { label: "Pending payment", value: String(incompleteCount), sub: incompleteCount ? "complete checkout" : "all clear", icon: AlertTriangle, gradient: "from-[#FF9800] to-[#E65100]", glow: "shadow-[#FF9800]/20" },
-          { label: "Total spent", value: confirmedBookings.length ? formatMoney(totalSpent, confirmedBookings[0]?.currency ?? "INR") : "—", sub: "lifetime value", icon: Wallet, gradient: "from-[#7B1FA2] to-[#4A148C]", glow: "shadow-purple-500/20" },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className={cn(
-              "group relative overflow-hidden rounded-2xl bg-white p-5 shadow-[0_4px_20px_rgba(0,0,0,0.05)] transition hover:-translate-y-0.5",
-              stat.glow,
-              "hover:shadow-lg",
-            )}
-          >
-            <div
-              className={cn(
-                "absolute -right-4 -top-4 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br opacity-[0.12] transition group-hover:opacity-20",
-                stat.gradient,
-              )}
-            >
-              <stat.icon className="h-10 w-10" aria-hidden />
-            </div>
-            <div
-              className={cn(
-                "mb-3 inline-flex rounded-xl bg-gradient-to-br p-2.5 text-white shadow-md",
-                stat.gradient,
-              )}
-            >
-              <stat.icon className="h-5 w-5" aria-hidden />
-            </div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-[#9E9E9E]">{stat.label}</p>
-            <p className="mt-1 text-2xl font-black text-[#212121]">{stat.value}</p>
-            <p className="text-[12px] text-[#757575]">{stat.sub}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Tabs — mobile */}
-      <div className="flex gap-1 rounded-2xl border border-[#e8e8e8] bg-white/90 p-1.5 shadow-sm backdrop-blur-md lg:hidden">
-        {(
-          [
-            { id: "bookings" as const, label: "Bookings", count: confirmedBookings.length + incompleteCount },
-            { id: "reviews" as const, label: "Reviews", count: null },
-            { id: "profile" as const, label: "Profile", count: null },
-          ] as const
-        ).map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition",
-              activeTab === tab.id
-                ? "bg-gradient-to-r from-[#2196F3] to-[#1976D2] text-white shadow-md shadow-[#2196F3]/25"
-                : "text-[#757575] hover:bg-[#f5f5f5] hover:text-[#212121]",
-            )}
-          >
-            {tab.label}
-            {tab.count !== null ? (
-              <span
-                className={cn(
-                  "rounded-full px-2 py-0.5 text-[11px]",
-                  activeTab === tab.id ? "bg-white/25" : "bg-[#E3F2FD] text-[#1976D2]",
-                )}
-              >
-                {tab.count}
-              </span>
-            ) : null}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === "bookings" ? (
-        <section className="space-y-6">
-          <div className="flex flex-wrap items-center gap-2">
-            {bookingFilters.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setBookingFilter(f.id)}
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full px-4 py-2 text-[12px] font-bold transition",
-                  bookingFilter === f.id
-                    ? "bg-gradient-to-r from-[#2196F3] to-[#1976D2] text-white shadow-md"
-                    : "border border-[#e8e8e8] bg-white text-[#616161] hover:border-[#2196F3]/30",
-                )}
-              >
-                {f.label}
-                <span className={cn("rounded-full px-1.5 py-0.5 text-[10px]", bookingFilter === f.id ? "bg-white/25" : "bg-[#f5f5f5]")}>
-                  {f.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {(bookingFilter === "pending" || bookingFilter === "all") && incompleteCount > 0 ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-[#E65100]" aria-hidden />
-                <h2 className="text-lg font-bold text-[#212121]">Incomplete checkout</h2>
-                <span className="rounded-full bg-[#FF9800] px-2.5 py-0.5 text-[11px] font-bold text-white">
-                  {incompleteCount}
-                </span>
+        {/* Stats row — compact */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            { label: "Total trips",      value: confirmedBookings.length, color: "text-[#2196F3]", bg: "bg-[#E3F2FD]", icon: Plane },
+            { label: "Upcoming",         value: upcomingCount,            color: "text-emerald-700", bg: "bg-emerald-50", icon: TrendingUp },
+            { label: "Pending pay",      value: incompleteCount,          color: "text-[#E65100]", bg: "bg-[#FFF3E0]", icon: AlertTriangle },
+            { label: "Total spent",      value: confirmedBookings.length ? formatMoney(totalSpent, confirmedBookings[0]?.currency ?? "INR") : "—", color: "text-[#7B1FA2]", bg: "bg-purple-50", icon: Wallet, isText: true },
+          ].map((s) => (
+            <div key={s.label} className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4 shadow-sm">
+              <div className={cn("mb-2 inline-flex rounded-lg p-1.5", s.bg)}>
+                <s.icon className={cn("h-4 w-4", s.color)} aria-hidden />
               </div>
-              <p className="text-[13px] text-[#616161]">
-                You started checkout for these hotels but did not complete payment. Finish payment to confirm
-                your bookings.
-              </p>
-              <div className="grid gap-4">
-                {incompleteApiBookings.map((b) => {
-                  const pendingMeta = localPending.find((p) => p.bookingId === b.id);
-                  return (
-                    <IncompleteBookingCard
-                      key={b.id}
-                      booking={b}
-                      resumeHref={resumeApiBookingHref(b, pendingMeta)}
-                    />
-                  );
-                })}
+              <p className={cn("text-xl font-black", s.color)}>{s.isText ? s.value : s.value}</p>
+              <p className="mt-0.5 text-[11px] text-[#9E9E9E]">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Next trip spotlight */}
+        {activeTab === "bookings" && nextTrip ? <NextTripSpotlight booking={nextTrip} /> : null}
+
+        {/* Mobile tab bar */}
+        <div className="flex gap-1 rounded-xl border border-[#e8e8e8] bg-white p-1 lg:hidden">
+          {([
+            { id: "bookings" as const, label: "Bookings", count: confirmedBookings.length + incompleteCount },
+            { id: "reviews" as const,  label: "Reviews",  count: null },
+            { id: "profile" as const,  label: "Profile",  count: null },
+          ] as const).map((tab) => (
+            <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
+              className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition",
+                activeTab === tab.id ? "bg-[#EF6614] text-white shadow-sm" : "text-[#757575] hover:bg-[#f5f5f5]")}
+            >
+              {tab.label}
+              {tab.count !== null && tab.count > 0 ? (
+                <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold", activeTab === tab.id ? "bg-white/25" : "bg-[#f0f0f0] text-[#616161]")}>
+                  {tab.count}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Bookings tab ── */}
+        {activeTab === "bookings" ? (
+          <section className="space-y-5">
+            {/* Filter pills */}
+            <div className="flex flex-wrap gap-2">
+              {bookingFilters.map((f) => (
+                <button key={f.id} type="button" onClick={() => setBookingFilter(f.id)}
+                  className={cn("inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-[12px] font-semibold transition",
+                    bookingFilter === f.id ? "bg-[#EF6614] text-white" : "border border-[#e8e8e8] bg-white text-[#616161] hover:border-[#EF6614]/30 hover:text-[#EF6614]")}
+                >
+                  {f.label}
+                  <span className={cn("rounded-full px-1.5 text-[10px]", bookingFilter === f.id ? "bg-white/25" : "bg-[#f5f5f5] text-[#9E9E9E]")}>{f.count}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Incomplete checkouts */}
+            {(bookingFilter === "pending" || bookingFilter === "all") && incompleteCount > 0 ? (
+              <div className="space-y-3">
+                <p className="flex items-center gap-2 text-[13px] font-bold text-[#E65100]">
+                  <AlertTriangle className="h-4 w-4" aria-hidden />
+                  {incompleteCount} pending payment{incompleteCount > 1 ? "s" : ""}
+                </p>
+                {incompleteApiBookings.map((b) => (
+                  <IncompleteBookingCard key={b.id} booking={b} resumeHref={resumeApiBookingHref(b, localPending.find((p) => p.bookingId === b.id))} />
+                ))}
                 {extraLocalPending.map((p) => (
                   <IncompletePendingCard key={p.bookingId ?? p.id} pending={p} />
                 ))}
               </div>
-            </div>
-          ) : bookingFilter === "pending" ? (
-            <p className="rounded-2xl border border-dashed border-[#e0e0e0] bg-white px-6 py-10 text-center text-sm text-[#757575]">
-              No pending payments — you&apos;re all clear.
-            </p>
-          ) : null}
-
-          {bookingFilter !== "pending" ? (
-          <>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-[#212121]">
-              {bookingFilter === "upcoming" ? "Upcoming trips" : bookingFilter === "past" ? "Past stays" : "All reservations"}
-            </h2>
-            {confirmedBookings.length > 0 ? (
-              <Link
-                href="/hotels"
-                className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#2196F3] hover:underline"
-              >
-                Book another
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-            ) : null}
-          </div>
-
-          {displayedConfirmed.length === 0 && incompleteCount === 0 && bookingFilter === "all" ? (
-            <div className="relative overflow-hidden rounded-3xl border border-dashed border-[#90CAF9] bg-gradient-to-br from-[#E3F2FD]/50 via-white to-[#FFF3E0]/40 p-10 text-center sm:p-14">
-              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(33,150,243,0.08),transparent_50%)]" />
-              <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2196F3] to-[#1565C0] shadow-lg shadow-[#2196F3]/30">
-                <Hotel className="h-10 w-10 text-white" aria-hidden />
+            ) : bookingFilter === "pending" ? (
+              <div className="rounded-xl border border-dashed border-[#e0e0e0] bg-white py-10 text-center">
+                <p className="text-sm text-[#9E9E9E]">No pending payments — you&apos;re all set.</p>
               </div>
-              <h3 className="relative mt-6 text-xl font-bold text-[#212121]">No adventures yet</h3>
-              <p className="relative mx-auto mt-2 max-w-sm text-sm text-[#616161]">
-                Your dream stay is one click away. Explore hand-picked hotels across India and beyond.
-              </p>
-              <Button
-                asChild
-                className="relative mt-6 h-12 rounded-full bg-gradient-to-r from-[#EF6614] to-[#E65100] px-8 text-sm font-bold shadow-lg shadow-[#EF6614]/30 hover:opacity-95"
-              >
-                <Link href="/hotels">
-                  Discover hotels
-                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
-                </Link>
-              </Button>
-            </div>
-          ) : displayedConfirmed.length > 0 ? (
-            <div className="grid gap-5">
-              {displayedConfirmed.map((b, i) => (
-                <BookingCard
-                  key={b.id}
-                  booking={b}
-                  index={i}
-                  onCancel={(bk) => void handleCancelBooking(bk)}
-                  cancelLoading={cancelBookingId === b.id}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-xl border border-[#e0e0e0] bg-white px-4 py-6 text-center text-sm text-[#757575]">
-              No bookings match this filter.
-            </p>
-          )}
-          </>
-          ) : null}
-        </section>
-      ) : activeTab === "reviews" ? (
-        <section className="space-y-4">
-          <div>
-            <h2 className="text-lg font-bold text-[#212121]">My reviews</h2>
-            <p className="text-[13px] text-[#757575]">Reviews you submitted after your stays</p>
-          </div>
-          <AccountMyReviews />
-        </section>
-      ) : (
-        <section className="overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_4px_24px_rgba(0,0,0,0.05)]">
-          <div className="border-b border-[#f0f0f0] bg-gradient-to-r from-[#fafafa] to-white px-6 py-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            ) : null}
+
+            {/* Confirmed bookings list */}
+            {bookingFilter !== "pending" ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[14px] font-bold text-[#212121]">
+                    {bookingFilter === "upcoming" ? "Upcoming trips" : bookingFilter === "past" ? "Past stays" : "All reservations"}
+                  </h2>
+                  {confirmedBookings.length > 0 ? (
+                    <Link href="/hotels" className="text-[12px] font-semibold text-[#EF6614] hover:underline">
+                      Book another →
+                    </Link>
+                  ) : null}
+                </div>
+
+                {displayedConfirmed.length === 0 && incompleteCount === 0 && bookingFilter === "all" ? (
+                  <div className="rounded-2xl border border-dashed border-[#e0e0e0] bg-white py-14 text-center">
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-[#FFF3E0]">
+                      <Hotel className="h-7 w-7 text-[#EF6614]" aria-hidden />
+                    </div>
+                    <p className="font-bold text-[#212121]">No bookings yet</p>
+                    <p className="mt-1 text-[13px] text-[#9E9E9E]">Explore hotels across India and book your first stay.</p>
+                    <Link href="/hotels" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#EF6614] px-6 py-2.5 text-[13px] font-bold text-white hover:bg-[#E65100]">
+                      Discover hotels <ArrowRight className="h-4 w-4" aria-hidden />
+                    </Link>
+                  </div>
+                ) : displayedConfirmed.length > 0 ? (
+                  <div className="grid gap-3">
+                    {displayedConfirmed.map((b, i) => (
+                      <BookingCard key={b.id} booking={b} index={i} onCancel={(bk) => void handleCancelBooking(bk)} cancelLoading={cancelBookingId === b.id} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-[#e0e0e0] bg-white py-8 text-center text-[13px] text-[#9E9E9E]">No bookings match this filter.</p>
+                )}
+              </>
+            ) : null}
+          </section>
+
+        ) : activeTab === "reviews" ? (
+          <section className="space-y-4">
+            <h2 className="text-[14px] font-bold text-[#212121]">My Reviews</h2>
+            <AccountMyReviews />
+          </section>
+
+        ) : (
+          <section className="rounded-2xl border border-[#e8e8e8] bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#f0f0f0] px-6 py-4">
               <div>
-                <h2 className="text-lg font-bold text-[#212121]">Profile details</h2>
-                <p className="text-[13px] text-[#757575]">Keep your contact info up to date for bookings</p>
+                <h2 className="text-[15px] font-bold text-[#212121]">Profile details</h2>
+                <p className="text-[12px] text-[#9E9E9E]">Keep your contact info up to date for bookings</p>
               </div>
               {!editing ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full border-[#2196F3]/30 text-[#1976D2] hover:bg-[#E3F2FD]"
-                  onClick={() => setEditing(true)}
-                >
-                  <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                  Edit profile
+                <Button type="button" variant="outline" size="sm" className="rounded-lg border-[#e0e0e0] text-[#424242] hover:bg-[#f5f5f5]" onClick={() => setEditing(true)}>
+                  <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden />Edit
                 </Button>
               ) : null}
             </div>
-          </div>
 
-          <div className="p-6">
-            {editing ? (
-              <form onSubmit={handleSaveProfile} className="mx-auto max-w-md space-y-5">
-                <div>
-                  <label htmlFor="profile-name" className="mb-1.5 block text-sm font-semibold text-[#424242]">
-                    Full name
-                  </label>
-                  <Input
-                    id="profile-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    minLength={2}
-                    disabled={saveLoading}
-                    className="h-12 rounded-xl border-[#e0e0e0]"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="profile-phone" className="mb-1.5 block text-sm font-semibold text-[#424242]">
-                    Mobile number
-                  </label>
-                  <div className="flex gap-2">
-                    <span className="flex h-12 items-center rounded-xl border border-[#e0e0e0] bg-[#f5f7fa] px-4 text-sm font-medium text-[#616161]">
-                      +91
-                    </span>
-                    <Input
-                      id="profile-phone"
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={10}
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      disabled={saveLoading}
-                      className="h-12 rounded-xl border-[#e0e0e0]"
-                      placeholder="10-digit number"
-                    />
-                  </div>
-                </div>
-                {saveError ? (
-                  <p className="rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-600">{saveError}</p>
-                ) : null}
-                {saveMessage ? (
-                  <p className="rounded-lg bg-emerald-50 px-3 py-2 text-[12px] text-emerald-700">{saveMessage}</p>
-                ) : null}
-                <div className="flex gap-3">
-                  <Button
-                    type="submit"
-                    disabled={saveLoading}
-                    className="h-11 flex-1 rounded-xl bg-[#2196F3] font-bold hover:bg-[#1976D2]"
-                  >
-                    {saveLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                        Saving…
-                      </>
-                    ) : (
-                      "Save changes"
-                    )}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={saveLoading}
-                    className="h-11 rounded-xl"
-                    onClick={() => {
-                      setEditing(false);
-                      setName(displayUser.name);
-                      setPhone(displayUser.phone?.replace(/\D/g, "").slice(-10) ?? "");
-                      setSaveError(null);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {[
-                  {
-                    icon: Mail,
-                    label: "Email address",
-                    value: displayUser.email,
-                    color: "from-[#E3F2FD] to-[#BBDEFB]",
-                    iconColor: "text-[#1976D2]",
-                  },
-                  {
-                    icon: Phone,
-                    label: "Phone number",
-                    value: displayUser.phone ? `+91 ${displayUser.phone}` : "Add your mobile number",
-                    color: "from-[#FFF3E0] to-[#FFE0B2]",
-                    iconColor: "text-[#E65100]",
-                  },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex gap-4 rounded-2xl border border-[#f0f0f0] bg-[#fafafa] p-4 transition hover:border-[#2196F3]/20 hover:bg-white hover:shadow-sm"
-                  >
-                    <div
-                      className={cn(
-                        "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br",
-                        item.color,
-                      )}
-                    >
-                      <item.icon className={cn("h-5 w-5", item.iconColor)} aria-hidden />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-[#9E9E9E]">
-                        {item.label}
-                      </p>
-                      <p className="mt-0.5 truncate text-[15px] font-semibold text-[#212121]">{item.value}</p>
-                    </div>
-                  </div>
-                ))}
-
-                <div className="flex gap-4 rounded-2xl border border-[#f0f0f0] bg-[#fafafa] p-4 sm:col-span-2">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-50">
-                    <BadgeCheck className="h-5 w-5 text-emerald-600" aria-hidden />
+            <div className="p-6">
+              {editing ? (
+                <form onSubmit={handleSaveProfile} className="mx-auto max-w-md space-y-5">
+                  <div>
+                    <label htmlFor="profile-name" className="mb-1.5 block text-sm font-semibold text-[#424242]">Full name</label>
+                    <Input id="profile-name" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} disabled={saveLoading} className="h-12 rounded-xl border-[#e0e0e0]" />
                   </div>
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#9E9E9E]">
-                      Account verification
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-bold",
-                          displayUser.email_verified
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-amber-100 text-amber-800",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "h-1.5 w-1.5 rounded-full",
-                            displayUser.email_verified ? "bg-emerald-500" : "bg-amber-500",
-                          )}
-                        />
-                        Email {displayUser.email_verified ? "verified" : "pending"}
-                      </span>
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-bold",
-                          displayUser.phone_verified
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-amber-100 text-amber-800",
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            "h-1.5 w-1.5 rounded-full",
-                            displayUser.phone_verified ? "bg-emerald-500" : "bg-amber-500",
-                          )}
-                        />
-                        Phone {displayUser.phone_verified ? "verified" : "pending"}
-                      </span>
+                    <label htmlFor="profile-phone" className="mb-1.5 block text-sm font-semibold text-[#424242]">Mobile number</label>
+                    <div className="flex gap-2">
+                      <span className="flex h-12 items-center rounded-xl border border-[#e0e0e0] bg-[#f5f7fa] px-4 text-sm font-medium text-[#616161]">+91</span>
+                      <Input id="profile-phone" type="tel" inputMode="numeric" maxLength={10} value={phone} onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))} disabled={saveLoading} className="h-12 rounded-xl border-[#e0e0e0]" placeholder="10-digit number" />
+                    </div>
+                  </div>
+                  {saveError ? <p className="rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-600">{saveError}</p> : null}
+                  {saveMessage ? <p className="rounded-lg bg-emerald-50 px-3 py-2 text-[12px] text-emerald-700">{saveMessage}</p> : null}
+                  <div className="flex gap-3">
+                    <Button type="submit" disabled={saveLoading} className="h-11 flex-1 rounded-xl bg-[#EF6614] font-bold hover:bg-[#E65100]">
+                      {saveLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving…</> : "Save changes"}
+                    </Button>
+                    <Button type="button" variant="outline" disabled={saveLoading} className="h-11 rounded-xl"
+                      onClick={() => { setEditing(false); setName(displayUser.name); setPhone(displayUser.phone?.replace(/\D/g, "").slice(-10) ?? ""); setSaveError(null); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {[
+                    { icon: Mail,  label: "Email",  value: displayUser.email, iconBg: "bg-[#E3F2FD]", iconColor: "text-[#1976D2]" },
+                    { icon: Phone, label: "Phone",  value: displayUser.phone ? `+91 ${displayUser.phone}` : "Not added", iconBg: "bg-[#FFF3E0]", iconColor: "text-[#E65100]" },
+                  ].map((item) => (
+                    <div key={item.label} className="flex gap-3 rounded-xl border border-[#f0f0f0] bg-[#fafafa] p-4">
+                      <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", item.iconBg)}>
+                        <item.icon className={cn("h-4.5 h-[18px] w-[18px]", item.iconColor)} aria-hidden />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-[#9E9E9E]">{item.label}</p>
+                        <p className="mt-0.5 truncate text-[14px] font-semibold text-[#212121]">{item.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex gap-3 rounded-xl border border-[#f0f0f0] bg-[#fafafa] p-4 sm:col-span-2">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+                      <BadgeCheck className="h-[18px] w-[18px] text-emerald-600" aria-hidden />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#9E9E9E]">Verification</p>
+                      <div className="mt-1.5 flex flex-wrap gap-2">
+                        {[
+                          { label: "Email", ok: displayUser.email_verified },
+                          { label: "Phone", ok: displayUser.phone_verified },
+                        ].map(({ label, ok }) => (
+                          <span key={label} className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold", ok ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800")}>
+                            <span className={cn("h-1.5 w-1.5 rounded-full", ok ? "bg-emerald-500" : "bg-amber-500")} />
+                            {label} {ok ? "verified" : "pending"}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-            {!editing ? <AccountChangePassword /> : null}
-          </div>
-        </section>
-      )}
-
-      {/* Quick links strip */}
-      <section className="grid gap-3 sm:grid-cols-3">
-        {[
-          { href: "/hotels", label: "Hotels", desc: "Best stays", emoji: "🏨" },
-          { href: "/packages", label: "Packages", desc: "Curated tours", emoji: "🎒" },
-          { href: "/blog", label: "Travel tips", desc: "Inspiration", emoji: "✨" },
-        ].map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="group flex items-center gap-3 rounded-2xl border border-[#e8e8e8] bg-white p-4 shadow-sm transition hover:border-[#2196F3]/30 hover:shadow-md"
-          >
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#f5f7fa] text-xl transition group-hover:scale-110">
-              {link.emoji}
-            </span>
-            <div className="flex-1">
-              <p className="font-bold text-[#212121]">{link.label}</p>
-              <p className="text-[12px] text-[#9E9E9E]">{link.desc}</p>
+              )}
+              {!editing ? <AccountChangePassword /> : null}
             </div>
-            <ChevronRight className="h-4 w-4 text-[#bdbdbd] transition group-hover:translate-x-0.5 group-hover:text-[#2196F3]" />
-          </Link>
-        ))}
-      </section>
+          </section>
+        )}
       </div>
     </div>
   );
 }
+
+
 
 
 

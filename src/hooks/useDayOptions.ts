@@ -74,10 +74,6 @@ export type DayOption = {
     image_url: string | null; price_delta: number;
     is_default: boolean; is_popular: boolean; dest_name?: string; dest_nights?: number;
   }>;
-  cab_options: Array<{
-    id: string; name: string; description: string; seats: number;
-    price_delta: number; is_default: boolean; is_popular: boolean;
-  }>;
   sightseeing:  DaySightseeing[];
   activities:   DayActivity[];
 };
@@ -90,6 +86,12 @@ export type DayOptionsData = {
   balance_due_days: number;
   is_customizable:  boolean;
   days:             DayOption[];
+  // Trip-level, not per-day — mirrors backend PackageDayOptionsOut.cabs
+  // (package_cab_options table).
+  cabs: Array<{
+    id: string; name: string; description: string | null; seats: number;
+    price_delta: number; is_default: boolean; is_popular: boolean;
+  }>;
   addons:           Array<{
     id: string; name: string; icon: string | null;
     description: string | null; price_per_person: number; is_default_on: boolean;
@@ -122,25 +124,15 @@ function buildHotelGroups(days: DayOption[]): DestinationHotels[] {
   return Array.from(groups.values());
 }
 
-function buildCabOptions(days: DayOption[]): CabOption[] {
-  const seen = new Set<string>();
-  const cabs: CabOption[] = [];
-  for (const day of days) {
-    for (const c of day.cab_options) {
-      if (!seen.has(c.id)) {
-        seen.add(c.id);
-        cabs.push({
-          id:    c.id,
-          name:  c.name,
-          desc:  c.description,
-          seats: c.seats,
-          extra: c.price_delta,
-          pop:   c.is_popular,
-        });
-      }
-    }
-  }
-  return cabs;
+function buildCabOptions(cabs: DayOptionsData["cabs"]): CabOption[] {
+  return cabs.map((c) => ({
+    id:    c.id,
+    name:  c.name,
+    desc:  c.description ?? "",
+    seats: c.seats,
+    extra: c.price_delta,
+    pop:   c.is_popular,
+  }));
 }
 
 function buildAddonOptions(
@@ -188,7 +180,7 @@ export function useDayOptions(slug: string) {
   );
 
   const cabOptions = useMemo(
-    () => (data?.days?.length ? buildCabOptions(data.days) : []),
+    () => (data?.cabs?.length ? buildCabOptions(data.cabs) : []),
     [data],
   );
 
