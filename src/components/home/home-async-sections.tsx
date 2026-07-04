@@ -11,11 +11,6 @@
 
 import { getTestimonials } from "@/lib/cms-api";
 import { Testimonials }           from "@/components/home/Testimonials";
-import { TrendingToursApiSection } from "@/components/home/trending-tours-api-section";
-
-export function TrendingToursSection() {
-  return <TrendingToursApiSection />;
-}
 
 export async function TestimonialsSection() {
   const testimonials = await getTestimonials();

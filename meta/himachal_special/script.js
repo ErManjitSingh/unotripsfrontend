@@ -31,7 +31,7 @@ document.querySelectorAll(".whatsapp-btn").forEach((btn) => {
   if (btn.tagName === "BUTTON") {
     btn.addEventListener("click", (e) => {
       e.preventDefault();
-      window.open("https://wa.me/918353096965", "_blank");
+      window.open("https://wa.me/917876505119", "_blank");
     });
   }
 });

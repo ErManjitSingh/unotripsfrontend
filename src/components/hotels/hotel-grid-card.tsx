@@ -108,7 +108,10 @@ export function HotelGridCard({ hotel }: HotelGridCardProps) {
   );
 
   return (
-    <article className="group/card flex h-full flex-col overflow-hidden rounded-xl border border-[#e0e0e0] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
+    <Link
+      href={href}
+      className="group/card flex h-full flex-col overflow-hidden rounded-xl border border-[#e0e0e0] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.06)] transition hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)]"
+    >
       {/* Image gallery — top of card */}
       <div
         className="hotel-card-gallery swiper-no-swiping relative overflow-hidden bg-neutral-200"
@@ -160,7 +163,7 @@ export function HotelGridCard({ hotel }: HotelGridCardProps) {
 
         <button
           type="button"
-          onClick={() => setSaved((v) => !v)}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSaved((v) => !v); }}
           className="absolute right-2.5 top-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 shadow-md transition hover:bg-white"
           aria-label={saved ? "Remove from saved" : "Save hotel"}
         >
@@ -267,14 +270,11 @@ export function HotelGridCard({ hotel }: HotelGridCardProps) {
 
         {/* Book button */}
         <div className="mt-auto px-3 pb-3 pt-2.5">
-          <Link
-            href={href}
-            className="flex w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#e8651c] to-[#c94e0a] py-3 text-[13px] font-extrabold tracking-wide text-white shadow-[0_3px_10px_rgba(201,78,10,0.38)] transition active:scale-[0.98] active:brightness-95 hover:shadow-[0_5px_16px_rgba(201,78,10,0.48)] hover:brightness-105"
-          >
+          <span className="flex w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#e8651c] to-[#c94e0a] py-3 text-[13px] font-extrabold tracking-wide text-white shadow-[0_3px_10px_rgba(201,78,10,0.38)] transition active:scale-[0.98] active:brightness-95 hover:shadow-[0_5px_16px_rgba(201,78,10,0.48)] hover:brightness-105">
             Book Now
-          </Link>
+          </span>
         </div>
       </div>
-    </article>
+    </Link>
   );
 }

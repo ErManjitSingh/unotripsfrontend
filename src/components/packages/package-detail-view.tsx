@@ -170,7 +170,7 @@ export function PackageDetailView({
     isLoading: optLoading,
     hotelGroups, cabOptions, addonOptions, days,
     usingDemo,
-    tokenType: tokenTypeConfig, tokenAmount: tokenAmountConfig, balanceDays,
+    tokenType, tokenAmount: pkgTokenConfig, balanceDays,
   } = useDayOptions(slug);
 
   // ── Customiser state ──────────────────────────────────────────────────────
@@ -325,8 +325,17 @@ export function PackageDetailView({
     };
   }, [custState, hotelGroups, cabOptions, tour.priceINR, tour.oldPriceINR, sightTotal, actTotal]);
 
-  const token  = tokenAmount(breakdown.total, tokenTypeConfig, tokenAmountConfig);
-  const payAmt = payType === "token" ? token : breakdown.total;
+  const token = tokenAmount(breakdown.total, tokenType, pkgTokenConfig);
+  // A "fixed" token package with no real token_amount configured computes
+  // to ₹0 — the backend rejects that outright ("below the minimum of
+  // ₹1.00"). Token payment is only a real option when it lands strictly
+  // between ₹0 and the full total.
+  const tokenPaymentAvailable = token > 0 && token < breakdown.total;
+  const payAmt = payType === "token" && tokenPaymentAvailable ? token : breakdown.total;
+
+  useEffect(() => {
+    if (!optLoading && !tokenPaymentAvailable && payType === "token") setPayType("full");
+  }, [optLoading, tokenPaymentAvailable, payType]);
 
   // ── Gallery images ────────────────────────────────────────────────────────
   const galleryImages = useMemo(() => {
@@ -468,9 +477,12 @@ export function PackageDetailView({
           <Lock className="h-4 w-4" aria-hidden />
           Book · ₹{fmtINR(payAmt)}
         </button>
-        <p className="mt-2 text-center text-[11px] font-semibold text-emerald-700">
-          Pay just ₹{fmtINR(token)}{tokenTypeConfig === "percent" ? ` (${tokenAmountConfig}%)` : ""} to confirm today
-        </p>
+        {tokenPaymentAvailable && (
+          <p className="mt-2 text-center text-[11px] font-semibold text-emerald-700">
+            Pay just ₹{fmtINR(token)}
+            {tokenType === "percent" ? ` (${pkgTokenConfig}%)` : ""} to confirm today
+          </p>
+        )}
         <p className="mt-1.5 flex items-center justify-center gap-1 text-[10px] text-[#9e9e9e]">
           <ShieldCheck className="h-3 w-3" aria-hidden />Secured by Razorpay
         </p>
@@ -1015,11 +1027,15 @@ export function PackageDetailView({
                         </div>
                       </div>
 
-                      <p className="mb-2.5 text-[13px] font-bold text-[#1a1a1a]">Payment option</p>
-                      <div className="mb-6 grid grid-cols-2 gap-3">
+                      <p className="mb-2 text-[12px] font-bold text-[#1a1a1a]">Payment option</p>
+                      <div className={cn("mb-5 grid gap-3", tokenPaymentAvailable ? "grid-cols-2" : "grid-cols-1")}>
                         {[
-                          { type:"token" as const, title:"Token amount", amt:`₹${fmtINR(token)}`, sub:`${tokenTypeConfig === "percent" ? `${tokenAmountConfig}% now` : "Pay now"} · balance ${balanceDays} day${balanceDays === 1 ? "" : "s"} before travel`, badge:"Recommended" },
-                          { type:"full"  as const, title:"Full payment",  amt:`₹${fmtINR(breakdown.total)}`, sub:"100% now · priority seat", badge:null },
+                          ...(tokenPaymentAvailable ? [{
+                            type: "token" as const, title: "Token amount", amt: `₹${fmtINR(token)}`,
+                            sub: `${tokenType === "percent" ? `${pkgTokenConfig}%` : `₹${fmtINR(token)}`} now · balance ${balanceDays} days before travel`,
+                            badge: "Recommended",
+                          }] : []),
+                          { type:"full"  as const, title:"Full payment",  amt:`₹${fmtINR(breakdown.total)}`, sub:"100% now · priority seat", badge: tokenPaymentAvailable ? null : "Only option" },
                         ].map(({type,title,amt,sub,badge}) => (
                           <button key={type} type="button" onClick={() => setPayType(type)}
                             className={cn("relative rounded-xl border-[1.5px] p-4 text-left transition duration-200",
@@ -1041,11 +1057,16 @@ export function PackageDetailView({
                         <Lock className="h-4 w-4" aria-hidden />
                         Confirm &amp; pay ₹{fmtINR(payAmt)}
                       </button>
-                      <p className="mt-2 text-center text-[11px] font-semibold text-emerald-700">
-                        {payType === "token"
-                          ? `You're paying just ₹${fmtINR(token)}${tokenTypeConfig === "percent" ? ` (${tokenAmountConfig}%)` : ""} now to secure your booking`
-                          : `You're paying the full ₹${fmtINR(breakdown.total)} now`}
-                      </p>
+                      {payType === "token" && tokenPaymentAvailable ? (
+                        <p className="mt-1.5 text-center text-[11px] font-semibold text-emerald-700">
+                          You&apos;re paying just ₹{fmtINR(token)}
+                          {tokenType === "percent" ? ` (${pkgTokenConfig}%)` : ""} now to secure your booking
+                        </p>
+                      ) : (
+                        <p className="mt-1.5 text-center text-[11px] font-semibold text-emerald-700">
+                          You&apos;re paying the full amount now to confirm your booking
+                        </p>
+                      )}
                       <p className="mt-1 flex items-center justify-center gap-1 text-[10px] text-[#9e9e9e]">
                         <ShieldCheck className="h-3 w-3" aria-hidden />Secured by Razorpay · No hidden charges
                       </p>

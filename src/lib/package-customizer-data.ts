@@ -199,6 +199,13 @@ export const TERMS_AND_CONDITIONS: Array<{ title: string; body: string }> = [
 ];
 
 // ── Price engine ──────────────────────────────────────────────────────────────
+//
+// basePricePerPerson is ALWAYS the real package.priceINR (base_price from the
+// backend) — never omit it. It used to default to a hardcoded ₹9,500 demo
+// constant, which meant the optimistic price shown while customizing never
+// matched the authoritative POST /calculate-price total charged at checkout
+// (e.g. showing ~₹19,000 while browsing, then jumping to ₹46,000+ at
+// "Confirm & Pay"). There is no fallback anymore — callers must pass it.
 
 /**
  * Full price breakdown using the package's real per-person price plus
@@ -230,11 +237,14 @@ export function calcTotalWithOptions(
 
 /**
  * Mirrors the backend's exact token calculation (day_options_service.py's
- * calculate_price): "percent" packages take a % of total, "fixed" packages
- * take a flat configured amount capped at total. Always pass the package's
- * real token_type/token_amount — a package with no token configured (fixed,
- * amount=0) genuinely asks for ₹0 upfront; that's an ops data gap to flag,
- * not something to paper over with a fake default here.
+ * take a flat configured amount capped at total. This used to always
+ * assume 40% of total regardless of the package's real token_type/
+ * token_amount — for a "fixed" package with no token_amount configured
+ * (real_token_amount=0), that showed a token option (e.g. "₹18,400 (40%)")
+ * that would always fail the backend's minimum-payment check at checkout.
+ * Always pass the package's real token_type/token_amount — a package with
+ * no token configured (fixed, amount=0) genuinely asks for ₹0 upfront;
+ * that's an ops data gap to flag, not something to paper over here.
  */
 export function tokenAmount(
   total: number,

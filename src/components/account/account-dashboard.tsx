@@ -347,36 +347,33 @@ function IncompleteBookingCard({
   resumeHref: string;
 }) {
   return (
-    <article className="overflow-hidden rounded-2xl border-2 border-[#FFB74D] bg-gradient-to-br from-[#FFF8E1] via-white to-[#FFF3E0] shadow-[0_8px_32px_rgba(239,102,20,0.12)]">
-      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#FF9800] text-white shadow-lg shadow-[#FF9800]/30">
-          <AlertTriangle className="h-7 w-7" aria-hidden />
+    <article className="flex items-center gap-4 overflow-hidden rounded-xl border border-[#f0e8d8] bg-white pl-0 shadow-sm">
+      <div className="w-1 self-stretch shrink-0 rounded-l-xl bg-[#EF6614]" />
+      <div className="flex flex-1 flex-col gap-3 py-4 pr-4 sm:flex-row sm:items-center">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#FFF3E0] text-[#E65100]">
+          <AlertTriangle className="h-4.5 w-4.5 h-[18px] w-[18px]" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#E65100]">
-            Checkout incomplete · Payment pending
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[#E65100]">
+            Payment pending
           </p>
-          <h3 className="mt-1 text-lg font-bold text-[#212121]">{booking.hotel_name}</h3>
-          <p className="mt-0.5 text-[13px] text-[#616161]">
+          <h3 className="mt-0.5 text-[14px] font-bold text-[#212121]">{booking.hotel_name}</h3>
+          <p className="text-[12px] text-[#757575]">
             {booking.hotel_city} · {formatDate(booking.check_in)} – {formatDate(booking.check_out)}
           </p>
-          <p className="mt-2 text-[13px] leading-relaxed text-[#757575]">
-            You reached checkout for this hotel but <strong>payment was not completed</strong>. Complete
-            payment now to confirm your booking.
-          </p>
           {booking.confirmation_number ? (
-            <p className="mt-1 text-[11px] text-[#9E9E9E]">
+            <p className="mt-0.5 text-[10px] text-[#bdbdbd]">
               Ref: <span className="font-mono">{booking.confirmation_number}</span>
             </p>
           ) : null}
         </div>
-        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
-          <p className="text-center text-lg font-black text-[#EF6614] sm:text-right">
+        <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-end sm:gap-2">
+          <p className="text-[15px] font-black text-[#EF6614]">
             {formatMoney(booking.total_amount, booking.currency)}
           </p>
-          <Button asChild className="h-11 rounded-xl bg-[#EF6614] px-6 font-bold shadow-md hover:bg-[#E65100]">
+          <Button asChild size="sm" className="h-9 rounded-lg bg-[#EF6614] px-4 text-[12px] font-bold hover:bg-[#E65100]">
             <Link href={resumeHref}>
-              <CreditCard className="mr-2 h-4 w-4" aria-hidden />
+              <CreditCard className="mr-1.5 h-3.5 w-3.5" aria-hidden />
               Complete payment
             </Link>
           </Button>
@@ -388,22 +385,20 @@ function IncompleteBookingCard({
 
 function IncompletePendingCard({ pending }: { pending: PendingCheckout }) {
   return (
-    <article className="overflow-hidden rounded-2xl border-2 border-dashed border-[#FFB74D] bg-white p-5 shadow-sm sm:p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#FFF3E0] text-[#E65100]">
-          <AlertTriangle className="h-6 w-6" aria-hidden />
+    <article className="flex items-center gap-4 overflow-hidden rounded-xl border border-[#f0e8d8] bg-white pl-0 shadow-sm">
+      <div className="w-1 self-stretch shrink-0 rounded-l-xl bg-amber-400" />
+      <div className="flex flex-1 flex-col gap-3 py-4 pr-4 sm:flex-row sm:items-center">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#FFF3E0] text-[#E65100]">
+          <AlertTriangle className="h-[18px] w-[18px]" aria-hidden />
         </div>
         <div className="flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#E65100]">Payment not done</p>
-          <h3 className="font-bold text-[#212121]">{pending.hotelName}</h3>
-          <p className="text-[13px] text-[#616161]">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[#E65100]">Payment not done</p>
+          <h3 className="mt-0.5 text-[14px] font-bold text-[#212121]">{pending.hotelName}</h3>
+          <p className="text-[12px] text-[#757575]">
             {pending.hotelCity} · {formatDate(pending.checkIn)} – {formatDate(pending.checkOut)}
           </p>
-          <p className="mt-1 text-[12px] text-[#757575]">
-            Checkout was not completed — payment is still pending.
-          </p>
         </div>
-        <Button asChild className="shrink-0 rounded-xl bg-[#2196F3] font-bold hover:bg-[#1976D2]">
+        <Button asChild size="sm" className="shrink-0 h-9 rounded-lg bg-[#EF6614] px-4 text-[12px] font-bold hover:bg-[#E65100]">
           <Link href={resumeCheckoutHref(pending)}>Resume checkout</Link>
         </Button>
       </div>
@@ -436,106 +431,108 @@ function BookingCard({
 
   return (
     <article
-      className="group overflow-hidden rounded-2xl border border-white/80 bg-white/95 shadow-[0_8px_32px_rgba(15,23,42,0.08)] backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(33,150,243,0.15)]"
+      className="group flex overflow-hidden rounded-xl border border-[#ebebeb] bg-white shadow-sm transition duration-200 hover:border-[#d0d0d0] hover:shadow-md"
       style={{ animationDelay: `${index * 60}ms` }}
     >
-      <div className="flex flex-col lg:flex-row">
-        <div className="relative h-48 w-full shrink-0 overflow-hidden lg:h-auto lg:w-56">
-          {booking.hotel_thumbnail ? (
-            <>
-              <Image
-                src={booking.hotel_thumbnail}
-                alt={booking.hotel_name}
-                fill
-                className="object-cover transition duration-500 group-hover:scale-105"
-                sizes="(max-width: 1024px) 100vw, 224px"
-                unoptimized
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-            </>
-          ) : (
-            <div className="flex h-full min-h-[12rem] items-center justify-center bg-gradient-to-br from-[#E3F2FD] to-[#BBDEFB]">
-              <Hotel className="h-12 w-12 text-[#1976D2]/40" aria-hidden />
-            </div>
+      {/* Thumbnail — fixed 130px, full height */}
+      <div className="relative w-[130px] shrink-0 overflow-hidden">
+        {booking.hotel_thumbnail ? (
+          <>
+            <Image
+              src={booking.hotel_thumbnail}
+              alt={booking.hotel_name}
+              fill
+              className="object-cover transition duration-500 group-hover:scale-105"
+              sizes="130px"
+              unoptimized
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/10 to-transparent" />
+          </>
+        ) : (
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#E3F2FD] to-[#BBDEFB]">
+            <Hotel className="h-8 w-8 text-[#1976D2]/40" aria-hidden />
+          </div>
+        )}
+        <span
+          className={cn(
+            "absolute left-2 top-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize ring-1 ring-inset backdrop-blur-md",
+            status.badge,
           )}
-          <span
-            className={cn(
-              "absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ring-1 ring-inset backdrop-blur-md",
-              status.badge,
-            )}
-          >
-            <span className={cn("h-1.5 w-1.5 rounded-full", status.dot)} />
-            {booking.status.replace(/_/g, " ")}
-          </span>
-        </div>
+        >
+          <span className={cn("h-1.5 w-1.5 rounded-full", status.dot)} />
+          {booking.status.replace(/_/g, " ")}
+        </span>
+      </div>
 
-        <div className="flex flex-1 flex-col gap-3 p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h3 className="text-lg font-bold tracking-tight text-[#212121] group-hover:text-[#1976D2] transition-colors">
-                {booking.hotel_name}
-              </h3>
-              <p className="mt-0.5 flex items-center gap-1 text-[13px] text-[#757575]">
-                <MapPin className="h-3.5 w-3.5 shrink-0 text-[#EF6614]" aria-hidden />
-                {booking.hotel_city}
-              </p>
-            </div>
-            <p className="text-xl font-black text-[#EF6614]">
-              {formatMoney(booking.total_amount, booking.currency)}
+      {/* Content */}
+      <div className="flex flex-1 flex-col justify-between gap-2 p-4">
+        {/* Top: name + price */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-[15px] font-bold text-[#212121] transition-colors group-hover:text-[#1565C0]">
+              {booking.hotel_name}
+            </h3>
+            <p className="mt-0.5 flex items-center gap-1 text-[12px] text-[#757575]">
+              <MapPin className="h-3 w-3 shrink-0 text-[#EF6614]" aria-hidden />
+              {booking.hotel_city}
             </p>
           </div>
+          <p className="shrink-0 text-[17px] font-black text-[#EF6614]">
+            {formatMoney(booking.total_amount, booking.currency)}
+          </p>
+        </div>
 
-          <div className="flex flex-wrap gap-2">
+        {/* Date row */}
+        <div className="flex items-center gap-1.5 text-[12px] text-[#616161]">
+          <CalendarDays className="h-3.5 w-3.5 shrink-0 text-[#9E9E9E]" aria-hidden />
+          {formatDate(booking.check_in)}
+          <span className="text-[#bdbdbd]">→</span>
+          {formatDate(booking.check_out)}
+        </div>
+
+        {/* Bottom: chips + actions */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {[
               { icon: BedDouble, label: booking.room_name },
-              { icon: Moon, label: `${booking.nights} night${booking.nights !== 1 ? "s" : ""}` },
+              { icon: Moon, label: `${booking.nights}N` },
               { icon: Users, label: `${booking.adults} guest${booking.adults !== 1 ? "s" : ""}` },
             ].map(({ icon: Icon, label }) => (
               <span
                 key={label}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#f5f7fa] px-2.5 py-1 text-[11px] font-medium text-[#616161]"
+                className="inline-flex items-center gap-1 rounded-md bg-[#f5f7fa] px-2 py-0.5 text-[11px] font-medium text-[#616161]"
               >
-                <Icon className="h-3.5 w-3.5 text-[#9E9E9E]" aria-hidden />
+                <Icon className="h-3 w-3 text-[#9E9E9E]" aria-hidden />
                 {label}
               </span>
             ))}
           </div>
-
-          <div className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#E3F2FD]/60 to-[#FFF3E0]/50 px-3 py-2.5">
-            <CalendarDays className="h-4 w-4 shrink-0 text-[#1976D2]" aria-hidden />
-            <p className="text-[13px] font-medium text-[#424242]">
-              {formatDate(booking.check_in)}
-              <span className="mx-2 text-[#bdbdbd]">→</span>
-              {formatDate(booking.check_out)}
-            </p>
-          </div>
-
-          <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-[#f0f0f0] pt-4">
-            <p className="text-[11px] font-medium text-[#9E9E9E]">
-              Confirmation · <span className="font-mono text-[#616161]">{booking.confirmation_number}</span>
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              {onCancel && canCancelBooking(booking) ? (
-                <button
-                  type="button"
-                  disabled={cancelLoading}
-                  onClick={() => onCancel(booking)}
-                  className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-[12px] font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
-                >
-                  {cancelLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : null}
-                  Cancel booking
-                </button>
-              ) : null}
-              <Link
-                href={hotelPath}
-                className="inline-flex items-center gap-1 rounded-full bg-[#2196F3] px-4 py-2 text-[12px] font-bold text-white shadow-md shadow-[#2196F3]/25 transition hover:bg-[#1976D2] hover:shadow-lg"
+          <div className="flex items-center gap-2">
+            {onCancel && canCancelBooking(booking) ? (
+              <button
+                type="button"
+                disabled={cancelLoading}
+                onClick={() => onCancel(booking)}
+                className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2.5 py-1 text-[11px] font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-60"
               >
-                View hotel
-                <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-            </div>
+                {cancelLoading ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
+                Cancel
+              </button>
+            ) : null}
+            <Link
+              href={hotelPath}
+              className="inline-flex items-center gap-1 rounded-md bg-[#2196F3] px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-[#1976D2]"
+            >
+              View hotel
+              <ChevronRight className="h-3 w-3" aria-hidden />
+            </Link>
           </div>
         </div>
+
+        {/* Confirmation ref */}
+        <p className="text-[10px] text-[#bdbdbd]">
+          Ref: <span className="font-mono">{booking.confirmation_number}</span>
+        </p>
       </div>
     </article>
   );
