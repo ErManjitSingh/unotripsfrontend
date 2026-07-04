@@ -11,24 +11,9 @@ function TripIcon({ icon }: { icon: Testimonial["tripIcon"] }) {
 
 export function TestimonialCard({ item: t }: { item: Testimonial }) {
   return (
-    <figure
-      className={cn(
-        "relative flex h-full flex-col overflow-hidden rounded-2xl bg-white p-6 shadow-sm",
-        t.featured
-          ? "ring-2 ring-primary"
-          : "border border-slate-100",
-      )}
-    >
-      {/* Featured badge */}
-      {t.featured && (
-        <div className="absolute -top-px left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-b-xl bg-primary px-3 py-1">
-          <Star className="h-3 w-3 fill-white text-white" aria-hidden />
-          <span className="text-[11px] font-bold uppercase tracking-wide text-white">Featured</span>
-        </div>
-      )}
-
+    <figure className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
       {/* Avatar + name + location */}
-      <div className="flex items-center gap-4 pt-2">
+      <div className="flex items-center gap-4">
         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-primary/20">
           <Image
             src={t.avatar}
@@ -46,13 +31,6 @@ export function TestimonialCard({ item: t }: { item: Testimonial }) {
             {t.location}
           </p>
         </div>
-        {/* Decorative quote mark */}
-        <span
-          className="pointer-events-none ml-auto select-none font-serif text-[80px] leading-none text-slate-100"
-          aria-hidden
-        >
-          &ldquo;
-        </span>
       </div>
 
       {/* Stars */}

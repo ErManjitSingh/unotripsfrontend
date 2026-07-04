@@ -1,11 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import type { Swiper as SwiperType } from "swiper";
-import { Swiper, SwiperSlide } from "swiper/react";
-import { Autoplay } from "swiper/modules";
-import "swiper/css";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { useCallback, useRef } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { TestimonialCard } from "@/components/home/testimonial-card";
 import type { Testimonial } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -16,92 +12,77 @@ export type TestimonialsProps = {
 };
 
 export function Testimonials({ items, className }: TestimonialsProps) {
-  const swiperRef = useRef<SwiperType | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const slideCount = items.length;
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  const scrollBy = useCallback((dir: -1 | 1) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const card = el.querySelector<HTMLElement>("[data-testimonial-card]");
+    const step = card ? card.offsetWidth + 24 : 360;
+    el.scrollBy({ left: dir * step * 2, behavior: "smooth" });
+  }, []);
+
+  if (items.length === 0) return null;
 
   return (
     <section className={cn("bg-[#faf8f4] py-16 sm:py-20", className)}>
       <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
 
         {/* Header */}
-        <div className="mb-12 flex flex-col items-center text-center">
-          {/* Eyebrow with lines */}
-          <div className="flex w-full max-w-xs items-center gap-3">
-            <span className="h-px flex-1 bg-primary/40" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">
-              Voices From The Road
-            </span>
-            <span className="h-px flex-1 bg-primary/40" />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">
+                Voices From The Road
+              </span>
+              <span className="h-px w-8 bg-primary" aria-hidden />
+            </div>
+            <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+              Testimonials
+            </h2>
+            <p className="mt-3 max-w-lg text-sm text-slate-500 sm:text-base">
+              Real travelers. Private journeys. Consistently exceptional feedback.
+            </p>
           </div>
 
-          <h2 className="mt-4 font-serif text-5xl font-bold tracking-tight text-slate-900 sm:text-6xl">
-            Testimonials
-          </h2>
-          <p className="mt-4 max-w-xl text-base text-slate-500">
-            Real travelers. Private journeys. Consistently exceptional feedback.
-          </p>
+          <div className="flex shrink-0 items-center gap-2 self-end sm:mb-1">
+            <button
+              type="button"
+              onClick={() => scrollBy(-1)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-primary/40 hover:text-primary"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft className="h-5 w-5" strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollBy(1)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-primary/40 hover:text-primary"
+              aria-label="Scroll right"
+            >
+              <ChevronRight className="h-5 w-5" strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
-        {/* Carousel */}
-        <Swiper
-          onSwiper={(s) => { swiperRef.current = s; }}
-          onSlideChange={(s) => setActiveIndex(s.realIndex)}
-          modules={[Autoplay]}
-          spaceBetween={24}
-          slidesPerView={1}
-          autoplay={{ delay: 5500, disableOnInteraction: false }}
-          breakpoints={{
-            768: { slidesPerView: 2 },
-            1100: { slidesPerView: 3 },
-          }}
-          className="!pb-2"
+        {/* Reader-paced scroller — no autoplay */}
+        <div
+          ref={scrollerRef}
+          className={cn(
+            "mt-10 flex gap-6 overflow-x-auto overflow-y-hidden pb-2",
+            "scroll-smooth snap-x snap-mandatory",
+            "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+          )}
         >
           {items.map((t) => (
-            <SwiperSlide key={t.id} className="!h-auto">
-              <div className="h-full py-2">
-                <TestimonialCard item={t} />
-              </div>
-            </SwiperSlide>
+            <div
+              key={t.id}
+              data-testimonial-card
+              className="w-[min(90vw,380px)] shrink-0 snap-start sm:w-[360px]"
+            >
+              <TestimonialCard item={t} />
+            </div>
           ))}
-        </Swiper>
-
-        {/* Navigation: ← dots → */}
-        <div className="mt-10 flex items-center justify-center gap-6">
-          <button
-            type="button"
-            onClick={() => swiperRef.current?.slidePrev()}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-primary shadow-sm transition hover:border-primary hover:bg-primary hover:text-white"
-            aria-label="Previous testimonial"
-          >
-            <ArrowLeft className="h-4 w-4" strokeWidth={2} />
-          </button>
-
-          <div className="flex items-center gap-2">
-            {Array.from({ length: slideCount }).map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => swiperRef.current?.slideTo(i)}
-                aria-label={`Go to slide ${i + 1}`}
-                className={cn(
-                  "h-2 rounded-full transition-all duration-300",
-                  i === activeIndex
-                    ? "w-5 bg-primary"
-                    : "w-2 bg-slate-300 hover:bg-slate-400",
-                )}
-              />
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => swiperRef.current?.slideNext()}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-primary shadow-sm transition hover:border-primary hover:bg-primary hover:text-white"
-            aria-label="Next testimonial"
-          >
-            <ArrowRight className="h-4 w-4" strokeWidth={2} />
-          </button>
         </div>
 
       </div>

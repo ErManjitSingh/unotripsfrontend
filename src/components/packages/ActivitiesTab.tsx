@@ -15,9 +15,10 @@
  */
 
 import Image from "next/image";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  ChevronDown, Footprints, Info, Lock, Mountain,
-  ShieldAlert, Star, Zap,
+  ChevronDown, Footprints, Lock, Mountain,
+  ShieldAlert, Zap,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -109,16 +110,16 @@ function SightseeingRow({
 
   return (
     <div className={cn(
-      "flex items-start gap-3 rounded-xl border px-3 py-2.5 transition",
+      "flex items-start gap-3 rounded-xl border-[1.5px] px-3.5 py-3 transition duration-200",
       isLocked
         ? "border-[#f0f0f0] bg-[#fafafa]"
         : on
-          ? "border-primary/30 bg-orange-50/40"
-          : "border-[#e8e8e8] bg-white hover:border-[#d0d0d0]",
+          ? "border-primary/30 bg-orange-50/40 shadow-[0_2px_10px_-4px_rgba(234,88,12,0.2)]"
+          : "border-[#e8e8e8] bg-white hover:border-[#d0d0d0] hover:shadow-sm",
     )}>
       {/* Icon */}
       <div className={cn(
-        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+        "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
         isLocked ? "bg-emerald-50" : "bg-[#f5f5f5]",
       )}>
         <Footprints className={cn("h-4 w-4", isLocked ? "text-emerald-600" : "text-[#616161]")} aria-hidden />
@@ -191,10 +192,10 @@ function ActivityRow({
 
   return (
     <div className={cn(
-      "overflow-hidden rounded-xl border transition",
-      on ? "border-primary/30 bg-orange-50/40" : "border-[#e8e8e8] bg-white hover:border-[#d0d0d0]",
+      "overflow-hidden rounded-xl border-[1.5px] transition duration-200",
+      on ? "border-primary/30 bg-orange-50/40 shadow-[0_2px_10px_-4px_rgba(234,88,12,0.2)]" : "border-[#e8e8e8] bg-white hover:border-[#d0d0d0] hover:shadow-sm",
     )}>
-      <div className="flex items-start gap-3 p-3">
+      <div className="flex items-start gap-3 p-3.5">
         {/* Activity image */}
         <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
           {act.featured_image ? (
@@ -287,16 +288,16 @@ function DaySection({
     day.activities.filter((a) => selectedItems.activities.has(a.link_id)).length;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-[#e8e8e8]">
+    <div className="overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_2px_12px_-6px_rgba(15,23,42,0.08)]">
       {/* Day header */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between bg-[#fafafa] px-4 py-3 text-left transition hover:bg-[#f5f5f5]"
+        className="flex w-full items-center justify-between bg-[#fafafa] px-4 py-3.5 text-left transition hover:bg-[#f5f5f5]"
         aria-expanded={open}
       >
         <div className="flex items-center gap-3">
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#1a1a1a] text-[11px] font-bold text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-white">
             {day.day_number}
           </span>
           <div>
@@ -319,59 +320,69 @@ function DaySection({
         </div>
       </button>
 
-      {open && (
-        <div className="space-y-2 p-3">
-          {/* Included sightseeing */}
-          {includedSight.map((spot) => (
-            <SightseeingRow
-              key={spot.id}
-              spot={spot}
-              on={true}
-              onToggle={() => {}}
-              eff={eff}
-            />
-          ))}
-
-          {/* Optional sightseeing */}
-          {optionalSight.length > 0 && (
-            <div className="space-y-1.5">
-              {includedSight.length > 0 && (
-                <p className="px-1 text-[10px] font-bold uppercase tracking-widest text-[#9e9e9e]">
-                  Optional Sightseeing
-                </p>
-              )}
-              {optionalSight.map((spot) => (
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-2 p-3.5">
+              {/* Included sightseeing */}
+              {includedSight.map((spot) => (
                 <SightseeingRow
                   key={spot.id}
                   spot={spot}
-                  on={selectedItems.sightseeing.has(spot.id)}
-                  onToggle={() => onToggleSight(spot.id)}
+                  on={true}
+                  onToggle={() => {}}
                   eff={eff}
                 />
               ))}
-            </div>
-          )}
 
-          {/* Activities */}
-          {day.activities.length > 0 && (
-            <div className="space-y-1.5">
-              <p className="px-1 text-[10px] font-bold uppercase tracking-widest text-[#9e9e9e]">
-                Activities
-              </p>
-              {day.activities.map((act) => (
-                <ActivityRow
-                  key={act.link_id}
-                  act={act}
-                  on={selectedItems.activities.has(act.link_id)}
-                  onToggle={() => onToggleActivity(act.link_id)}
-                  eff={eff}
-                  totalGuests={totalGuests}
-                />
-              ))}
+              {/* Optional sightseeing */}
+              {optionalSight.length > 0 && (
+                <div className="space-y-1.5">
+                  {includedSight.length > 0 && (
+                    <p className="px-1 text-[10px] font-bold uppercase tracking-widest text-[#9e9e9e]">
+                      Optional Sightseeing
+                    </p>
+                  )}
+                  {optionalSight.map((spot) => (
+                    <SightseeingRow
+                      key={spot.id}
+                      spot={spot}
+                      on={selectedItems.sightseeing.has(spot.id)}
+                      onToggle={() => onToggleSight(spot.id)}
+                      eff={eff}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Activities */}
+              {day.activities.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="px-1 text-[10px] font-bold uppercase tracking-widest text-[#9e9e9e]">
+                    Activities
+                  </p>
+                  {day.activities.map((act) => (
+                    <ActivityRow
+                      key={act.link_id}
+                      act={act}
+                      on={selectedItems.activities.has(act.link_id)}
+                      onToggle={() => onToggleActivity(act.link_id)}
+                      eff={eff}
+                      totalGuests={totalGuests}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -384,7 +395,7 @@ export function ActivitiesTab({
 }: ActivitiesTabProps) {
   if (!days.length) {
     return (
-      <div className="rounded-xl border border-dashed border-[#e0e0e0] px-6 py-10 text-center">
+      <div className="rounded-2xl border border-dashed border-[#e0e0e0] bg-[#fafafa] px-6 py-12 text-center">
         <Mountain className="mx-auto mb-3 h-10 w-10 text-[#d0d0d0]" aria-hidden />
         <p className="text-[13px] font-semibold text-[#424242]">No activities configured yet</p>
         <p className="mt-1 text-[11px] text-[#9e9e9e]">
@@ -403,14 +414,24 @@ export function ActivitiesTab({
       <h2 id="activities-tab-heading" className="sr-only">Activities and sightseeing</h2>
 
       {/* Summary bar */}
-      {totalSelected > 0 && (
-        <div className="mb-4 flex items-center justify-between rounded-xl bg-orange-50/60 px-4 py-2.5 text-[12px]">
-          <span className="font-medium text-[#424242]">
-            {totalSelected} item{totalSelected !== 1 ? "s" : ""} selected
-          </span>
-          <span className="font-bold text-primary">+₹{fmtINR(grandTotal)} total</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {totalSelected > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: "auto" }}
+            exit={{ opacity: 0, y: -8, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mb-4 flex items-center justify-between rounded-2xl border border-primary/15 bg-gradient-to-r from-orange-50 to-amber-50/60 px-4 py-3 text-[12px] shadow-[0_2px_10px_-6px_rgba(234,88,12,0.25)]">
+              <span className="font-medium text-[#424242]">
+                {totalSelected} item{totalSelected !== 1 ? "s" : ""} selected
+              </span>
+              <span className="font-bold text-primary">+₹{fmtINR(grandTotal)} total</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="space-y-3">
         {days.map((day) => (

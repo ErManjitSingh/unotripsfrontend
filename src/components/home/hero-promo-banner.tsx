@@ -22,7 +22,7 @@ export function HeroPromoBanner() {
           {/* Background image */}
           <div className="absolute inset-0">
             <Image
-              src="/images/vietnam-banner-desk.webp"
+              src="https://images.unsplash.com/photo-1528127269322-539801943592?w=1600&q=80"
               alt=""
               fill
               className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
@@ -73,7 +73,7 @@ export function HeroPromoBanner() {
                 Book Now
               </span>
               <p className="text-[10px] text-white/55 sm:text-right">
-                *T&amp;Cs Apply | Only Hamar – Da&nbsp;Nang Flight included
+                *T&amp;Cs Apply | Only Hanoi – Da&nbsp;Nang Flight included
               </p>
             </div>
           </div>

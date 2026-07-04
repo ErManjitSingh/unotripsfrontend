@@ -69,14 +69,15 @@ export type DayOption = {
   day_number:    number;
   title:         string;
   location:      string;
-  hotel_options: Array<{
+  // Optional: the backend omits these entirely for packages where
+  // hotels/cabs haven't been configured yet (not just an empty array).
+  hotel_options?: Array<{
     id: string; name: string; stars: number; description: string;
     image_url: string | null; price_delta: number;
     is_default: boolean; is_popular: boolean; dest_name?: string; dest_nights?: number;
-  }>;
-  cab_options: Array<{
-    id: string; name: string; description: string; seats: number;
-    price_delta: number; is_default: boolean; is_popular: boolean;
+    room_type?: string; max_guests?: number; extra_bed_price?: number;
+    meals?: { breakfast: boolean; lunch: boolean; dinner: boolean };
+    meal_prices?: { breakfast: number; lunch: number; dinner: number };
   }>;
   sightseeing:  DaySightseeing[];
   activities:   DayActivity[];
@@ -90,6 +91,13 @@ export type DayOptionsData = {
   balance_due_days: number;
   is_customizable:  boolean;
   days:             DayOption[];
+  // Trip-level, not per-day — mirrors backend PackageDayOptionsOut.cabs
+  // (package_cab_options table). day-level "cab_options" is not a real
+  // backend field; cabs cover all transfers for the whole trip.
+  cabs: Array<{
+    id: string; name: string; description: string | null; seats: number;
+    price_delta: number; is_default: boolean; is_popular: boolean;
+  }>;
   addons:           Array<{
     id: string; name: string; icon: string | null;
     description: string | null; price_per_person: number; is_default_on: boolean;
@@ -99,48 +107,63 @@ export type DayOptionsData = {
 // ── Derived data ──────────────────────────────────────────────────────────────
 
 function buildHotelGroups(days: DayOption[]): DestinationHotels[] {
-  const groups = new Map<string, DestinationHotels>();
+  const groups: DestinationHotels[] = [];
+  let lastKey: string | null = null;
+
   for (const day of days) {
-    if (!day.hotel_options.length) continue;
-    const destName = day.hotel_options[0]?.dest_name || day.location || `Stop ${day.day_number}`;
-    if (!groups.has(destName)) {
-      groups.set(destName, {
-        dest:   destName,
-        nights: day.hotel_options[0]?.dest_nights ?? 1,
-        opts:   day.hotel_options.map((h) => ({
-          id:    h.id,
-          name:  h.name,
-          stars: h.stars,
-          desc:  h.description,
-          img:   h.image_url || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
-          extra: h.price_delta,
-          pop:   h.is_popular,
-        })),
-      });
+    const hotelOptions = day.hotel_options ?? [];
+    if (!hotelOptions.length) { lastKey = null; continue; }
+
+    // The backend mints a fresh option id per day even for the identical
+    // hotel, and rarely fills in dest_name — so id-based or dest_name-based
+    // grouping alone under-merges. Prefer dest_name when the backend gives
+    // it; otherwise treat consecutive days offering the exact same set of
+    // hotel names as one continuous stay. Nights = counted real days, never
+    // a separate dest_nights summary field (which may be missing/stale).
+    const key = hotelOptions[0]?.dest_name ?? hotelOptions.map((h) => h.name).sort().join("|");
+
+    if (key === lastKey && groups.length > 0) {
+      groups[groups.length - 1]!.nights += 1;
+      continue;
     }
+
+    const destName = hotelOptions[0]?.dest_name || day.location?.trim() || `Stop ${day.day_number}`;
+    groups.push({
+      dest:   destName,
+      nights: 1,
+      opts:   hotelOptions.map((h) => ({
+        id:            h.id,
+        name:          h.name,
+        stars:         h.stars,
+        desc:          h.description,
+        img:           h.image_url || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
+        extra:         h.price_delta,
+        pop:           h.is_popular,
+        roomType:      h.room_type || undefined,
+        maxGuests:     h.max_guests,
+        extraBedPrice: h.extra_bed_price,
+        mealsIncluded: h.meals
+          ? (["breakfast", "lunch", "dinner"] as const)
+              .filter((m) => h.meals![m])
+              .map((m) => m.charAt(0).toUpperCase() + m.slice(1))
+          : [],
+      })),
+    });
+    lastKey = key;
   }
-  return Array.from(groups.values());
+
+  return groups;
 }
 
-function buildCabOptions(days: DayOption[]): CabOption[] {
-  const seen = new Set<string>();
-  const cabs: CabOption[] = [];
-  for (const day of days) {
-    for (const c of day.cab_options) {
-      if (!seen.has(c.id)) {
-        seen.add(c.id);
-        cabs.push({
-          id:    c.id,
-          name:  c.name,
-          desc:  c.description,
-          seats: c.seats,
-          extra: c.price_delta,
-          pop:   c.is_popular,
-        });
-      }
-    }
-  }
-  return cabs;
+function buildCabOptions(cabs: DayOptionsData["cabs"]): CabOption[] {
+  return cabs.map((c) => ({
+    id:    c.id,
+    name:  c.name,
+    desc:  c.description ?? "",
+    seats: c.seats,
+    extra: c.price_delta,
+    pop:   c.is_popular,
+  }));
 }
 
 function buildAddonOptions(
@@ -188,7 +211,7 @@ export function useDayOptions(slug: string) {
   );
 
   const cabOptions = useMemo(
-    () => (data?.days?.length ? buildCabOptions(data.days) : []),
+    () => (data?.cabs?.length ? buildCabOptions(data.cabs) : []),
     [data],
   );
 

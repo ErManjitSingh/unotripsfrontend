@@ -6,24 +6,19 @@ import { Footer } from "@/components/layout/Footer";
 import { HeroSection } from "@/components/home/HeroSection";
 import { HomeHeroSection } from "@/components/home/home-hero-section";
 import { HeroPromoBanner } from "@/components/home/hero-promo-banner";
-import {
-  BlogPreviewSection,
-  TestimonialsSection,
-} from "@/components/home/home-async-sections";
+import { TestimonialsSection } from "@/components/home/home-async-sections";
 import { HomeHotelsSection } from "@/components/home/home-hotels-section";
 import { TrendingToursApiSection } from "@/components/home/trending-tours-api-section";
 import { fetchHomepageHotels, fetchHomepagePackages } from "@/lib/homepage-api";
 import {
-  BlogPreviewSectionSkeleton,
   SummerEscapesSkeleton,
   TestimonialsSectionSkeleton,
 } from "@/components/home/home-page-skeleton";
 import { SummerEscapesWithCounts } from "@/components/home/summer-escapes-with-counts";
 import { WhyChooseUs } from "@/components/home/WhyChooseUs";
 import { SpecialOffers } from "@/components/home/SpecialOffers";
-import { Stats } from "@/components/home/Stats";
 import { TravelCategories } from "@/components/home/TravelCategories";
-import { Newsletter } from "@/components/home/Newsletter";
+import { LeaveALightOn } from "@/components/home/leave-a-light-on";
 import { FaqSection } from "@/components/home/faq-section";
 import { TRAVEL_CATEGORIES } from "@/lib/constants";
 import { LeadCaptureWidgets } from "@/components/home/lead-capture-widgets";
@@ -99,17 +94,13 @@ export default async function HomePage() {
             <div className="py-5 sm:py-6">
               <SpecialOffers />
             </div>
-            <Stats />
             <Suspense fallback={<TestimonialsSectionSkeleton />}>
               <TestimonialsSection />
             </Suspense>
             <TravelCategories categories={TRAVEL_CATEGORIES} />
-            <Suspense fallback={<BlogPreviewSectionSkeleton />}>
-              <BlogPreviewSection />
-            </Suspense>
             <FaqSection />
-            <Newsletter />
           </div>
+          <LeaveALightOn />
         </div>
         <LeadCaptureWidgets />
       </main>

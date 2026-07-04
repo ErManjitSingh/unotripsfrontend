@@ -32,6 +32,11 @@ export type HotelOption = {
   extra: number;   // INR delta for all nights at this destination
   pop:   boolean;
   img:   string;
+  /** Real fields from the backend's per-hotel config — undefined/empty when not configured. */
+  roomType?:      string;
+  maxGuests?:     number;
+  extraBedPrice?: number;
+  mealsIncluded?: string[];
 };
 
 export type DestinationHotels = {
@@ -96,9 +101,7 @@ export type CustomizerState = {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-export const BASE_PRICE_PER_PERSON = 9500;
 export const CHILD_PRICE_FACTOR    = 0.70;
-export const EARLY_BIRD_DISCOUNT   = 2000;
 export const TOKEN_PERCENT         = 0.40;
 
 // ── Demo data (shown when no real customizer data is configured) ──────────────
@@ -197,41 +200,51 @@ export const TERMS_AND_CONDITIONS: Array<{ title: string; body: string }> = [
 
 // ── Price engine ──────────────────────────────────────────────────────────────
 
-export function calcTotal(state: Omit<CustomizerState, "pay">): PriceBreakdown {
-  const persons = state.adults + Math.round(state.children * CHILD_PRICE_FACTOR);
-  const base    = BASE_PRICE_PER_PERSON * Math.max(1, persons);
-
-  // Use whichever hotels/cabs are active (real or demo)
-  const hotels  = state.hotels;  // indices into whatever array the component uses
-  const hotel   = 0;             // NOTE: component passes real delta directly, see package-detail-view.tsx
-  const cab     = 0;
-  const addons  = state.addons.filter((a) => a.on).reduce((s, a) => s + a.price * Math.max(1, persons), 0);
-  const disc    = EARLY_BIRD_DISCOUNT;
-  const total   = Math.max(0, base - disc + addons);
-  return { base, hotel, cab, addons, disc, total };
-}
-
 /**
- * Full price breakdown using real hotel/cab arrays.
- * Used by package-detail-view.tsx which has access to the live data.
+ * Full price breakdown using the package's real per-person price plus
+ * real hotel/cab option deltas. `basePricePerPerson` and `originalPricePerPerson`
+ * come straight from the package record (TourPackage.priceINR / oldPriceINR) —
+ * never a hardcoded rate. `disc` is informational only (what the traveller is
+ * already saving vs. the listed price) — it is NOT subtracted from `total`,
+ * since basePricePerPerson is already the net/current selling price.
  */
 export function calcTotalWithOptions(
-  state:  Omit<CustomizerState, "pay">,
-  hotels: DestinationHotels[],
-  cabs:   CabOption[],
+  state:                   Omit<CustomizerState, "pay">,
+  hotels:                  DestinationHotels[],
+  cabs:                    CabOption[],
+  basePricePerPerson:      number,
+  originalPricePerPerson?: number,
 ): PriceBreakdown {
   const persons     = state.adults + Math.round(state.children * CHILD_PRICE_FACTOR);
-  const base        = BASE_PRICE_PER_PERSON * Math.max(1, persons);
+  const base        = basePricePerPerson * Math.max(1, persons);
   const hotelDelta  = state.hotels.reduce((sum, sel, i) => sum + (hotels[i]?.opts[sel]?.extra ?? 0) * state.rooms, 0);
   const cabDelta    = cabs[state.cab]?.extra ?? 0;
   const addons      = state.addons.filter((a) => a.on).reduce((s, a) => s + a.price * Math.max(1, persons), 0);
-  const disc        = EARLY_BIRD_DISCOUNT;
-  const total       = Math.max(0, base + hotelDelta + cabDelta + addons - disc);
+  const disc        =
+    originalPricePerPerson && originalPricePerPerson > basePricePerPerson
+      ? (originalPricePerPerson - basePricePerPerson) * Math.max(1, persons)
+      : 0;
+  const total       = Math.max(0, base + hotelDelta + cabDelta + addons);
   return { base, hotel: hotelDelta, cab: cabDelta, addons, disc, total };
 }
 
-export function tokenAmount(total: number): number {
-  return Math.round(total * TOKEN_PERCENT);
+/**
+ * Mirrors the backend's exact token calculation (day_options_service.py's
+ * calculate_price): "percent" packages take a % of total, "fixed" packages
+ * take a flat configured amount capped at total. Always pass the package's
+ * real token_type/token_amount — a package with no token configured (fixed,
+ * amount=0) genuinely asks for ₹0 upfront; that's an ops data gap to flag,
+ * not something to paper over with a fake default here.
+ */
+export function tokenAmount(
+  total: number,
+  tokenType: string = "percent",
+  configuredAmount: number = TOKEN_PERCENT * 100,
+): number {
+  if (tokenType === "percent") {
+    return Math.round(total * (configuredAmount / 100));
+  }
+  return Math.round(Math.min(configuredAmount, total));
 }
 
 export function fmtINR(n: number): string {

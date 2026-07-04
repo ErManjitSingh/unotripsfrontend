@@ -1,9 +1,13 @@
+"use client";
+
+import { useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
-  ArrowUpRight,
   Briefcase,
+  ChevronLeft,
+  ChevronRight,
   Crown,
   Heart,
   Landmark,
@@ -38,29 +42,67 @@ export type TravelCategoriesProps = {
 };
 
 export function TravelCategories({ categories, className }: TravelCategoriesProps) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  const scrollBy = useCallback((dir: -1 | 1) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const card = el.querySelector<HTMLElement>("[data-category-card]");
+    const step = card ? card.offsetWidth + 16 : 240;
+    el.scrollBy({ left: dir * step * 2, behavior: "smooth" });
+  }, []);
+
   return (
     <section className={cn("bg-[#faf8f4] py-12 sm:py-16", className)}>
       <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
 
-        {/* Header — left aligned */}
-        <div className="mb-8 sm:mb-10">
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">
-              Travel Moods
-            </span>
-            <span className="h-px w-8 bg-primary" aria-hidden />
+        {/* Header — title left, scroll arrows right */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">
+                Travel Moods
+              </span>
+              <span className="h-px w-8 bg-primary" aria-hidden />
+            </div>
+            <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
+              Categories we design for
+            </h2>
+            <p className="mt-3 max-w-lg text-sm text-slate-500 sm:text-base">
+              Each vertical has its own playbook — pacing, hotels, and guides
+              tuned to the traveler in the room.
+            </p>
           </div>
-          <h2 className="mt-3 font-display text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
-            Categories we design for
-          </h2>
-          <p className="mt-3 max-w-lg text-sm text-slate-500 sm:text-base">
-            Each vertical has its own playbook — pacing, hotels, and guides
-            tuned to the traveler in the room.
-          </p>
+
+          <div className="flex shrink-0 items-center gap-2 self-end sm:mb-1">
+            <button
+              type="button"
+              onClick={() => scrollBy(-1)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-primary/40 hover:text-primary"
+              aria-label="Scroll left"
+            >
+              <ChevronLeft className="h-5 w-5" strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollBy(1)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-primary/40 hover:text-primary"
+              aria-label="Scroll right"
+            >
+              <ChevronRight className="h-5 w-5" strokeWidth={2} />
+            </button>
+          </div>
         </div>
 
-        {/* 2×3 grid */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Single-line horizontal scroller */}
+        <div
+          ref={scrollerRef}
+          className={cn(
+            "mt-8 flex gap-4 overflow-x-auto overflow-y-hidden pb-2",
+            "scroll-smooth snap-x snap-mandatory",
+            "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+          )}
+        >
           {categories.map((c) => {
             const Icon = CATEGORY_ICONS[c.title] ?? Mountain;
             return (
@@ -68,44 +110,33 @@ export function TravelCategories({ categories, className }: TravelCategoriesProp
                 key={c.id}
                 href={CATEGORY_HREFS[c.title] ?? "/packages"}
                 aria-label={`Explore ${c.title}`}
-                className="group relative overflow-hidden rounded-2xl"
+                data-category-card
+                className={cn(
+                  "group relative shrink-0 snap-start overflow-hidden rounded-2xl bg-slate-900",
+                  "w-[190px] sm:w-[220px]",
+                  "shadow-[0_14px_40px_-14px_rgba(15,23,42,0.4)] ring-1 ring-black/5",
+                  "transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_50px_-14px_rgba(234,88,12,0.35)] hover:ring-primary/30",
+                )}
               >
-                {/* Image */}
-                <div className="relative aspect-[4/3]">
+                <div className="relative aspect-[3/4] w-full">
                   <Image
                     src={c.image}
                     alt={c.title}
                     fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    sizes="(max-width: 640px) 190px, 220px"
                     className="object-cover transition duration-700 group-hover:scale-105"
-                    loading="lazy"
                   />
-                  {/* Dark gradient overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/10" />
-                </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/5" />
 
-                {/* Top-left icon circle */}
-                <div className="absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm">
-                  <Icon className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden />
-                </div>
-
-                {/* Bottom content */}
-                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5">
-                  <div>
-                    <h3 className="font-display text-xl font-bold text-white">{c.title}</h3>
-                    <span className="mt-1.5 block h-0.5 w-8 rounded-full bg-primary" aria-hidden />
-                    <p className="mt-2.5 max-w-[220px] text-sm leading-relaxed text-white/80">
-                      {c.description}
-                    </p>
+                  <div className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm">
+                    <Icon className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden />
                   </div>
 
-                  {/* Arrow circle */}
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm transition group-hover:bg-primary">
-                    <ArrowUpRight
-                      className="h-5 w-5 text-primary transition group-hover:text-white"
-                      strokeWidth={2}
-                      aria-hidden
-                    />
+                  <div className="absolute inset-x-0 bottom-0 p-4">
+                    <h3 className="font-display text-lg font-bold text-white">{c.title}</h3>
+                    <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/80">
+                      {c.description}
+                    </p>
                   </div>
                 </div>
               </Link>
@@ -114,7 +145,7 @@ export function TravelCategories({ categories, className }: TravelCategoriesProp
         </div>
 
         {/* CTA */}
-        <div className="mt-10 flex justify-center">
+        <div className="mt-8 flex justify-center">
           <Link
             href="/packages"
             className="inline-flex items-center gap-2 rounded-full border border-primary px-8 py-3 text-sm font-semibold text-primary transition hover:bg-primary hover:text-white"

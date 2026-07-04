@@ -123,7 +123,6 @@ export async function DestinationPageContent({ params, destination: destinationP
         leadFormContextTitle={`${fallback.name} Tour Packages`}
         countHeading={`0 ${fallback.name} Packages`}
         showingRangeText={null}
-        ongoingBadgeRegion={fallback.name}
         footerNote=""
         searchHint={fallback.name}
         emptyListing={
@@ -188,7 +187,6 @@ export async function DestinationPageContent({ params, destination: destinationP
           ? `${related.length} package${related.length === 1 ? "" : "s"} — 5 per page with pagination below`
           : null
       }
-      ongoingBadgeRegion={d.name}
       footerNote=""
       searchHint={d.name}
       emptyListing={related.length === 0 ? emptyListing : undefined}

@@ -108,31 +108,6 @@ export function TestimonialsSectionSkeleton({ className }: { className?: string 
   );
 }
 
-export function BlogPreviewSectionSkeleton({ className }: { className?: string }) {
-  return (
-    <section className={cn("py-8 sm:py-10 lg:py-12", className)}>
-      <SectionShell>
-        <Skeleton className="h-8 w-48 rounded-lg" />
-        <Skeleton className="mt-2 h-4 w-96 max-w-full rounded" />
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="space-y-4 rounded-[1.35rem] border border-slate-100 p-1">
-              <Skeleton className="aspect-[16/10] w-full rounded-[1.15rem]" />
-              <div className="space-y-2 px-4 pb-4">
-                <Skeleton className="h-3 w-24 rounded-full" />
-                <Skeleton className="h-5 w-full rounded" />
-                <Skeleton className="h-4 w-full rounded" />
-                <Skeleton className="h-4 w-2/3 rounded" />
-                <Skeleton className="mt-2 h-9 w-28 rounded-full" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </SectionShell>
-    </section>
-  );
-}
-
 export function HomePageSkeleton() {
   return (
     <main>
@@ -167,7 +142,6 @@ export function HomePageSkeleton() {
             </div>
           </SectionShell>
         </section>
-        <BlogPreviewSectionSkeleton />
         <section className="py-10">
           <SectionShell>
             <Skeleton className="h-8 w-40 rounded-lg" />
