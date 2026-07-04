@@ -69,11 +69,7 @@
         phone: phone,
         email: fd.get("email") || "",
         package: fd.get("package") || "",
-        message: [
-          "Travellers: " + (fd.get("travellers") || "Not specified"),
-          "Travel Date: " + (fd.get("travel_date") || "Not specified"),
-          "Ticket Booked: " + (fd.get("ticket") || "No"),
-        ].join("\n"),
+        message: "",
       };
       var btn = form.querySelector('button[type="submit"]');
       if (btn) {
