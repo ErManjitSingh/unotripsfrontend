@@ -322,20 +322,22 @@ export function TrustBadgesBar({ className }: { className?: string }) {
     { icon: Lock,        title: "Secure Payments",        sub: "100% safe & encrypted" },
   ];
   return (
-    <div className={cn("rounded-2xl border border-slate-200 bg-white shadow-sm", className)}>
-      <div className="grid grid-cols-2 divide-x divide-y divide-slate-100 lg:grid-cols-4 lg:divide-y-0">
-        {items.map(({ icon: Icon, title, sub }) => (
-          <div key={title} className="flex items-center gap-2.5 px-4 py-3 sm:gap-3 sm:px-5 sm:py-4">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
-              <Icon className="h-[18px] w-[18px] text-primary" strokeWidth={1.8} />
-            </span>
-            <div>
-              <p className="text-[12px] font-bold text-slate-800 leading-tight">{title}</p>
-              <p className="text-[11px] text-slate-400 leading-snug">{sub}</p>
-            </div>
+    <div className={cn("flex flex-wrap items-center justify-center gap-2 sm:gap-2.5", className)}>
+      {items.map(({ icon: Icon, title, sub }) => (
+        <div
+          key={title}
+          className="flex items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.07] px-4 py-2 backdrop-blur-md transition hover:bg-white/[0.11] sm:px-5 sm:py-2.5"
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10">
+            <Icon className="h-[15px] w-[15px] text-amber-300" strokeWidth={1.8} />
+          </span>
+          <div className="hidden leading-tight sm:block">
+            <p className="text-[11.5px] font-bold text-white">{title}</p>
+            <p className="text-[10.5px] text-white/55">{sub}</p>
           </div>
-        ))}
-      </div>
+          <p className="text-[11.5px] font-bold text-white sm:hidden">{title}</p>
+        </div>
+      ))}
     </div>
   );
 }
@@ -487,10 +489,10 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
     <div className={cn("mx-auto w-full max-w-5xl", className)}>
 
       {/* ── White search card ─────────────────────────────── */}
-      <div className="overflow-visible rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_60px_-12px_rgba(15,23,42,0.25)]">
+      <div className="overflow-visible rounded-[28px] border border-white/60 bg-white/[0.97] shadow-[0_32px_80px_-16px_rgba(5,8,16,0.55)] backdrop-blur-xl sm:rounded-[32px]">
 
         {/* ── Tab row ─────────────────────────────────────── */}
-        <div className="flex gap-0.5 overflow-x-auto rounded-t-2xl border-b border-slate-100 px-3 py-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-1 sm:px-4 sm:py-3">
+        <div className="flex gap-0.5 overflow-x-auto rounded-t-[28px] border-b border-slate-100 px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-1 sm:rounded-t-[32px] sm:px-5 sm:py-3.5">
           {PACKAGE_TABS.map(tab => {
             const active = mode === tab.id;
             return (
@@ -505,7 +507,18 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
               >
                 {/* Icon / thumb */}
                 {tab.thumb ? (
-                  <Image src={tab.thumb} alt="" width={22} height={22} className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-slate-200 sm:h-[26px] sm:w-[26px]" sizes="26px" unoptimized />
+                  <Image
+                    src={tab.thumb}
+                    alt=""
+                    width={22}
+                    height={22}
+                    className={cn(
+                      "h-5 w-5 shrink-0 rounded-full object-cover ring-2 shadow-sm sm:h-[26px] sm:w-[26px]",
+                      active ? "ring-primary/40" : "ring-white",
+                    )}
+                    sizes="26px"
+                    unoptimized
+                  />
                 ) : tab.icon === "shield" ? (
                   <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full border sm:h-[26px] sm:w-[26px]", active ? "border-primary/30 bg-primary/10" : "border-slate-200 bg-slate-50")}>
                     <ShieldCheck className={cn("h-3 w-3", active ? "text-primary" : "text-slate-400")} strokeWidth={1.8} />
@@ -647,7 +660,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
                 </div>
               </div>
               {toOpen && to.trim().length < 2 && (
-                <div className="absolute left-0 top-full z-[200] mt-1 w-72 rounded-xl border border-slate-200 bg-white py-3 shadow-xl">
+                <div className="absolute left-0 top-full z-[200] mt-1 max-h-[280px] w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white py-3 shadow-xl">
                   <p className="px-4 pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Popular Destinations</p>
                   <div className="flex flex-col">
                     {POPULAR_TO_CITIES.map((name) => (

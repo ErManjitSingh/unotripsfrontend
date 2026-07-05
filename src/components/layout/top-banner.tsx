@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { X, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 
 const OFFERS = [
@@ -30,6 +31,7 @@ function pad(n: number) {
 }
 
 export function TopBanner() {
+  const pathname = usePathname();
   const [visible, setVisible] = useState(false);
   const [idx, setIdx] = useState(0);
   const [fade, setFade] = useState(true);
@@ -71,6 +73,9 @@ export function TopBanner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
+  // The homepage hero is a full-bleed cinematic banner — a flash-sale countdown
+  // directly above it undercuts the premium tone before anyone even scrolls.
+  if (pathname === "/") return null;
   if (!visible) return null;
 
   const offer = OFFERS[idx];

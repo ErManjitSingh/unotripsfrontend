@@ -37,8 +37,8 @@ export function WhyChooseUs({ className }: WhyChooseUsProps) {
           {/* Image */}
           <div className="relative aspect-[4/3] overflow-hidden rounded-3xl lg:aspect-[4/5]">
             <Image
-              src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1200&q=80"
-              alt="A local guide pointing out a route to travelers"
+              src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=80"
+              alt="Himachal Pradesh — snow-capped Himalayan peaks"
               fill
               sizes="(max-width: 1024px) 100vw, 50vw"
               className="object-cover"

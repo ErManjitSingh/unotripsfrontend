@@ -12,9 +12,12 @@ type AuthNavActionsProps = {
   variant?: "overlay" | "solid" | "ease";
   className?: string;
   onNavigate?: () => void;
+  /** Single "Login / Sign up" link instead of two separate buttons — no
+   *  filled button chrome on either, just plain text linking to /signup. */
+  combined?: boolean;
 };
 
-export function AuthNavActions({ variant = "solid", className, onNavigate }: AuthNavActionsProps) {
+export function AuthNavActions({ variant = "solid", className, onNavigate, combined = false }: AuthNavActionsProps) {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -118,6 +121,22 @@ export function AuthNavActions({ variant = "solid", className, onNavigate }: Aut
           </>
         ) : null}
       </div>
+    );
+  }
+
+  if (combined) {
+    return (
+      <Link
+        href="/signup"
+        onClick={onNavigate}
+        className={cn(
+          "shrink-0 text-sm font-semibold transition",
+          isOverlay ? "text-white/90 hover:text-white" : "text-[#424242] hover:text-primary",
+          className,
+        )}
+      >
+        Login / Sign up
+      </Link>
     );
   }
 

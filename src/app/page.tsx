@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import { Suspense } from "react";
-import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { HeroSection } from "@/components/home/HeroSection";
 import { HomeHeroSection } from "@/components/home/home-hero-section";
@@ -74,7 +73,6 @@ export default async function HomePage() {
       <main>
         <div>
           <div className="text-[#212121] antialiased">
-            <Navbar variant="ease" />
             <Suspense
               fallback={
                 <HeroSection searchCatalog={{ destinations: [], packages: [] }} />

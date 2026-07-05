@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Building2,
   Car,
@@ -71,6 +74,7 @@ export function PackageListRow({
   tour: TourPackage;
   showPopularTag?: boolean;
 }) {
+  const router = useRouter();
   const href = packageDetailHref(tour);
   const fullStars = Math.min(5, Math.round(tour.rating));
   const hasReviews = tour.reviewCount > 0;
@@ -78,7 +82,9 @@ export function PackageListRow({
   const typeLabel = formatTourType(tour.packageType);
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_2px_16px_-6px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-12px_rgba(15,23,42,0.18)]">
+    <article
+      onClick={() => router.push(href)}
+      className="cursor-pointer overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_2px_16px_-6px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_-12px_rgba(15,23,42,0.18)]">
       <div className="grid gap-0 lg:grid-cols-[minmax(0,240px)_1fr_minmax(0,220px)]">
         {/* Image */}
         <div className="relative aspect-[5/4] min-h-[180px] w-full bg-slate-100 lg:aspect-auto lg:min-h-[200px]">
@@ -91,6 +97,7 @@ export function PackageListRow({
           ) : null}
           <button
             type="button"
+            onClick={(e) => e.stopPropagation()}
             className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-sm backdrop-blur-sm transition hover:text-primary"
             aria-label="Save"
           >
@@ -161,11 +168,15 @@ export function PackageListRow({
           </p>
           <Button
             asChild
+            onClick={(e) => e.stopPropagation()}
             className="mt-4 h-10 w-full rounded-xl bg-primary text-sm font-bold text-white shadow-sm hover:bg-primary/90"
           >
             <Link href={href}>View Details</Link>
           </Button>
-          <div className="mt-3 flex items-center justify-center border-t border-slate-200 pt-3 text-xs font-semibold text-primary">
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="mt-3 flex items-center justify-center border-t border-slate-200 pt-3 text-xs font-semibold text-primary"
+          >
             <QuickEnquiryTrigger
               tourTitle={tour.title}
               tourSku={`${(tour.slug ?? tour.id).slice(0, 8).toUpperCase()}`}
