@@ -486,13 +486,13 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
   };
 
   return (
-    <div className={cn("mx-auto w-full max-w-5xl", className)}>
+    <div className={cn("hero-search-card mx-auto w-full max-w-5xl max-[900px]:max-w-4xl", className)}>
 
       {/* ── White search card ─────────────────────────────── */}
-      <div className="overflow-visible rounded-[28px] border border-white/60 bg-white/[0.97] shadow-[0_32px_80px_-16px_rgba(5,8,16,0.55)] backdrop-blur-xl sm:rounded-[32px]">
+      <div className="hero-search-surface overflow-visible rounded-[28px] border border-white/70 bg-white/[0.92] shadow-[0_28px_70px_-18px_rgba(5,8,16,0.5),0_0_0_1px_rgba(245,158,11,0.08)] backdrop-blur-2xl sm:rounded-[32px] max-[900px]:rounded-[24px]">
 
         {/* ── Tab row ─────────────────────────────────────── */}
-        <div className="flex gap-0.5 overflow-x-auto rounded-t-[28px] border-b border-slate-100 px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-1 sm:rounded-t-[32px] sm:px-5 sm:py-3.5">
+        <div className="flex gap-0.5 overflow-x-auto rounded-t-[28px] border-b border-slate-100 px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-1 sm:rounded-t-[32px] sm:px-5 sm:py-3.5 max-[900px]:rounded-t-[24px] max-[900px]:px-4 max-[900px]:py-2.5">
           {PACKAGE_TABS.map(tab => {
             const active = mode === tab.id;
             return (
@@ -501,7 +501,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
                 type="button"
                 onClick={() => onTabClick(tab.id)}
                 className={cn(
-                  "relative flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-[10px] font-semibold transition sm:px-3 sm:text-[11px]",
+                  "relative flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-[10px] font-semibold transition sm:px-3 sm:text-[11px] max-[900px]:gap-1.5 max-[900px]:px-2",
                   active ? "text-primary" : "text-slate-500 hover:text-slate-700",
                 )}
               >
@@ -588,14 +588,14 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
             </div>
           ) : (
           /* ── 5-field row ─────────────────────────────────── */
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 bg-gradient-to-b from-white/35 to-orange-50/25 sm:grid-cols-2 xl:grid-cols-5">
 
             {/* 1 — From City */}
             <div ref={fromRef} className="relative border-b border-slate-100 lg:border-b-0 lg:border-r">
               <button
                 type="button"
                 onClick={() => setFromOpen(o => !o)}
-                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3"
+                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3 max-[900px]:px-4 max-[900px]:py-2.5"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 xl:hidden">
                   <MapPin className="h-5 w-5 text-primary" strokeWidth={1.8} />
@@ -605,7 +605,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
                     <MapPin className="hidden h-3 w-3 xl:block" strokeWidth={2} />
                     From City
                   </span>
-                  <span className="text-[15px] font-bold leading-tight text-slate-900 sm:text-[19px]">{from || "Select City"}</span>
+                  <span className="text-[15px] font-bold leading-tight text-slate-900 sm:text-[19px] max-[900px]:text-[17px]">{from || "Select City"}</span>
                   <span className="text-[11px] text-slate-400">India</span>
                 </div>
                 <Crosshair className="h-5 w-5 shrink-0 text-primary xl:hidden" strokeWidth={1.5} />
@@ -638,7 +638,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
 
             {/* 2 — To City */}
             <div ref={toRef} className="relative border-b border-slate-100 lg:border-b-0 lg:border-r">
-              <div className="flex items-center gap-3 px-4 py-4 xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-4">
+              <div className="flex items-center gap-3 px-4 py-4 xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-4 max-[900px]:px-4 max-[900px]:py-2.5">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 xl:hidden">
                   <Search className="h-5 w-5 text-primary" strokeWidth={1.8} />
                 </span>
@@ -654,7 +654,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
                     onKeyDown={e => { if (e.key === "Escape") setToOpen(false); if (e.key === "Enter") { e.preventDefault(); onSubmit(); } }}
                     autoComplete="off"
                     placeholder="Search Destination"
-                    className="w-full border-0 bg-transparent p-0 text-[15px] font-bold leading-tight text-slate-900 outline-none placeholder:font-bold placeholder:text-slate-300 sm:text-[19px]"
+                    className="w-full border-0 bg-transparent p-0 text-[15px] font-bold leading-tight text-slate-900 outline-none placeholder:font-bold placeholder:text-slate-300 sm:text-[19px] max-[900px]:text-[17px]"
                   />
                   <span className="text-[11px] text-slate-400">{to ? "" : "e.g. Goa, Dubai, Thailand"}</span>
                 </div>
@@ -734,7 +734,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
               <button
                 type="button"
                 onClick={() => setDateOpen(o => !o)}
-                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3"
+                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3 max-[900px]:px-4 max-[900px]:py-2.5"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 xl:hidden">
                   <Calendar className="h-5 w-5 text-primary" strokeWidth={1.8} />
@@ -745,7 +745,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
                     Departure Date
                     <ChevronDown className={cn("hidden h-3 w-3 transition-transform xl:block", dateOpen && "rotate-180")} />
                   </span>
-                  <span className="text-[15px] font-bold leading-tight text-slate-900 sm:text-[19px]">{dateFmt.primary}</span>
+                  <span className="text-[15px] font-bold leading-tight text-slate-900 sm:text-[19px] max-[900px]:text-[17px]">{dateFmt.primary}</span>
                   {dateFmt.sub && <span className="text-[11px] text-slate-400">{dateFmt.sub}</span>}
                 </div>
                 <ChevronDown className={cn("h-5 w-5 shrink-0 text-slate-400 transition-transform xl:hidden", dateOpen && "rotate-180")} />
@@ -760,7 +760,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
               <button
                 type="button"
                 onClick={() => setGuestsOpen(o => !o)}
-                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3"
+                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3 max-[900px]:px-4 max-[900px]:py-2.5"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 xl:hidden">
                   <Users className="h-5 w-5 text-primary" strokeWidth={1.8} />
@@ -771,7 +771,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
                     Rooms &amp; Guests
                     <ChevronDown className={cn("hidden h-3 w-3 transition-transform xl:block", guestsOpen && "rotate-180")} />
                   </span>
-                  <span className="text-[15px] font-bold leading-tight text-slate-900 sm:text-[19px]">{guestsMain}</span>
+                  <span className="text-[15px] font-bold leading-tight text-slate-900 sm:text-[19px] max-[900px]:text-[17px]">{guestsMain}</span>
                   <span className="text-[11px] text-slate-400">{guestsSub}</span>
                 </div>
                 <ChevronDown className={cn("h-5 w-5 shrink-0 text-slate-400 transition-transform xl:hidden", guestsOpen && "rotate-180")} />
@@ -786,7 +786,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
               <button
                 type="button"
                 onClick={() => setFiltersOpen(o => !o)}
-                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3"
+                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3 max-[900px]:px-4 max-[900px]:py-2.5"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 xl:hidden">
                   <SlidersHorizontal className="h-5 w-5 text-primary" strokeWidth={1.8} />
@@ -799,7 +799,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
                       <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-white">{activeFilters}</span>
                     )}
                   </span>
-                  <span className={cn("text-[13px] font-bold leading-snug sm:text-[15px]", activeFilters ? "text-primary" : "text-slate-400")}>
+                  <span className={cn("text-[13px] font-bold leading-snug sm:text-[15px] max-[900px]:text-[14px]", activeFilters ? "text-primary" : "text-slate-400")}>
                     {activeFilters ? [filters.budget, filters.duration, filters.type].filter(Boolean).join(" · ") : "Select Filters (Optional)"}
                   </span>
                   <span className="text-[11px] text-slate-400">{activeFilters ? "" : "Budget, Amenities, etc."}</span>
@@ -814,7 +814,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
           )} {/* end of fields row conditional */}
 
           {/* ── Trending row ─────────────────────────────────── */}
-          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2.5 sm:px-5 sm:py-3">
+          <div className="flex items-center justify-between border-t border-orange-100/70 bg-white/45 px-4 py-2.5 sm:px-5 sm:py-3 max-[900px]:py-2">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
               <span className="text-[11px] font-bold text-slate-500">Trending:</span>
               {TRENDING_PLACES.map(place => (
@@ -835,7 +835,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
           </div>
 
           {/* ── Search button row ─────────────────────────────── */}
-          <div className="grid grid-cols-1 items-center gap-3 border-t border-slate-100 px-4 py-3 sm:grid-cols-3 sm:gap-4 sm:px-5 sm:py-4">
+          <div className="grid grid-cols-1 items-center gap-3 rounded-b-[28px] border-t border-orange-100/70 bg-gradient-to-r from-orange-50/55 via-white/65 to-orange-50/45 px-4 py-3 sm:grid-cols-3 sm:gap-4 sm:rounded-b-[32px] sm:px-5 sm:py-4 max-[900px]:rounded-b-[24px] max-[900px]:py-3">
             {/* Left — Exclusive Deals */}
             <div className="hidden items-center gap-3 sm:flex">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -851,7 +851,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
             <div className="flex justify-center">
               <button
                 type="submit"
-                className="flex w-full items-center justify-center gap-2.5 rounded-full bg-primary py-3.5 text-sm font-black uppercase tracking-widest text-white shadow-[0_8px_24px_-4px_rgba(234,88,12,0.5)] transition hover:bg-primary/90 hover:shadow-[0_12px_28px_-4px_rgba(234,88,12,0.55)] xl:max-w-[340px]"
+                className="flex w-full items-center justify-center gap-2.5 rounded-full bg-primary py-3.5 text-sm font-black uppercase tracking-widest text-white shadow-[0_8px_24px_-4px_rgba(234,88,12,0.5)] transition hover:bg-primary/90 hover:shadow-[0_12px_28px_-4px_rgba(234,88,12,0.55)] xl:max-w-[340px] max-[900px]:py-3"
               >
                 <Search className="h-4 w-4" strokeWidth={2.5} />
                 Search Packages

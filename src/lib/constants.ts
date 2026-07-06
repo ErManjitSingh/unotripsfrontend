@@ -179,10 +179,10 @@ export const FOOTER_COLUMNS = [
   {
     title: "Policies",
     links: [
-      { label: "Privacy Policy", href: "#" },
-      { label: "Terms of Service", href: "#" },
-      { label: "Cancellation Policy", href: "#" },
-      { label: "Cookie Policy", href: "#" },
+      { label: "Privacy Policy", href: "/privacy-policy" },
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Cancellation Policy", href: "/cancellation-policy" },
+      { label: "Cookie Policy", href: "/cookie-policy" },
     ],
   },
 ] as const;

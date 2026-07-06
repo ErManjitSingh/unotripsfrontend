@@ -30,6 +30,66 @@
   height: auto;
 }
 
+.hero-search-surface {
+  position: relative;
+}
+
+.hero-search-surface::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0) 28%),
+    radial-gradient(circle at 50% 0%, rgba(245, 158, 11, 0.18), transparent 38%);
+}
+
+.hero-search-surface > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 1600px) and (max-height: 1000px) {
+  .hero-search-shell,
+  .hero-trust-shell,
+  .hero-search-card {
+    max-width: 980px;
+  }
+
+  .hero-content-stack {
+    gap: 0.5rem;
+    padding-top: 6.25rem;
+  }
+
+  .hero-search-card > div > div:first-child {
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
+  }
+
+  .hero-search-card form > div:nth-child(1) button,
+  .hero-search-card form > div:nth-child(1) > div:nth-child(2) > div,
+  .hero-search-card form > div:nth-child(1) > div:nth-child(2) button {
+    padding-top: 0.65rem;
+    padding-bottom: 0.65rem;
+  }
+
+  .hero-search-card form > div:nth-child(2),
+  .hero-search-card form > div:nth-child(3) {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+  }
+
+  .hero-trust-shell > div {
+    gap: 0.5rem;
+  }
+
+  .hero-trust-shell > div > div {
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;

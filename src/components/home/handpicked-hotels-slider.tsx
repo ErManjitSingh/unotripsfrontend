@@ -90,18 +90,13 @@ export function HandpickedHotelsSlider({ hotels, total }: HandpickedHotelsSlider
             <Swiper
               onSwiper={(s) => { swiperRef.current = s; }}
               spaceBetween={16}
-              slidesPerView={1.08}
+              slidesPerView="auto"
               slidesPerGroup={1}
               watchOverflow
-              breakpoints={{
-                640: { slidesPerView: 2, slidesPerGroup: 2, spaceBetween: 14 },
-                1024: { slidesPerView: 3, slidesPerGroup: 3, spaceBetween: 16 },
-                1280: { slidesPerView: 4, slidesPerGroup: 4, spaceBetween: 16 },
-              }}
               className="!pb-4 !pt-1"
             >
               {hotels.map((hotel) => (
-                <SwiperSlide key={hotel.id} className="!h-auto">
+                <SwiperSlide key={hotel.id} className="!h-auto !w-[66%] sm:!w-[calc(50%-7px)] lg:!w-[calc(33.333%-11px)] xl:!w-[calc(25%-12px)]">
                   <div className="flex h-full flex-col">
                     <HotelGridCard hotel={hotel} />
                   </div>
@@ -111,7 +106,7 @@ export function HandpickedHotelsSlider({ hotels, total }: HandpickedHotelsSlider
           </div>
 
           {/* Trust badges */}
-          <div className="mt-6 grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-5 sm:grid-cols-4">
+          <div className="mt-6 hidden grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-5 sm:grid sm:grid-cols-4">
             {TRUST_BADGES.map(({ icon: Icon, title, sub }) => (
               <div key={title} className="flex items-center gap-3 px-4 first:pl-0 last:pr-0">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">

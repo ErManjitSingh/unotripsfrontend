@@ -14,7 +14,6 @@ import {
   TestimonialsSectionSkeleton,
 } from "@/components/home/home-page-skeleton";
 import { SummerEscapesWithCounts } from "@/components/home/summer-escapes-with-counts";
-import { WhyChooseUs } from "@/components/home/WhyChooseUs";
 import { SpecialOffers } from "@/components/home/SpecialOffers";
 import { TravelCategories } from "@/components/home/TravelCategories";
 import { LeaveALightOn } from "@/components/home/leave-a-light-on";
@@ -88,7 +87,6 @@ export default async function HomePage() {
             </Suspense>
             <TrendingToursApiSection initialData={packagesInitial} />
             <HomeHotelsSection initialData={hotelsInitial} />
-            <WhyChooseUs />
             <div className="py-5 sm:py-6">
               <SpecialOffers />
             </div>

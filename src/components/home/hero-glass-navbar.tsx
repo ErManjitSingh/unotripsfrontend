@@ -57,10 +57,10 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
   }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 w-full px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8">
+    <header className="fixed top-0 left-0 right-0 z-50 w-full px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8 max-[900px]:pt-3">
       <div
         className={cn(
-          "mx-auto flex w-full max-w-[1320px] items-center gap-2 rounded-2xl border px-3 py-2 transition-all duration-500 sm:gap-3 sm:px-4",
+          "mx-auto flex w-full max-w-[1320px] items-center gap-2 rounded-2xl border px-3 py-2 transition-all duration-500 sm:gap-3 sm:px-4 max-[900px]:max-w-[1180px] max-[900px]:py-1.5",
           scrolled
             ? "border-slate-200/80 bg-white/95 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.25)] backdrop-blur-md"
             : "border-white/20 bg-white/[0.14] shadow-[0_8px_32px_-12px_rgba(0,0,0,0.4),inset_0_1px_0_0_rgba(255,255,255,0.25)] backdrop-blur-xl",
@@ -73,7 +73,7 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
             !scrolled && "bg-white/95 px-2 py-1.5 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)]",
           )}
         >
-          <span className="relative block h-8 w-[100px] shrink-0 sm:h-9 sm:w-[116px]">
+          <span className="relative block h-8 w-[100px] shrink-0 sm:h-9 sm:w-[116px] max-[900px]:h-8 max-[900px]:w-[104px]">
             <Image
               src={logoSrc}
               alt={TRAVEL_HOME_BRAND.name}
@@ -94,7 +94,7 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
                 <Link
                   href={href}
                   className={cn(
-                    "relative flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-semibold tracking-wide transition-colors xl:px-4",
+                    "relative flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-semibold tracking-wide transition-colors xl:px-4 max-[900px]:gap-1.5 max-[900px]:px-2.5 max-[900px]:py-2 max-[900px]:text-[13px]",
                     scrolled
                       ? active ? "text-primary" : "text-[#424242] hover:text-primary"
                       : active ? "text-white" : "text-white/75 hover:text-white",
@@ -129,7 +129,7 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              "hidden items-center gap-2 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition lg:inline-flex",
+              "hidden items-center gap-2 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition lg:inline-flex max-[900px]:px-3 max-[900px]:py-1.5 max-[900px]:text-[12px]",
               scrolled
                 ? "border-slate-200 text-[#424242] hover:border-primary/40 hover:text-primary"
                 : "border-white/20 text-white/85 hover:border-white/40 hover:bg-white/10",

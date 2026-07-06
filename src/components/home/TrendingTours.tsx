@@ -100,7 +100,7 @@ export function TrendingTours({ tours, className }: TrendingToursProps) {
           </div>
 
           {/* ── Trust badges ── */}
-          <div className="mt-6 grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-5 sm:grid-cols-4">
+          <div className="mt-6 hidden grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-5 sm:grid sm:grid-cols-4">
             {TRUST_BADGES.map(({ icon: Icon, title, sub }) => (
               <div key={title} className="flex items-center gap-3 px-4 first:pl-0 last:pr-0">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
