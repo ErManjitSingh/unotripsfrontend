@@ -33,6 +33,7 @@ export type CreateBookingPayload = {
 
 export type BookingWithOrder = UserBooking & {
   razorpay_order_id?: string | null;
+  razorpay_key_id?: string | null;
   guest?: GuestInfoPayload;
   amount_breakdown?: {
     room_total?: number;

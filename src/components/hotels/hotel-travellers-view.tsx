@@ -567,7 +567,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       persistPendingCheckout(created.id);
 
       // ── Open Razorpay directly — no separate payment step ────────────────
-      const keyId   = getRazorpayKeyId();
+      const keyId   = created.razorpay_key_id ?? getRazorpayKeyId();
       const orderId = created.razorpay_order_id;
 
       // Dev mock orders skip the Razorpay popup — go to payment step instead
@@ -625,7 +625,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
 
   const handlePay = async () => {
     const token = auth?.getAccessToken();
-    const keyId = getRazorpayKeyId();
+    const keyId = apiBooking?.razorpay_key_id ?? getRazorpayKeyId();
     const orderId = apiBooking?.razorpay_order_id;
     const bookingId = apiBookingId;
 
