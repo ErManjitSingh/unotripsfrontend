@@ -32,6 +32,10 @@ import {
 import { siteWhatsAppChatUrl, siteTelHref } from "@/lib/site-contact";
 import { cn, formatInrAmount } from "@/lib/utils";
 
+const ALLOW_MOCK_RAZORPAY =
+  process.env.NODE_ENV !== "production" &&
+  process.env.NEXT_PUBLIC_ENABLE_MOCK_PAYMENTS === "true";
+
 function getMealPlanLabel(packageName: string): string {
   const n = packageName.toLowerCase();
   if (n.includes("room only") || n.includes("(ep)")) return "Room Only";
@@ -570,7 +574,15 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       const keyId   = created.razorpay_key_id ?? getRazorpayKeyId();
       const orderId = created.razorpay_order_id;
 
-      // Dev mock orders skip the Razorpay popup — go to payment step instead
+      // Explicit local mock orders skip the Razorpay popup.
+      if (orderId?.startsWith("order_mock_") && !ALLOW_MOCK_RAZORPAY) {
+        setFormError("Payment gateway returned a test order. Please redeploy the backend with real Razorpay payments enabled.");
+        setStep("payment");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        setContinuing(false);
+        return;
+      }
+
       if (!keyId || !orderId || orderId.startsWith("order_mock_")) {
         setStep("payment");
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -645,8 +657,13 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     setProcessing(true);
     setFormError(null);
 
-    // Dev mock: skip Razorpay popup and verify immediately with dummy IDs
+    // Explicit local mock: skip Razorpay popup and verify immediately with dummy IDs
     if (orderId.startsWith("order_mock_")) {
+      if (!ALLOW_MOCK_RAZORPAY) {
+        setFormError("Payment gateway returned a test order. Please redeploy the backend with real Razorpay payments enabled.");
+        setProcessing(false);
+        return;
+      }
       try {
         const verified = await verifyHotelBookingPayment(token, bookingId, {
           razorpay_order_id:   orderId,
@@ -1006,7 +1023,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   mobile={mobile}
                   processing={processing}
                   paymentError={formError}
-                  isMockOrder={apiBooking?.razorpay_order_id?.startsWith("order_mock_")}
+                  isMockOrder={ALLOW_MOCK_RAZORPAY && apiBooking?.razorpay_order_id?.startsWith("order_mock_")}
                   onBack={() => { setStep("travellers"); setApiBooking(null); }}
                   onPay={() => void handlePay()}
                 />

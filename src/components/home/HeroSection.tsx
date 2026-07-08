@@ -42,11 +42,11 @@ const fadeUp = {
 };
 
 const mobileCategories = [
-  { label: "Holidays", href: "/packages", icon: Palmtree, active: true },
-  { label: "Hotels", href: "/hotels", icon: Building2 },
-  { label: "Flights", href: "/flights", icon: Plane },
-  { label: "Trains", href: "/trains", icon: TrainFront },
-  { label: "More", href: "/activities", icon: Grid3X3 },
+  { id: "holidays", label: "Holidays", href: "/", icon: Palmtree },
+  { id: "hotels", label: "Hotels", href: "/hotels", icon: Building2 },
+  { id: "flights", label: "Flights", href: "/flights", icon: Plane },
+  { id: "trains", label: "Trains", href: "/trains", icon: TrainFront },
+  { id: "more", label: "More", href: "/activities", icon: Grid3X3 },
 ];
 
 const mobileMenuLinks = [
@@ -82,12 +82,17 @@ const mobileFallbackDestinations = [
   },
 ];
 
-function MobileHomeHero({ searchCatalog }: { searchCatalog: HeroSearchCatalog }) {
+export function TravelMobileTopShell({
+  activeId = "holidays",
+  showGreeting = true,
+}: {
+  activeId?: string;
+  showGreeting?: boolean;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const destinationCards = mobileFallbackDestinations;
 
   return (
-    <section className="relative z-20 overflow-hidden bg-[#fbfaf8] pb-5 md:hidden">
+    <section className="relative z-20 overflow-hidden bg-[#fbfaf8] pb-3 md:hidden">
       <div className="absolute inset-x-0 top-0 h-52 bg-[radial-gradient(circle_at_82%_18%,rgba(234,88,12,0.18),transparent_34%),radial-gradient(circle_at_10%_10%,rgba(245,158,11,0.1),transparent_28%),linear-gradient(180deg,#ffffff_0%,#fff7ed_62%,rgba(255,247,237,0)_100%)]" />
 
       <div className="relative mx-auto flex max-w-md flex-col px-4">
@@ -153,25 +158,29 @@ function MobileHomeHero({ searchCatalog }: { searchCatalog: HeroSearchCatalog })
           </div>
         )}
 
-        <div className="mt-2 flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[20px] font-black leading-tight text-slate-900">Namaste, Explorer! 👋</h1>
-            <p className="mt-1 text-[14px] font-medium text-slate-500">Where do you want to go next?</p>
+        {showGreeting && (
+          <div className="mt-2 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-[20px] font-black leading-tight text-slate-900">Namaste, Explorer! 👋</h1>
+              <p className="mt-1 text-[14px] font-medium text-slate-500">Where do you want to go next?</p>
+            </div>
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-orange-100 shadow-[0_10px_24px_-12px_rgba(234,88,12,0.7)] ring-4 ring-white">
+              <Image
+                src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=160&q=80"
+                alt=""
+                fill
+                className="object-cover"
+                sizes="56px"
+                unoptimized
+              />
+            </div>
           </div>
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-orange-100 shadow-[0_10px_24px_-12px_rgba(234,88,12,0.7)] ring-4 ring-white">
-            <Image
-              src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=160&q=80"
-              alt=""
-              fill
-              className="object-cover"
-              sizes="56px"
-              unoptimized
-            />
-          </div>
-        </div>
+        )}
 
-        <nav className="mt-5 flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Travel categories">
-          {mobileCategories.map(({ label, href, icon: Icon, active }) => (
+        <nav className={cn("flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", showGreeting ? "mt-5" : "mt-2")} aria-label="Travel categories">
+          {mobileCategories.map(({ id, label, href, icon: Icon }) => {
+            const active = id === activeId;
+            return (
             <Link
               key={label}
               href={href}
@@ -185,9 +194,21 @@ function MobileHomeHero({ searchCatalog }: { searchCatalog: HeroSearchCatalog })
               <Icon className={cn("h-7 w-7", active ? "text-primary" : "text-slate-500")} strokeWidth={1.8} />
               {label}
             </Link>
-          ))}
+            );
+          })}
         </nav>
+      </div>
+    </section>
+  );
+}
 
+function MobileHomeHero({ searchCatalog }: { searchCatalog: HeroSearchCatalog }) {
+  const destinationCards = mobileFallbackDestinations;
+
+  return (
+    <section className="relative z-20 overflow-hidden bg-[#fbfaf8] pb-5 md:hidden">
+      <TravelMobileTopShell activeId="holidays" />
+      <div className="relative mx-auto flex max-w-md flex-col px-4">
         <section className="mt-4 rounded-[24px] border border-white bg-white/90 p-4 shadow-[0_20px_50px_-28px_rgba(15,23,42,0.45)] backdrop-blur">
           <div className="mb-4 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-primary" strokeWidth={2.2} />
@@ -261,7 +282,7 @@ export function HeroSection({ searchCatalog, className }: HeroSectionProps) {
         <HeroCinematicBackground />
       </div>
 
-      {/* Floating nav — persistent across the whole page, glass over the hero → solid once scrolled */}
+      {/* Homepage nav is the shared source of truth for desktop pages. */}
       <HeroGlassNavbar activeId="holidays" />
 
       {/* Content — fills remaining height, centered. pt- clears the now-fixed nav sitting on top. */}

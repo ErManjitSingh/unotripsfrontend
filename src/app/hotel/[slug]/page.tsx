@@ -58,7 +58,10 @@ export default async function HotelInCityPage({ params, searchParams }: PageProp
   const { slug } = await params;
   const sp = await searchParams;
   const citySlug = parseHotelCitySlug(slug);
-  const city = await resolveHotelCity(citySlug);
+  const [city, destinations] = await Promise.all([
+    resolveHotelCity(citySlug),
+    fetchHotelDestinations(),
+  ]);
   if (!city) notFound();
 
   const checkIn = readParam(sp.check_in);
@@ -77,8 +80,6 @@ export default async function HotelInCityPage({ params, searchParams }: PageProp
     limit: 50,
     sort: sortParam === "price-low" ? "price_low" : "popular",
   });
-
-  const destinations = await fetchHotelDestinations();
 
   return (
     <HotelsCityResultsView

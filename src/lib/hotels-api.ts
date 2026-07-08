@@ -490,6 +490,8 @@ export function mapApiPoliciesToBullets(policies: ApiHotelPolicies): string[] {
 // ── City resolution (used by search, destination pages — unchanged) ───────────
 
 async function resolveApiCityName(cityInput: string): Promise<string> {
+  if (!cityInput.includes("-")) return cityInput;
+
   const normalized = citySlugFromName(cityInput);
   const slugs      = await fetchHotelSlugs();
   const match      = slugs.find(
@@ -760,54 +762,10 @@ export async function fetchHotelDestinations(): Promise<
     }
   }
 
-  const destinations = Array.from(map.values());
-
-  // Enriching (live search call for price/image) EVERY city here made this
-  // function fire one /v1/hotels/search request per unique city with a
-  // hotel — 40-60+ parallel calls, 15-20s+ SSR render. That's well past
-  // typical serverless/edge function timeouts, so the whole destinations
-  // list (and with it, the search dropdown) silently failed to render in
-  // production. The dropdown only needs city/state/country/slug — it
-  // never needed the enriched image/price. Only the "Popular Destinations"
-  // cards need those, and that section already only displays a handful,
-  // so enrich the top N by hotel count and leave the rest with their
-  // cheap defaults from the map-building step above.
-  const ENRICH_LIMIT = 16;
-  const byCount = [...destinations].sort((a, b) => b.hotelCount - a.hotelCount);
-  const toEnrich = new Set(byCount.slice(0, ENRICH_LIMIT).map((d) => d.slug));
-
-  const enriched = await Promise.all(
-    destinations.map(async (dest) => {
-      const needsSearch =
-        toEnrich.has(dest.slug) &&
-        (dest.imageUrl      === DEFAULT_DESTINATION_IMAGE ||
-         dest.startingPrice <= 0 ||
-         dest.hotelCount    === 0);
-
-      if (!needsSearch) return dest;
-
-      const { hotels, total } = await searchHotels({
-        city:  dest.slug,
-        limit: 1,
-        sort:  "popular",
-      });
-
-      if (hotels.length === 0) return dest;
-
-      const first = hotels[0]!;
-      return {
-        ...dest,
-        hotelCount:    Math.max(dest.hotelCount, total),
-        startingPrice: dest.startingPrice > 0 ? dest.startingPrice : first.price,
-        imageUrl:
-          dest.imageUrl === DEFAULT_DESTINATION_IMAGE
-            ? (first.images[0] ?? DEFAULT_DESTINATION_IMAGE)
-            : dest.imageUrl,
-      };
-    }),
-  );
-
-  return enriched.sort((a, b) => a.city.localeCompare(b.city));
+  return Array.from(map.values()).sort((a, b) => {
+    const byHotels = b.hotelCount - a.hotelCount;
+    return byHotels || a.city.localeCompare(b.city);
+  });
 }
 
 export type HotelDestinationListing = Awaited<

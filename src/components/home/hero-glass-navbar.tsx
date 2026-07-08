@@ -42,26 +42,33 @@ const SOON_IDS = new Set(["flights", "trains", "bus", "cabs"]);
 
 export type HeroGlassNavbarProps = {
   activeId?: string;
+  solid?: boolean;
 };
 
-export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps) {
+export function HeroGlassNavbar({ activeId = "holidays", solid = false }: HeroGlassNavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [logoSrc, setLogoSrc] = useState(TRAVEL_HOME_LOGO_SRC);
 
   useEffect(() => {
+    if (solid) {
+      setScrolled(true);
+      return;
+    }
     const onScroll = () => setScrolled(window.scrollY > 72);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [solid]);
+
+  const resolvedScrolled = solid || scrolled;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 w-full px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8 max-[900px]:pt-3">
       <div
         className={cn(
           "mx-auto flex w-full max-w-[1320px] items-center gap-2 rounded-2xl border px-3 py-2 transition-all duration-500 sm:gap-3 sm:px-4 max-[900px]:max-w-[1180px] max-[900px]:py-1.5",
-          scrolled
+          resolvedScrolled
             ? "border-slate-200/80 bg-white/95 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.25)] backdrop-blur-md"
             : "border-white/20 bg-white/[0.14] shadow-[0_8px_32px_-12px_rgba(0,0,0,0.4),inset_0_1px_0_0_rgba(255,255,255,0.25)] backdrop-blur-xl",
         )}
@@ -70,7 +77,7 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
           href="/"
           className={cn(
             "flex shrink-0 items-center rounded-xl transition-all",
-            !scrolled && "bg-white/95 px-2 py-1.5 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)]",
+            !resolvedScrolled && "bg-white/95 px-2 py-1.5 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)]",
           )}
         >
           <span className="relative block h-8 w-[100px] shrink-0 sm:h-9 sm:w-[116px] max-[900px]:h-8 max-[900px]:w-[104px]">
@@ -95,7 +102,7 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
                   href={href}
                   className={cn(
                     "relative flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-semibold tracking-wide transition-colors xl:px-4 max-[900px]:gap-1.5 max-[900px]:px-2.5 max-[900px]:py-2 max-[900px]:text-[13px]",
-                    scrolled
+                    resolvedScrolled
                       ? active ? "text-primary" : "text-[#424242] hover:text-primary"
                       : active ? "text-white" : "text-white/75 hover:text-white",
                   )}
@@ -107,7 +114,7 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
                       layoutId="hero-nav-underline"
                       className={cn(
                         "absolute inset-x-3 -bottom-0.5 h-[2.5px] rounded-full",
-                        scrolled ? "bg-primary" : "bg-amber-300 shadow-[0_0_8px_1px_rgba(252,211,77,0.7)]",
+                        resolvedScrolled ? "bg-primary" : "bg-amber-300 shadow-[0_0_8px_1px_rgba(252,211,77,0.7)]",
                       )}
                       transition={{ type: "spring", stiffness: 500, damping: 40 }}
                     />
@@ -130,17 +137,17 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
             rel="noopener noreferrer"
             className={cn(
               "hidden items-center gap-2 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition lg:inline-flex max-[900px]:px-3 max-[900px]:py-1.5 max-[900px]:text-[12px]",
-              scrolled
+              resolvedScrolled
                 ? "border-slate-200 text-[#424242] hover:border-primary/40 hover:text-primary"
                 : "border-white/20 text-white/85 hover:border-white/40 hover:bg-white/10",
             )}
           >
             <Building2 className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden />
             List Your Property
-            <span className={cn("text-[10px] font-bold uppercase", scrolled ? "text-primary" : "text-amber-300")}>Free</span>
+            <span className={cn("text-[10px] font-bold uppercase", resolvedScrolled ? "text-primary" : "text-amber-300")}>Free</span>
           </Link>
 
-          <AuthNavActions variant={scrolled ? "ease" : "overlay"} combined className="hidden sm:flex" />
+          <AuthNavActions variant={resolvedScrolled ? "ease" : "overlay"} combined className="hidden sm:flex" />
 
           <button
             type="button"
@@ -148,7 +155,7 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
             onClick={() => setOpen((v) => !v)}
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition lg:hidden",
-              scrolled ? "text-[#424242] hover:bg-slate-100" : "text-white hover:bg-white/10",
+              resolvedScrolled ? "text-[#424242] hover:bg-slate-100" : "text-white hover:bg-white/10",
             )}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

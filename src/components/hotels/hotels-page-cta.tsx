@@ -20,21 +20,21 @@ export function HotelsPageCta({
   hotel,
 }: HotelsPageCtaProps) {
   return (
-    <section className="pb-14 pt-4 sm:pb-20 sm:pt-6">
+    <section className="pb-10 pt-4 sm:pb-16 sm:pt-6">
       <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
         <div className="relative overflow-hidden rounded-3xl border border-orange-200/60 bg-gradient-to-br from-primary via-orange-500 to-amber-500 shadow-[0_24px_60px_-20px_rgba(234,88,12,0.55)]">
           {/* bg blobs */}
           <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/15 blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -bottom-20 -left-10 h-56 w-56 rounded-full bg-amber-200/20 blur-3xl" aria-hidden />
 
-          <div className="relative grid gap-8 p-6 sm:p-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-10 lg:p-10">
+          <div className="relative grid gap-7 p-5 sm:p-7 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-10 lg:p-10">
             {/* ── Left: copy ── */}
             <div className="text-white">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-orange-100">Book with confidence</p>
-              <h2 className="mt-2 font-display text-2xl font-bold leading-tight sm:text-3xl lg:text-4xl">
+              <h2 className="mt-2 font-display text-[1.65rem] font-bold leading-tight sm:text-3xl lg:text-4xl">
                 Ready to find your perfect stay?
               </h2>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-orange-50 sm:text-base">
+              <p className="mt-3 max-w-xl text-[13px] leading-relaxed text-orange-50 sm:text-base">
                 Search by city, compare prices instantly, and book in minutes. Best rates, verified hotels, and 24/7 support on every booking.
               </p>
 
@@ -49,7 +49,7 @@ export function HotelsPageCta({
                 </li>
               </ul>
 
-              <div className="mt-7 flex flex-wrap gap-3">
+              <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href={searchHref}
                   className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-primary shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl sm:text-base"

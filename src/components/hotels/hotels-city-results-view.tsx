@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Clock, Search } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
-import { Navbar } from "@/components/layout/Navbar";
+import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
+import { TravelMobileTopShell } from "@/components/home/HeroSection";
 import { HotelResultCard } from "@/components/hotels/hotel-result-card";
 import {
   EMPTY_HOTEL_FILTERS,
@@ -202,15 +203,20 @@ export function HotelsCityResultsView({
   return (
     <>
       <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
-        <Navbar variant="ease" easeActiveNavId="hotels" />
-        <Suspense fallback={null}>
-          <HotelsResultsSearchStrip
-            city={city}
-            destinations={destinations}
-            searching={searching}
-            onSearch={handleModifySearch}
-          />
-        </Suspense>
+        <div className="hidden md:block">
+          <HeroGlassNavbar activeId="hotels" solid />
+        </div>
+        <TravelMobileTopShell activeId="hotels" showGreeting={false} />
+        <div className="md:pt-28">
+          <Suspense fallback={null}>
+            <HotelsResultsSearchStrip
+              city={city}
+              destinations={destinations}
+              searching={searching}
+              onSearch={handleModifySearch}
+            />
+          </Suspense>
+        </div>
 
         <div className="mx-auto w-full max-w-[1320px] px-3 py-4 sm:px-4 sm:py-5 lg:px-6">
           {/* Breadcrumb + search + sort */}

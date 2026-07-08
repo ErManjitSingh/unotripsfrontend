@@ -24,7 +24,8 @@ import {
 } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import type { RoomSelection } from "@/components/hotels/hotel-detail-rooms-table";
-import { Navbar } from "@/components/layout/Navbar";
+import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
+import { TravelMobileTopShell } from "@/components/home/HeroSection";
 import { HotelTagBadgeList } from "@/components/hotels/hotel-tag-badge";
 import { HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booking-policy";
 import { HotelDetailReviews } from "@/components/hotels/hotel-detail-reviews";
@@ -757,7 +758,9 @@ export function HotelDetailView({
   const [gallery, setGallery] = useState<{ open: boolean; initialPhotoIndex?: number }>({ open: false });
   const [roomSelection, setRoomSelection] = useState<RoomSelection | null>(null);
   const [stickyVisible, setStickyVisible] = useState(false);
+  const [belowFoldReady, setBelowFoldReady] = useState(false);
   const gallerySentinelRef = useRef<HTMLDivElement>(null);
+  const belowFoldSentinelRef = useRef<HTMLDivElement>(null);
 
   const paramsContext = useMemo(
     () => parseBookingContextFromParams(searchParams),
@@ -775,6 +778,19 @@ export function HotelDetailView({
     const observer = new IntersectionObserver(
       ([entry]) => setStickyVisible(!entry.isIntersecting),
       { threshold: 0 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const sentinel = belowFoldSentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setBelowFoldReady(true);
+      },
+      { rootMargin: "400px 0px" },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
@@ -836,15 +852,20 @@ export function HotelDetailView({
   return (
     <>
       <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
-        <Navbar variant="ease" easeActiveNavId="hotels" />
-        <DetailSearchStrip
-          hotelName={hotel.name}
-          bookingContext={bookingContext}
-          onApply={handleApplySearch}
-        />
+        <div className="hidden md:block">
+          <HeroGlassNavbar activeId="hotels" />
+        </div>
+        <TravelMobileTopShell activeId="hotels" showGreeting={false} />
+        <div className="md:pt-28">
+          <DetailSearchStrip
+            hotelName={hotel.name}
+            bookingContext={bookingContext}
+            onApply={handleApplySearch}
+          />
+        </div>
 
         {/* ── Compact sticky anchor bar (always visible, minimal) ── */}
-        <div className="sticky top-[116px] z-30 w-full border-b border-[#e8e8e8] bg-white/95 shadow-sm backdrop-blur-sm sm:top-[132px] lg:top-[72px]">
+        <div className="sticky top-[116px] z-30 w-full border-b border-[#e8e8e8] bg-white/95 shadow-sm backdrop-blur-sm sm:top-[132px] lg:top-[112px]">
           <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
             <div className="flex items-center justify-between gap-3 py-2.5">
               <div className="flex min-w-0 items-center gap-2">
@@ -1041,9 +1062,23 @@ export function HotelDetailView({
               onRoomPhotoClick={openPhotoBySrc}
               onRoomSelect={setRoomSelection}
             />
-            <HotelDetailReviews hotel={hotel} cityName={city.name} apiReviews={apiReviews} />
-            <HotelDetailBookingPolicy hotel={hotel} policies={policies} />
-            <HotelDetailSimilarHotels hotels={similarHotels} city={city} />
+            <div ref={belowFoldSentinelRef} className="h-px" aria-hidden />
+            {belowFoldReady ? (
+              <>
+                <HotelDetailReviews hotel={hotel} cityName={city.name} apiReviews={apiReviews} />
+                <HotelDetailBookingPolicy hotel={hotel} policies={policies} />
+                <HotelDetailSimilarHotels hotels={similarHotels} city={city} />
+              </>
+            ) : (
+              <div className="space-y-4 rounded-xl border border-[#e8e8e8] bg-white p-4">
+                <div className="h-4 w-40 rounded bg-[#f1f5f9]" />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="h-28 rounded-lg bg-[#f8fafc]" />
+                  <div className="h-28 rounded-lg bg-[#f8fafc]" />
+                </div>
+                <div className="h-24 rounded-lg bg-[#f8fafc]" />
+              </div>
+            )}
           </div>
         </div>
 
