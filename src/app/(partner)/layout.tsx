@@ -137,6 +137,30 @@ export default function PartnerLayout({ children }: { children: React.ReactNode 
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // AUDIT FIX (hydration mismatch): AuthProvider deliberately initialises
+  // `isLoading` / `isAuthenticated` SYNCHRONOUSLY from localStorage (see
+  // auth-context.tsx's own comment — done to avoid a loading flash on the
+  // rest of the site). That's fine for a plain client render, but it means
+  // the SERVER (no localStorage) and the CLIENT'S FIRST hydration pass can
+  // disagree: server always sees isLoading=true/not-authenticated and
+  // renders <Spinner/>, while an already-logged-in partner's browser
+  // resolves isAuthenticated=true synchronously on that very first render
+  // and tries to hydrate the real sidebar+content layout onto the
+  // server's Spinner markup — a hard hydration mismatch (recoverable, but
+  // logged as an error and forces a client-side re-render every time).
+  //
+  // `mounted` starts false identically on the server and on the client's
+  // first render (a plain useState(false) has no environment-dependent
+  // input, unlike auth state), so both sides render <Spinner/> for that
+  // first pass no matter what auth-context already knows. Only after
+  // hydration commits does the effect below flip it to true — a normal
+  // post-mount client update, not part of hydration, so React handles the
+  // Spinner → real-layout swap the ordinary way instead of erroring.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const pub = isPublic(pathname);
 
   // Auth guard
@@ -154,8 +178,11 @@ export default function PartnerLayout({ children }: { children: React.ReactNode 
   // Public pages — no shell at all
   if (pub) return <>{children}</>;
 
-  // Spinner while auth bootstraps
-  if (isLoading || !isAuthenticated) return <Spinner />;
+  // Spinner while auth bootstraps — ALSO shown pre-mount so the server
+  // render and the client's first hydration pass always match (see
+  // `mounted` comment above), even when a cached session would otherwise
+  // let the real auth state resolve as "ready" immediately on the client.
+  if (!mounted || isLoading || !isAuthenticated) return <Spinner />;
 
   return (
     <div style={{ minHeight: "100vh", background: "#F9F7F2" }}>
