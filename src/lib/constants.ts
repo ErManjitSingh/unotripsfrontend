@@ -32,9 +32,9 @@ export const SITE = {
   name: "UNO Trips",
   tagline: "Luxury travel, distilled — curated journeys across India and the world.",
   url: resolveSiteUrl(),
-  phone: "+91 83530 96965",
+  phone: "+91 8353057000",
   /** For `https://wa.me/{digits}` — India country code + 10-digit mobile, no plus. */
-  whatsappPhoneDigits: "918353096965",
+  whatsappPhoneDigits: "918353057000",
   email: "info@unotrips.com",
   /** Office address shown in footer, schema.org, and contact blocks. */
   address:

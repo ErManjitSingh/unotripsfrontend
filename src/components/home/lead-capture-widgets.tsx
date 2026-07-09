@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { X, Phone, MessageCircle, ChevronRight, User, MapPin, Send, Bot } from "lucide-react";
 import { useRef } from "react";
 
-const WHATSAPP_NUMBER = "918353096965";
+const WHATSAPP_NUMBER = "918353057000";
 const WHATSAPP_MSG = "Hi! I'm interested in booking a trip. Can you help me?";
 const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MSG)}`;
 
@@ -273,7 +273,7 @@ function StickyMobileBar() {
 
         {/* Call pill */}
         <a
-          href="tel:+918353096965"
+          href="tel:+918353057000"
           className="flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-[12px] font-bold text-white shadow-[0_4px_12px_rgba(234,88,12,0.35)] transition active:brightness-90"
         >
           <Phone className="h-4 w-4" strokeWidth={2} />
@@ -404,7 +404,7 @@ const BOT_RESPONSES: { keywords: string[]; reply: string }[] = [
   },
   {
     keywords: ["expert", "agent", "call", "talk", "support", "help", "human"],
-    reply: `Our travel experts are available 24/7. 📞 Call us: +91 83530 96965 or WhatsApp us now! <a href="${whatsappHref}" target="_blank" class="underline font-semibold">Chat on WhatsApp →</a>`,
+    reply: `Our travel experts are available 24/7. 📞 Call us: +91 8353057000 or WhatsApp us now! <a href="${whatsappHref}" target="_blank" class="underline font-semibold">Chat on WhatsApp →</a>`,
   },
   {
     keywords: ["goa"],
@@ -437,7 +437,7 @@ function getBotReply(input: string): string {
   for (const { keywords, reply } of BOT_RESPONSES) {
     if (keywords.some((k) => lower.includes(k))) return reply;
   }
-  return "Great question! 🤔 I'll connect you with one of our travel experts who can help you better. You can also call us at +91 83530 96965 or browse our packages above!";
+  return "Great question! 🤔 I'll connect you with one of our travel experts who can help you better. You can also call us at +91 8353057000 or browse our packages above!";
 }
 
 function ChatbotWidget() {

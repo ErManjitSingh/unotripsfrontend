@@ -5,20 +5,74 @@ export type PropertyType =
   | "villa" | "homestay" | "service_apartment" | "hostel";
 
 export type BedType = "single" | "double" | "twin" | "queen" | "king" | "bunk";
-export type PartnerMealKey = "breakfast" | "lunch" | "dinner";
-export type MealPlans = Partial<Record<PartnerMealKey, number>>;
 
 export interface NearbyAttraction { name: string; distance_km: string; }
 export interface DiningVenue { name: string; cuisine: string; timing: string; description: string; open_to_public: boolean; }
 export interface ContactDetails { phone: string; email: string; whatsapp: string; website: string; gst: string; }
 export interface PropertyPolicies { cancellation: string; check_in_time: string; check_out_time: string; children: string; pets: string; smoking: string; extra_bed: string; early_check_in: string; late_check_out: string; age_restriction: string; alcohol: string; payment_methods: string[]; }
 
+// ── Rate plans ──────────────────────────────────────────────────────────────
+// AUDIT FIX (partner/backend pricing alignment, 2026-07): base_price,
+// weekend_price, and the flat meal_plans dict (breakfast/lunch/dinner,
+// separately priced) are RETIRED on the backend — see
+// app/schemas/hotels/property.py's RoomTypePayload. A room is now priced
+// exactly the way Ops prices it: one number per meal-plan tier, per
+// channel, per rate row (Room Rate / Extra Bed). rate_plans is REQUIRED
+// by the backend (no fallback price source left) and the backend
+// server-side validates rate_plans.website.room.ep > 0.
+//
+// Partner only ever fills in the "website" channel — "staff" and "agent"
+// are Ops-exclusive (enforced server-side by RateInventoryService), but
+// the full RatePlans shape must still be sent because the backend schema
+// has no default for it. We send zeroed staff/agent blocks.
+//
+//   EP  = Room only
+//   CP  = Room + breakfast
+//   MAP = Room + breakfast + one more meal (usually dinner)
+//   AP  = Room + all meals
+export interface RatePlanBlock {
+  ep:  number;
+  cp:  number;
+  map: number;
+  ap:  number;
+}
+
+export interface RatePlanChannel {
+  room:      RatePlanBlock;
+  extra_bed: RatePlanBlock;
+}
+
+export interface RatePlans {
+  website: RatePlanChannel;
+  staff:   RatePlanChannel;
+  agent:   RatePlanChannel;
+}
+
+/** Fresh, independent zeroed rate-plan block — never share/mutate a single instance. */
+export function emptyRatePlanBlock(): RatePlanBlock {
+  return { ep: 0, cp: 0, map: 0, ap: 0 };
+}
+
+/** Fresh, independent zeroed channel (room + extra_bed rows). */
+export function emptyRatePlanChannel(): RatePlanChannel {
+  return { room: emptyRatePlanBlock(), extra_bed: emptyRatePlanBlock() };
+}
+
+/** Fresh, independent zeroed rate_plans object for all 3 channels. */
+export function emptyRatePlans(): RatePlans {
+  return {
+    website: emptyRatePlanChannel(),
+    staff:   emptyRatePlanChannel(),
+    agent:   emptyRatePlanChannel(),
+  };
+}
+
 export interface RoomTypePayload {
   name: string; description: string; bed_type: BedType;
   max_occupancy: number; size_sqft: number; count: number;
   amenities: string[]; images: string[];
-  base_price: number; weekend_price?: number;
-  is_active: boolean; meal_plans: MealPlans;
+  rate_plans: RatePlans; weekend_markup_percent?: number;
+  is_active: boolean;
 }
 
 export interface WizardAgreements {
@@ -43,16 +97,3 @@ export interface PropertyWizardData {
   photo_categories: { category: string; label: string; images: string[] }[];
   agreements: WizardAgreements;
 }
-
-export const MEAL_DEFAULT_PRICES: Record<PartnerMealKey, number> = {
-  breakfast: 300, lunch: 450, dinner: 450,
-};
-export const MEAL_PLAN_CODES: PartnerMealKey[] = ["breakfast", "lunch", "dinner"];
-export const PARTNER_MEAL_PLAN_LABELS: Record<PartnerMealKey, string> = {
-  breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner",
-};
-export const PARTNER_MEAL_DESCRIPTIONS: Record<PartnerMealKey, string> = {
-  breakfast: "Morning meal served daily",
-  lunch: "Midday meal served daily",
-  dinner: "Evening meal served daily",
-};
