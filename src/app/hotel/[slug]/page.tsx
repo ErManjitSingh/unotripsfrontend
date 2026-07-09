@@ -70,9 +70,11 @@ export default async function HotelInCityPage({ params, searchParams }: PageProp
   const guests = readIntParam(sp.guests, 2);
   const lastMinute = readParam(sp.last_minute) === "1";
   const sortParam = readParam(sp.sort);
+  const q = readParam(sp.q);
 
-  const { hotels } = await searchHotels({
+  const firstResult = await searchHotels({
     city: city.name,
+    q,
     check_in: checkIn,
     check_out: checkOut,
     adults: guests,
@@ -80,6 +82,19 @@ export default async function HotelInCityPage({ params, searchParams }: PageProp
     limit: 50,
     sort: sortParam === "price-low" ? "price_low" : "popular",
   });
+
+  const useFallbackCitySearch = Boolean(q && firstResult.total === 0);
+  const { hotels } = useFallbackCitySearch
+    ? await searchHotels({
+        city: city.name,
+        check_in: checkIn,
+        check_out: checkOut,
+        adults: guests,
+        rooms,
+        limit: 50,
+        sort: sortParam === "price-low" ? "price_low" : "popular",
+      })
+    : firstResult;
 
   return (
     <HotelsCityResultsView
@@ -97,6 +112,7 @@ export default async function HotelInCityPage({ params, searchParams }: PageProp
       initialGuests={guests}
       initialLastMinute={lastMinute}
       initialSort={sortParam === "price-low" ? "price-low" : "popularity"}
+      initialSearchQuery={useFallbackCitySearch ? "" : q}
     />
   );
 }

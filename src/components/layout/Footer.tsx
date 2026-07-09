@@ -32,7 +32,7 @@ export function Footer({ className }: FooterProps) {
             {/* Logo — sits naturally on white */}
             <Link href="/">
               <Image
-                src="/images/homelogo.webp"
+                src="/images/homelogo-transparent.png"
                 alt="UNO Trips"
                 width={180}
                 height={56}
@@ -135,7 +135,7 @@ export function Footer({ className }: FooterProps) {
         <div className="flex flex-col gap-3 border-t border-slate-100 py-4 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/">
             <Image
-              src="/images/homelogo.webp"
+              src="/images/homelogo-transparent.png"
               alt="UNO Trips"
               width={80}
               height={26}

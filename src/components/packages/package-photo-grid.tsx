@@ -93,7 +93,7 @@ function Lightbox({
           fill
           className="object-contain"
           sizes="100vw"
-          priority
+          priority={idx === startIdx}
         />
 
         {/* Prev / Next */}
@@ -230,6 +230,7 @@ export function PackagePhotoGrid({ images, tourTitle, className }: Props) {
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.05]"
                   sizes="(max-width: 768px) 33vw, 25vw"
+                  loading="lazy"
                 />
               ) : (
                 <PlaceholderTile idx={tileIdx} />

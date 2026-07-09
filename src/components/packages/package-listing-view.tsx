@@ -9,7 +9,7 @@ import { PackageSortSelect } from "@/components/packages/package-sort-select";
 import { PackageLeadForm } from "@/components/packages/package-lead-form";
 import { DestinationEaseHero } from "@/components/destinations/destination-ease-hero";
 import type { DestinationEaseHeroProps } from "@/components/destinations/destination-ease-hero";
-import { Navbar } from "@/components/layout/Navbar";
+import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
 import {
   FloatingEnquireButton,
   QuickEnquiryProvider,
@@ -126,7 +126,7 @@ export function PackageListingView({
 
   return (
     <QuickEnquiryProvider>
-      <Navbar variant="ease" easeActiveNavId="holidays" />
+      <HeroGlassNavbar activeId="holidays" solid combinedAuth />
       {easeHero ? <DestinationEaseHero {...easeHero} /> : null}
       <div className="min-h-screen bg-[#f4f6f8]">
         {/* Centered column + viewport gutters once (avoid edge-to-edge + avoid double padding) */}

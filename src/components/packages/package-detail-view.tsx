@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 
 import { Footer }                from "@/components/layout/Footer";
-import { Navbar }                from "@/components/layout/Navbar";
+import { HeroGlassNavbar }       from "@/components/home/hero-glass-navbar";
 import { PackagePhotoGrid }      from "@/components/packages/package-photo-grid";
 import { PackageBookingSuccess } from "@/components/packages/PackageBookingSuccess";
 import { ActivitiesTab }         from "@/components/packages/ActivitiesTab";
@@ -493,9 +493,9 @@ export function PackageDetailView({
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <>
-      <Navbar variant="ease" easeActiveNavId="holidays" />
-      <main className="min-h-screen bg-[#f4f6f8]">
-        <div className="mx-auto w-full max-w-[1100px] px-3 pb-24 sm:px-4 lg:px-6">
+      <HeroGlassNavbar activeId="holidays" solid combinedAuth />
+      <main className="min-h-screen bg-[#f4f6f8] pt-[56px] sm:pt-[64px] lg:pt-[72px]">
+        <div className="mx-auto w-full max-w-[1100px] px-3 pb-24 pt-3 sm:px-4 sm:pt-4 lg:px-6 lg:pb-0 lg:pt-5">
 
           {/* Breadcrumb */}
           <nav className="flex flex-wrap items-center gap-1 py-3 text-[11px] text-[#9e9e9e]" aria-label="Breadcrumb">

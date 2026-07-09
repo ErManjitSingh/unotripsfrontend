@@ -853,46 +853,15 @@ export function HotelDetailView({
     <>
       <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
         <div className="hidden md:block">
-          <HeroGlassNavbar activeId="hotels" />
+          <HeroGlassNavbar activeId="hotels" solid />
         </div>
         <TravelMobileTopShell activeId="hotels" showGreeting={false} />
-        <div className="md:pt-28">
+        <div className="md:pt-24 lg:pt-28">
           <DetailSearchStrip
             hotelName={hotel.name}
             bookingContext={bookingContext}
             onApply={handleApplySearch}
           />
-        </div>
-
-        {/* ── Compact sticky anchor bar (always visible, minimal) ── */}
-        <div className="sticky top-[116px] z-30 w-full border-b border-[#e8e8e8] bg-white/95 shadow-sm backdrop-blur-sm sm:top-[132px] lg:top-[112px]">
-          <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
-            <div className="flex items-center justify-between gap-3 py-2.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <h2 className="truncate text-[14px] font-bold text-[#212121] sm:text-[15px]">{hotel.name}</h2>
-                <span className="hidden items-center gap-0.5 sm:flex" aria-label={`${hotel.stars} stars`}>
-                  {Array.from({ length: hotel.stars }).map((_, i) => (
-                    <Star key={i} className="h-3 w-3 fill-[#FFC107] text-[#FFC107]" aria-hidden />
-                  ))}
-                </span>
-                {hotel.rating > 0 && (
-                  <span className="hidden rounded bg-[#008009] px-1.5 py-0.5 text-[10px] font-bold text-white sm:inline">{hotel.rating.toFixed(1)}</span>
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <p className="hidden text-[13px] font-bold text-[#EF6614] sm:block">
-                  ₹{formatInrAmount(hotel.price)}<span className="text-[11px] font-normal text-[#9E9E9E]">/night</span>
-                </p>
-                <button
-                  type="button"
-                  onClick={scrollToRooms}
-                  className="rounded-xl bg-[#EF6614] px-4 py-2 text-[12px] font-bold text-white transition hover:bg-[#d95d10]"
-                >
-                  View Rooms
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
 
         <div className="mx-auto w-full max-w-[1320px] px-3 py-4 pb-24 sm:px-4 sm:py-5 lg:px-6 lg:pb-0">

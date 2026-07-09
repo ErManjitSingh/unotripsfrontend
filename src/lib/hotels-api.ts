@@ -54,6 +54,7 @@ import {
   type HotelBookingSelection,
   type HotelCity,
   type HotelListing,
+  type HotelLocalityOption,
   type HotelPhotoCategory,
   type HotelRoomRatePlan,
   type HotelRoomType,
@@ -107,6 +108,10 @@ export type ApiHotel = {
   is_verified: boolean;
   collection_type: string | null;
   photo_categories?: ApiPhotoCategory[];
+  locality_name?: string | null;
+  locality_slug?: string | null;
+  distance_from_search_km?: number | null;
+  search_location_label?: string | null;
 };
 
 type ApiRatePlanPrices = {
@@ -206,8 +211,24 @@ export type ApiHotelSlug = {
   updated_at: string;
 };
 
+export type ApiHotelLocality = {
+  id: string;
+  slug: string;
+  city: string;
+  city_slug: string;
+  name: string;
+  state?: string | null;
+  country: string;
+  description?: string | null;
+  latitude: number;
+  longitude: number;
+  aliases: string[];
+};
+
 export type HotelSearchParams = {
   city?: string;
+  q?: string;
+  locality_slug?: string;
   check_in?: string;
   check_out?: string;
   adults?: number;
@@ -369,6 +390,30 @@ export function citySlugFromName(city: string): string {
   return city.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
+function cleanAddressPart(part: string): string {
+  return part.trim().replace(/\s+/g, " ");
+}
+
+function hotelAreaFromAddress(address: string, city: string): string {
+  const cityLower = city.trim().toLowerCase();
+  const parts = address
+    .split(",")
+    .map(cleanAddressPart)
+    .filter(Boolean)
+    .filter((part) => {
+      const lower = part.toLowerCase();
+      return (
+        lower !== cityLower &&
+        !/^\d{5,6}$/.test(lower) &&
+        !lower.includes("himachal pradesh") &&
+        lower !== "india"
+      );
+    });
+
+  const locality = parts.find((part) => !/\d/.test(part)) ?? parts[0];
+  return locality || city;
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit & { next?: { revalidate?: number; tags?: string[] } }): Promise<T | null> {
   const result = await apiJson<T>(path, {
     ...init,
@@ -398,6 +443,7 @@ export function mapApiHotelToListing(h: ApiHotel): HotelListing {
   const original  = Math.round(price * 1.15);
   const images    = collectHotelImages(h);
   const tagLower  = h.tags.map((t) => t.toLowerCase());
+  const area      = h.locality_name?.trim() || hotelAreaFromAddress(h.address, h.city);
 
   return {
     id:           h.id,
@@ -405,8 +451,8 @@ export function mapApiHotelToListing(h: ApiHotel): HotelListing {
     citySlug,
     name:         h.name,
     stars:        h.star_category,
-    area:         h.address.split(",")[0]?.trim() || h.city,
-    locationLine: formatHotelCardLocation(h.city, h.state),
+    area,
+    locationLine: area ? `${area} | In ${h.city}` : formatHotelCardLocation(h.city, h.state),
     tags:         h.tags,
     amenities:    h.amenities.map((a) => a.toLowerCase()),
     amenityMoreCount: Math.max(0, h.amenities.length - 4),
@@ -443,6 +489,8 @@ export function mapApiHotelToListing(h: ApiHotel): HotelListing {
     address:    h.address,
     state:      h.state,
     country:    h.country,
+    distanceFromSearchKm: h.distance_from_search_km ?? undefined,
+    searchLocationLabel:  h.search_location_label ?? undefined,
   };
 }
 
@@ -521,6 +569,8 @@ export async function searchHotels(
     const apiCity = await resolveApiCityName(params.city);
     q.set("city", apiCity);
   }
+  if (params.q) q.set("q", params.q);
+  if (params.locality_slug) q.set("locality_slug", params.locality_slug);
   if (params.check_in)       q.set("check_in",      params.check_in);
   if (params.check_out)      q.set("check_out",     params.check_out);
   if (params.adults   != null) q.set("adults",     String(params.adults));
@@ -549,6 +599,28 @@ export async function fetchFeaturedHotels(): Promise<HotelListing[]> {
   const raw = await apiFetch<ApiHotel[]>("/v1/hotels/featured", { next: { revalidate: 300 } });
   if (raw?.length) return raw.map(mapApiHotelToListing);
   return [];
+}
+
+export async function fetchHotelLocalities(city?: string, q?: string): Promise<HotelLocalityOption[]> {
+  const params = new URLSearchParams();
+  if (city) params.set("city", city);
+  if (q) params.set("q", q);
+  params.set("limit", "100");
+  const qs = params.toString();
+  const raw = await apiFetch<ApiHotelLocality[]>(`/v1/hotels/localities${qs ? `?${qs}` : ""}`, {
+    next: { revalidate: 600 },
+  });
+  return (raw ?? []).map((item) => ({
+    slug: item.slug,
+    citySlug: item.city_slug,
+    city: item.city,
+    name: item.name,
+    state: item.state ?? undefined,
+    country: item.country,
+    description: item.description ?? "",
+    latitude: item.latitude,
+    longitude: item.longitude,
+  }));
 }
 
 /** Every hotel from search API (featured endpoint only returns a subset). */

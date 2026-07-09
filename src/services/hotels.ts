@@ -8,6 +8,7 @@ export {
   fetchPopularDestinations,
   fetchDestinationBySlug,
   fetchHotelDestinations,
+  fetchHotelLocalities,
   getHotelDetailBundle,
   resolveHotelCity,
   resolveHotelBookingSelection,

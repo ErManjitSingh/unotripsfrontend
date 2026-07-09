@@ -1,30 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Building2, Calendar, Clock, ShieldCheck, Users, Zap } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, CalendarRange, Clock, ShieldCheck, Zap } from "lucide-react";
 import { HotelSearchLoadingOverlay } from "@/components/hotels/hotel-search-loading-overlay";
 import {
   addDaysToIso,
   formatHotelDateFromIso,
-  HotelDateField,
   HotelRoomsGuestsField,
   localDateInputString,
-  openNativeDatePicker,
 } from "@/components/hotels/hotels-search-fields";
 import {
   HotelLocationField,
   reverseGeocodeCity,
 } from "@/components/hotels/hotels-location-field";
+import { DatePickerPopover } from "@/components/hotels/hotel-date-range-picker";
 import {
   HOTEL_INNER_BANNER_IMAGE,
+  findHotelLocality,
   matchHotelDestinationFromList,
   type HotelCity,
   type HotelDestinationOption,
+  type HotelLocalityOption,
 } from "@/lib/hotels-catalog";
 import { PARTNER_PORTAL_URL } from "@/lib/constants";
+import { fetchHotelLocalities } from "@/services/hotels";
 import { cn } from "@/lib/utils";
 
 export type HotelModifySearchPayload = {
@@ -36,6 +38,7 @@ export type HotelModifySearchPayload = {
   check_out: string;
   rooms: number;
   guests: number;
+  q?: string;
 };
 
 type HotelsResultsSearchStripProps = {
@@ -52,32 +55,62 @@ const TRUST_BADGES = [
   { icon: Clock,       title: "Free Cancellation",      sub: "On most rooms"           },
 ] as const;
 
-function ReadonlyField({
-  icon,
-  label,
-  value,
-  sub,
-  action,
+function DateRangeField({
+  checkInIso,
+  checkOutIso,
+  todayIso,
+  onChange,
   className,
 }: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  sub?: string;
-  action?: ReactNode;
+  checkInIso: string;
+  checkOutIso: string;
+  todayIso: string;
+  onChange: (checkIn: string, checkOut: string) => void;
   className?: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const checkInFmt = formatHotelDateFromIso(checkInIso);
+  const checkOutFmt = formatHotelDateFromIso(checkOutIso);
+
   return (
-    <div className={cn("flex w-full min-w-0 items-start gap-3 px-4 py-3.5 sm:px-5 sm:py-4", className)}>
-      <span className="mt-0.5 shrink-0 text-[#757575]">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[11px] text-[#9E9E9E]">{label}</span>
-        <span className="mt-1 block truncate text-[15px] font-bold leading-tight text-[#212121] sm:text-[16px]">
-          {value}
+    <div className={cn("relative min-w-0", className)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className="flex min-h-[76px] w-full min-w-0 items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[#FAFAFA] sm:min-h-[80px] sm:px-5 sm:py-4"
+      >
+        <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[#757575]" strokeWidth={1.5} aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-normal leading-tight text-[#9E9E9E]">Check-in / Check-out</span>
+          <span className="mt-1 block truncate text-[17px] font-bold leading-tight text-[#212121]">
+            {checkInFmt.main}
+            <span className="mx-1 text-[#9E9E9E]">→</span>
+            {checkOutFmt.main}
+          </span>
+          <span className="mt-0.5 block truncate text-xs font-normal text-[#757575]">
+            {checkInFmt.sub || "Start date"}{" "}
+            <span className="text-[#BDBDBD]">•</span>{" "}
+            {checkOutFmt.sub || "End date"}
+          </span>
         </span>
-        {sub && <span className="mt-0.5 block truncate text-xs text-[#757575]">{sub}</span>}
-        {action}
-      </span>
+      </button>
+
+      {open ? (
+        <DatePickerPopover
+          checkIn={checkInIso}
+          checkOut={checkOutIso}
+          onChange={(ci, co) => {
+            onChange(ci || todayIso, co || (ci ? addDaysToIso(ci, 1) : ""));
+            if (ci && co) {
+              setOpen(false);
+            }
+          }}
+          onApply={() => setOpen(false)}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -91,7 +124,6 @@ export function HotelsResultsSearchStrip({
 }: HotelsResultsSearchStripProps) {
   const searchParams = useSearchParams();
   const cityInputRef = useRef<HTMLInputElement>(null);
-  const checkOutRef  = useRef<HTMLInputElement>(null);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -105,10 +137,10 @@ export function HotelsResultsSearchStrip({
     return localDateInputString(d);
   }, [today]);
 
-  const [isEditing,    setIsEditing]    = useState(false);
   const [cityName,     setCityName]     = useState(city.name);
   const [country,      setCountry]      = useState("");
   const [selectedSlug, setSelectedSlug] = useState(city.slug);
+  const [searchLocation, setSearchLocation] = useState(searchParams.get("q") || "");
   const [nearMeActive,  setNearMeActive]  = useState(false);
   const [nearMeLoading, setNearMeLoading] = useState(false);
   const [nearMeError,   setNearMeError]   = useState<string | null>(null);
@@ -124,15 +156,25 @@ export function HotelsResultsSearchStrip({
     const ci = searchParams.get("check_in") || checkInDefault;
     return addDaysToIso(ci, 1);
   });
+  const searchParamQ = searchParams.get("q") || "";
   const [rooms,  setRooms]  = useState(() => { const n = parseInt(searchParams.get("rooms")  ?? "1", 10); return Number.isFinite(n) && n > 0 ? n : 1; });
   const [guests, setGuests] = useState(() => { const n = parseInt(searchParams.get("guests") ?? "2", 10); return Number.isFinite(n) && n > 0 ? n : 2; });
 
-  const checkOutMin  = checkInIso ? addDaysToIso(checkInIso, 1) : addDaysToIso(localDateInputString(today), 1);
-  const fieldDivider = "border-[#EEEEEE] border-b sm:border-b-0 sm:border-r";
-  const checkInFmt   = formatHotelDateFromIso(checkInIso);
-  const checkOutFmt  = formatHotelDateFromIso(checkOutIso);
+  const { data: fetchedLocalities } = useQuery({
+    queryKey: ["hotels", "search-localities"],
+    queryFn: () => fetchHotelLocalities(),
+    staleTime: 10 * 60 * 1000,
+  });
+  const effectiveLocalities = fetchedLocalities ?? [];
 
-  useEffect(() => { setCityName(city.name); setSelectedSlug(city.slug); }, [city.name, city.slug]);
+  const fieldDivider = "border-[#EEEEEE] border-b sm:border-b-0 sm:border-r";
+
+  useEffect(() => {
+    setCityName(city.name);
+    setCountry(city.country ?? "");
+    setSelectedSlug(city.slug);
+    setSearchLocation(searchParamQ);
+  }, [city.name, city.country, city.slug, searchParamQ]);
 
   useEffect(() => {
     const img = new window.Image();
@@ -142,28 +184,21 @@ export function HotelsResultsSearchStrip({
     img.onerror = () => setBannerLoaded(true);
   }, []);
 
-  const enterEditMode = () => {
-    setIsEditing(true);
-    setSearchError(null);
-    setNearMeError(null);
-    requestAnimationFrame(() => { cityInputRef.current?.focus(); cityInputRef.current?.select(); });
-  };
-
-  const exitEditMode = () => {
-    setIsEditing(false);
-    setSearchError(null);
-    setNearMeError(null);
-    setCityName(city.name);
-    setSelectedSlug(city.slug);
-    setNearMeActive(false);
-  };
-
   const handleCityChange = (value: string) => {
-    setCityName(value); setSelectedSlug(""); setNearMeActive(false); setNearMeError(null); setSearchError(null);
+    setCityName(value); setSelectedSlug(""); setSearchLocation(value); setNearMeActive(false); setNearMeError(null); setSearchError(null);
   };
 
   const handleSelectDestination = (dest: HotelDestinationOption) => {
-    setCityName(dest.city); setCountry(dest.country); setSelectedSlug(dest.slug); setNearMeActive(false); setSearchError(null);
+    setCityName(dest.city); setCountry(dest.country); setSelectedSlug(dest.slug); setSearchLocation(""); setNearMeActive(false); setSearchError(null);
+  };
+
+  const handleSelectLocality = (locality: HotelLocalityOption) => {
+    setCityName(locality.name);
+    setCountry(`${locality.city}, ${locality.country}`);
+    setSelectedSlug(locality.citySlug);
+    setSearchLocation(locality.name);
+    setNearMeActive(false);
+    setSearchError(null);
   };
 
   const handleNearMe = () => {
@@ -176,8 +211,8 @@ export function HotelsResultsSearchStrip({
         try {
           const { city: resolvedCity, country: resolvedCountry } = await reverseGeocodeCity(position.coords.latitude, position.coords.longitude);
           const match = matchHotelDestinationFromList(resolvedCity, destinations);
-          if (match) { setCityName(match.city); setCountry(match.country); setSelectedSlug(match.slug); }
-          else        { setCityName(resolvedCity); setCountry(resolvedCountry); setSelectedSlug(""); }
+          if (match) { setCityName(match.city); setCountry(match.country); setSelectedSlug(match.slug); setSearchLocation(""); }
+          else        { setCityName(resolvedCity); setCountry(resolvedCountry); setSelectedSlug(""); setSearchLocation(resolvedCity); }
           setNearMeActive(true);
         } catch {
           setNearMeError("Unable to detect city. Try again."); setNearMeActive(false);
@@ -197,28 +232,42 @@ export function HotelsResultsSearchStrip({
 
   const handleSubmitSearch = async () => {
     setSearchError(null);
+    const localQuery = cityName.trim().toLowerCase();
+    const typedSlug = cityName.trim().toLowerCase().replace(/\s+/g, "-");
+    const isExactCity = destinations.some(
+      (d) => d.city.toLowerCase() === localQuery || d.slug === typedSlug,
+    );
+    const locality =
+      effectiveLocalities.find(
+        (item) =>
+          item.name.toLowerCase() === localQuery ||
+          item.slug === typedSlug ||
+          `${item.name} ${item.city}`.toLowerCase() === localQuery,
+      ) ?? (isExactCity ? null : findHotelLocality(cityName));
     const match =
       (selectedSlug
         ? destinations.find((d) => d.slug === selectedSlug) ??
           ({ slug: selectedSlug, city: cityName, country: country || "India" } as HotelDestinationOption)
-        : null) ?? matchHotelDestinationFromList(cityName, destinations);
+        : null) ?? matchHotelDestinationFromList(locality?.city ?? cityName, destinations);
 
     if (!match) { setSearchError("Please select a city from the list"); return; }
 
+    const finalCheckIn = checkInIso || checkInDefault;
+    const finalCheckOut = checkOutIso || addDaysToIso(finalCheckIn, 1);
+    const q = searchLocation.trim() || (locality ? locality.name : undefined);
     const fullLocation = match.state && match.country
       ? `${match.city}, ${match.state}, ${match.country}`
       : match.country
         ? `${match.city}, ${match.country}`
         : city.fullLocation;
 
-    await onSearch({ slug: match.slug, city: match.city, country: match.country, fullLocation, check_in: checkInIso, check_out: checkOutIso, rooms, guests });
-    setIsEditing(false);
+    await onSearch({ slug: match.slug, city: match.city, country: match.country, fullLocation, check_in: finalCheckIn, check_out: finalCheckOut, rooms, guests, q });
     setSearchError(null);
   };
 
   return (
     <section
-      className={cn("relative isolate w-full overflow-hidden", className)}
+      className={cn("relative isolate w-full overflow-visible", className)}
       style={{ minHeight: "400px" }}
     >
       {/* Background */}
@@ -256,130 +305,62 @@ export function HotelsResultsSearchStrip({
           className="relative z-10 w-full overflow-visible rounded-2xl bg-white shadow-[0_20px_60px_-12px_rgba(0,0,0,0.45),0_4px_16px_rgba(0,0,0,0.12)]"
           role="search"
           aria-busy={searching}
-          onSubmit={(e) => { e.preventDefault(); if (isEditing && !searching) void handleSubmitSearch(); }}
+          onSubmit={(e) => { e.preventDefault(); if (!searching) void handleSubmitSearch(); }}
         >
           {searching && <HotelSearchLoadingOverlay />}
           <div className={cn("flex w-full flex-col sm:flex-row sm:items-stretch", searching && "pointer-events-none select-none opacity-60")}>
             <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-stretch">
+              <HotelLocationField
+                className={cn(fieldDivider, "sm:flex-[1.45]")}
+                city={cityName}
+                country={country}
+                destinations={destinations}
+                localities={fetchedLocalities}
+                nearMeActive={nearMeActive}
+                nearMeLoading={nearMeLoading}
+                nearMeError={nearMeError}
+                searchError={searchError}
+                onCityChange={handleCityChange}
+                onSelectDestination={handleSelectDestination}
+                onSelectLocality={handleSelectLocality}
+                onNearMe={handleNearMe}
+                inputRef={cityInputRef}
+                showNearMe={destinations.length > 0}
+              />
 
-              {/* Location field */}
-              {isEditing ? (
-                <HotelLocationField
-                  className={cn(fieldDivider, "sm:flex-[1.4]")}
-                  city={cityName}
-                  country={country}
-                  destinations={destinations}
-                  nearMeActive={nearMeActive}
-                  nearMeLoading={nearMeLoading}
-                  nearMeError={nearMeError}
-                  searchError={searchError}
-                  onCityChange={handleCityChange}
-                  onSelectDestination={handleSelectDestination}
-                  onNearMe={handleNearMe}
-                  inputRef={cityInputRef}
-                  showNearMe={destinations.length > 0}
-                />
-              ) : (
-                <ReadonlyField
-                  className={cn(fieldDivider, "sm:min-w-[200px] sm:flex-[1.4] sm:basis-0")}
-                  icon={<Building2 className="h-5 w-5" strokeWidth={1.5} aria-hidden />}
-                  label="Location"
-                  value={city.fullLocation}
-                  action={
-                    <button
-                      type="button"
-                      onClick={enterEditMode}
-                      className="mt-1 block text-xs font-semibold text-primary hover:underline"
-                    >
-                      Change location
-                    </button>
-                  }
-                />
-              )}
+              <DateRangeField
+                className={cn(fieldDivider, "sm:flex-[1.2]")}
+                checkInIso={checkInIso || checkInDefault}
+                checkOutIso={checkOutIso || addDaysToIso(checkInIso || checkInDefault, 1)}
+                todayIso={checkInDefault}
+                onChange={(ci, co) => {
+                  setCheckInIso(ci);
+                  setCheckOutIso(co || addDaysToIso(ci, 1));
+                  setSearchError(null);
+                }}
+              />
 
-              {/* Date + Rooms fields */}
-              {isEditing ? (
-                <>
-                  <HotelDateField
-                    className={cn(fieldDivider, "sm:min-w-[110px] sm:flex-1 sm:basis-0")}
-                    label="Check-In"
-                    iso={checkInIso}
-                    minIso={localDateInputString(today)}
-                    onIsoChange={(iso) => { setCheckInIso(iso); setCheckOutIso((p) => (!p || p <= iso ? addDaysToIso(iso, 1) : p)); }}
-                    onAfterSelect={() => requestAnimationFrame(() => openNativeDatePicker(checkOutRef.current))}
-                  />
-                  <HotelDateField
-                    className={cn(fieldDivider, "sm:min-w-[110px] sm:flex-1 sm:basis-0")}
-                    label="Check-Out"
-                    iso={checkOutIso}
-                    minIso={checkOutMin}
-                    inputRef={checkOutRef}
-                    onIsoChange={setCheckOutIso}
-                  />
-                  <HotelRoomsGuestsField
-                    className="sm:min-w-[130px] sm:flex-1 sm:basis-0"
-                    rooms={rooms}
-                    guests={guests}
-                    onRoomsChange={setRooms}
-                    onGuestsChange={setGuests}
-                  />
-                </>
-              ) : (
-                <>
-                  <ReadonlyField
-                    className={cn(fieldDivider, "sm:min-w-[120px] sm:flex-1 sm:basis-0")}
-                    icon={<Calendar className="h-5 w-5" strokeWidth={1.5} aria-hidden />}
-                    label="Check-in"
-                    value={checkInFmt.main}
-                    sub={checkInFmt.sub}
-                  />
-                  <ReadonlyField
-                    className={cn(fieldDivider, "sm:min-w-[120px] sm:flex-1 sm:basis-0")}
-                    icon={<Calendar className="h-5 w-5" strokeWidth={1.5} aria-hidden />}
-                    label="Check-out"
-                    value={checkOutFmt.main}
-                    sub={checkOutFmt.sub}
-                  />
-                  <ReadonlyField
-                    className="sm:min-w-[130px] sm:flex-1 sm:basis-0"
-                    icon={<Users className="h-5 w-5" strokeWidth={1.5} aria-hidden />}
-                    label="Rooms & Guests"
-                    value={`${rooms} Room, ${guests} Guests`}
-                  />
-                </>
-              )}
+              <HotelRoomsGuestsField
+                className="sm:flex-[0.9]"
+                rooms={rooms}
+                guests={guests}
+                onRoomsChange={setRooms}
+                onGuestsChange={setGuests}
+              />
             </div>
 
             {/* Action button */}
-            {isEditing ? (
-              <div className="flex flex-col gap-2 border-t border-[#EEEEEE] p-3 sm:flex-row sm:items-stretch sm:border-t-0 sm:p-0">
-                <button
-                  type="button"
-                  onClick={exitEditMode}
-                  disabled={searching}
-                  className="flex h-11 shrink-0 items-center justify-center rounded-full border-2 border-slate-200 bg-white px-5 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 disabled:opacity-60 sm:m-4 sm:h-auto"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={searching}
-                  className="flex h-[52px] shrink-0 items-center justify-center rounded-xl bg-primary px-6 text-[15px] font-bold tracking-wide text-white transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-80 sm:m-3 sm:h-auto sm:min-h-[60px] sm:w-[128px] sm:rounded-xl sm:px-0 lg:w-[136px]"
-                >
-                  {searching ? "Searching…" : "SEARCH"}
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center p-3 sm:p-4">
-                <button
-                  type="button"
-                  onClick={enterEditMode}
-                  className="flex h-12 w-full shrink-0 items-center justify-center rounded-xl bg-primary px-6 text-sm font-bold tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(234,88,12,0.5)] transition hover:bg-primary/90 sm:w-[148px] sm:rounded-xl"
-                >
-                  Modify Search
-                </button>
-              </div>
-            )}
+            <div className="flex items-center p-3 sm:p-4">
+              <button
+                type="submit"
+                disabled={searching}
+                aria-label={searching ? "Searching" : "Search hotels"}
+                className="flex h-12 w-full shrink-0 items-center justify-center rounded-xl bg-primary px-4 text-sm font-bold tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(234,88,12,0.5)] transition hover:bg-primary/90 disabled:cursor-wait disabled:opacity-80 sm:h-[60px] sm:w-[60px] sm:rounded-2xl sm:px-0"
+              >
+                <ArrowRight className="h-5 w-5" strokeWidth={2.5} aria-hidden />
+                <span className="sr-only">{searching ? "Searching" : "Search hotels"}</span>
+              </button>
+            </div>
           </div>
         </form>
 

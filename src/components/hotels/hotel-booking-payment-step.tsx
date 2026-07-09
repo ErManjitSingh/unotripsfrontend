@@ -7,9 +7,9 @@ import { cn, formatInrAmount } from "@/lib/utils";
 function getMealPlanLabel(packageName: string): string {
   const n = packageName.toLowerCase();
   if (n.includes("room only") || n.includes("(ep)")) return "Room Only";
-  if (n.includes("breakfast") && !n.includes("dinner") && !n.includes("lunch")) return "Bed & Breakfast";
-  if (n.includes("map") || (n.includes("breakfast") && n.includes("dinner") && !n.includes("lunch"))) return "Half Board";
-  if (n.includes("full board") || n.includes("(ap)") || (n.includes("lunch") && n.includes("dinner"))) return "Full Board";
+  if (n.includes("breakfast") && !n.includes("dinner") && !n.includes("lunch")) return "Breakfast Included";
+  if (n.includes("map") || (n.includes("breakfast") && n.includes("dinner") && !n.includes("lunch"))) return "Breakfast + Dinner";
+  if (n.includes("full board") || n.includes("(ap)") || (n.includes("lunch") && n.includes("dinner"))) return "All Meals Included";
   return packageName.replace(/\s*\([A-Z]+\)\s*/g, "").trim();
 }
 

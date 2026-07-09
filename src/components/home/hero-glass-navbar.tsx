@@ -43,9 +43,10 @@ const SOON_IDS = new Set(["flights", "trains", "bus", "cabs"]);
 export type HeroGlassNavbarProps = {
   activeId?: string;
   solid?: boolean;
+  combinedAuth?: boolean;
 };
 
-export function HeroGlassNavbar({ activeId = "holidays", solid = false }: HeroGlassNavbarProps) {
+export function HeroGlassNavbar({ activeId = "holidays", solid = false, combinedAuth = false }: HeroGlassNavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [logoSrc, setLogoSrc] = useState(TRAVEL_HOME_LOGO_SRC);
@@ -88,7 +89,7 @@ export function HeroGlassNavbar({ activeId = "holidays", solid = false }: HeroGl
               className="object-contain object-left"
               sizes="116px"
               priority
-              onError={() => setLogoSrc("/images/homelogo.webp")}
+              onError={() => setLogoSrc("/images/homelogo-transparent.png")}
             />
           </span>
         </Link>
@@ -147,7 +148,11 @@ export function HeroGlassNavbar({ activeId = "holidays", solid = false }: HeroGl
             <span className={cn("text-[10px] font-bold uppercase", resolvedScrolled ? "text-primary" : "text-amber-300")}>Free</span>
           </Link>
 
-          <AuthNavActions variant={resolvedScrolled ? "ease" : "overlay"} combined className="hidden sm:flex" />
+          <AuthNavActions
+            variant={resolvedScrolled ? "ease" : "overlay"}
+            combined={combinedAuth}
+            className="hidden sm:flex"
+          />
 
           <button
             type="button"
@@ -185,7 +190,11 @@ export function HeroGlassNavbar({ activeId = "holidays", solid = false }: HeroGl
             ))}
           </nav>
           <div className="flex items-center justify-between gap-2 border-t border-slate-100 p-3">
-            <AuthNavActions variant="ease" combined onNavigate={() => setOpen(false)} />
+            <AuthNavActions
+              variant="ease"
+              combined={combinedAuth}
+              onNavigate={() => setOpen(false)}
+            />
           </div>
         </div>
       )}

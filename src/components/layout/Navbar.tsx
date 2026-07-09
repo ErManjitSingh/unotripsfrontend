@@ -109,7 +109,7 @@ export function Navbar({
                   className="object-contain object-left"
                   sizes="(max-width: 640px) 108px, 124px"
                   priority
-                  onError={() => setEaseLogoSrc("/images/homelogo.webp")}
+                  onError={() => setEaseLogoSrc("/images/homelogo-transparent.png")}
                 />
               </span>
             </Link>

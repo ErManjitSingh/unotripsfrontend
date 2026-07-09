@@ -1,30 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { BadgeCheck, Building2, ChevronRight, Headphones, MapPin, Star } from "lucide-react";
+import { BadgeCheck, Building2, CalendarRange, ChevronRight, Headphones, MapPin, Star } from "lucide-react";
 import { HotelSearchLoadingOverlay } from "@/components/hotels/hotel-search-loading-overlay";
 import {
   addDaysToIso,
-  HotelDateField,
+  formatHotelDateFromIso,
   HotelRoomsGuestsField,
   localDateInputString,
-  openNativeDatePicker,
 } from "@/components/hotels/hotels-search-fields";
 import {
   HotelLocationField,
   reverseGeocodeCity,
 } from "@/components/hotels/hotels-location-field";
+import { DatePickerPopover } from "@/components/hotels/hotel-date-range-picker";
 import {
   hotelResultsHref,
+  findHotelLocality,
   matchHotelDestinationFromList,
   slugifyCityName,
   type HotelDestinationOption,
+  type HotelLocalityOption,
   type HotelSortOption,
 } from "@/lib/hotels-catalog";
-import { fetchHotelDestinations } from "@/services/hotels";
+import { fetchHotelDestinations, fetchHotelLocalities } from "@/services/hotels";
 import { cn } from "@/lib/utils";
 import { HotelsHeroSkeleton } from "@/components/hotels/hotels-page-skeleton";
 
@@ -44,6 +46,66 @@ const QUICK_DESTINATIONS = [
   { city: "Goa", slug: "goa" },
   { city: "Jaipur", slug: "jaipur" },
 ];
+
+function HeroDateRangeField({
+  checkInIso,
+  checkOutIso,
+  todayIso,
+  onChange,
+  className,
+}: {
+  checkInIso: string;
+  checkOutIso: string;
+  todayIso: string;
+  onChange: (checkIn: string, checkOut: string) => void;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const checkInFmt = formatHotelDateFromIso(checkInIso);
+  const checkOutFmt = formatHotelDateFromIso(checkOutIso);
+
+  return (
+    <div className={cn("relative min-w-0", className)}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className="flex min-h-[76px] w-full min-w-0 items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[#FAFAFA] sm:min-h-[80px] sm:px-5 sm:py-4"
+      >
+        <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-[#757575]" strokeWidth={1.5} aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[11px] font-normal leading-tight text-[#9E9E9E]">Check-In / Check-Out</span>
+          <span className="mt-1 block truncate text-[17px] font-bold leading-tight text-[#212121]">
+            {checkInFmt.main}
+            <span className="mx-1 text-[#9E9E9E]">→</span>
+            {checkOutFmt.main}
+          </span>
+          <span className="mt-0.5 block truncate text-xs font-normal text-[#757575]">
+            {checkInFmt.sub || "Start date"}{" "}
+            <span className="text-[#BDBDBD]">•</span>{" "}
+            {checkOutFmt.sub || "End date"}
+          </span>
+        </span>
+      </button>
+
+      {open ? (
+        <DatePickerPopover
+          checkIn={checkInIso}
+          checkOut={checkOutIso}
+          compact
+          onChange={(ci, co) => {
+            const nextCheckIn = ci || todayIso;
+            onChange(nextCheckIn, co || (ci ? addDaysToIso(ci, 1) : ""));
+            if (ci && co) setOpen(false);
+          }}
+          onApply={() => setOpen(false)}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 export function HotelsSearchHero({
   className,
@@ -65,6 +127,7 @@ export function HotelsSearchHero({
   const [city,           setCity]           = useState(defaultCity);
   const [country,        setCountry]        = useState(defaultCountry);
   const [selectedSlug,   setSelectedSlug]   = useState(defaultSlug);
+  const [searchLocation, setSearchLocation] = useState("");
   const [nearMeActive,   setNearMeActive]   = useState(false);
   const [nearMeLoading,  setNearMeLoading]  = useState(false);
   const [nearMeError,    setNearMeError]    = useState<string | null>(null);
@@ -76,7 +139,6 @@ export function HotelsSearchHero({
   const [childrenAges,   setChildrenAges]   = useState<number[]>([]);
   const [bannerLoaded,   setBannerLoaded]   = useState(false);
   const [isSearching,    setIsSearching]    = useState(false);
-  const checkOutInputRef = useRef<HTMLInputElement>(null);
 
   const { data: fetchedDestinations } = useQuery({
     queryKey: ["hotels", "search-destinations"],
@@ -88,8 +150,14 @@ export function HotelsSearchHero({
     staleTime: 5 * 60 * 1000,
   });
 
-  const effectiveDestinations = destinations.length > 0 ? destinations : (fetchedDestinations ?? []);
+  const { data: fetchedLocalities } = useQuery({
+    queryKey: ["hotels", "search-localities"],
+    queryFn: () => fetchHotelLocalities(),
+    staleTime: 10 * 60 * 1000,
+  });
 
+  const effectiveDestinations = destinations.length > 0 ? destinations : (fetchedDestinations ?? []);
+  const effectiveLocalities = fetchedLocalities ?? [];
   useEffect(() => {
     if (defaultCity)    setCity(defaultCity);
     if (defaultCountry) setCountry(defaultCountry);
@@ -104,23 +172,15 @@ export function HotelsSearchHero({
     img.onerror = () => setBannerLoaded(true);
   }, []);
 
-  const checkOutMinIso = checkInIso
-    ? addDaysToIso(checkInIso, 1)
-    : addDaysToIso(localDateInputString(today), 1);
-
-  const handleCheckInChange = (iso: string) => {
-    setCheckInIso(iso);
-    const nextOut = addDaysToIso(iso, 1);
-    setCheckOutIso((prev) => (!prev || prev <= iso ? nextOut : prev));
-  };
-
-  const openCheckOutPicker = () => {
-    requestAnimationFrame(() => openNativeDatePicker(checkOutInputRef.current));
+  const handleDateRangeChange = (checkIn: string, checkOut: string) => {
+    setCheckInIso(checkIn);
+    setCheckOutIso(checkOut && checkOut > checkIn ? checkOut : addDaysToIso(checkIn, 1));
   };
 
   const handleCityChange = (value: string) => {
     setCity(value);
     setSelectedSlug("");
+    setSearchLocation(value);
     setNearMeActive(false);
     setNearMeError(null);
     setSearchError(null);
@@ -130,6 +190,16 @@ export function HotelsSearchHero({
     setCity(dest.city);
     setCountry(dest.country);
     setSelectedSlug(dest.slug);
+    setSearchLocation("");
+    setNearMeActive(false);
+    setSearchError(null);
+  };
+
+  const handleSelectLocality = (locality: HotelLocalityOption) => {
+    setCity(locality.name);
+    setCountry(`${locality.city}, ${locality.country}`);
+    setSelectedSlug(locality.citySlug);
+    setSearchLocation(locality.name);
     setNearMeActive(false);
     setSearchError(null);
   };
@@ -141,8 +211,17 @@ export function HotelsSearchHero({
     if (!checkInIso)                            { setSearchError("Please select check-in date");           return; }
     if (!checkOutIso || checkOutIso <= checkInIso) { setSearchError("Check-out must be after check-in");  return; }
 
-    const matched = matchHotelDestinationFromList(trimmedCity, effectiveDestinations);
-    const slug    = selectedSlug || matched?.slug || slugifyCityName(trimmedCity);
+    const localQuery = trimmedCity.toLowerCase();
+    const locality =
+      effectiveLocalities.find(
+        (item) =>
+          item.slug === slugifyCityName(trimmedCity) ||
+          item.name.toLowerCase() === localQuery ||
+          `${item.name} ${item.city}`.toLowerCase() === localQuery,
+      ) ?? findHotelLocality(trimmedCity);
+    const matched = matchHotelDestinationFromList(locality?.city ?? trimmedCity, effectiveDestinations);
+    const slug    = selectedSlug || locality?.citySlug || matched?.slug || slugifyCityName(trimmedCity);
+    const q       = searchLocation.trim() || locality?.name || (!matched && selectedSlug ? trimmedCity : undefined);
 
     if (matched && !selectedSlug) {
       setSelectedSlug(matched.slug);
@@ -151,7 +230,7 @@ export function HotelsSearchHero({
 
     const sort: HotelSortOption | undefined = undefined;
     setIsSearching(true);
-    router.push(hotelResultsHref(slug, { check_in: checkInIso, check_out: checkOutIso, rooms, guests, sort }));
+    router.push(hotelResultsHref(slug, { check_in: checkInIso, check_out: checkOutIso, rooms, guests, q, sort }));
   };
 
   const handleNearMe = () => {
@@ -169,8 +248,8 @@ export function HotelsSearchHero({
             position.coords.latitude, position.coords.longitude,
           );
           const match = matchHotelDestinationFromList(resolvedCity, effectiveDestinations);
-          if (match) { setCity(match.city); setCountry(match.country); setSelectedSlug(match.slug); }
-          else        { setCity(resolvedCity); setCountry(resolvedCountry); setSelectedSlug(""); }
+          if (match) { setCity(match.city); setCountry(match.country); setSelectedSlug(match.slug); setSearchLocation(""); }
+          else        { setCity(resolvedCity); setCountry(resolvedCountry); setSelectedSlug(""); setSearchLocation(resolvedCity); }
           setNearMeActive(true);
         } catch {
           setNearMeError("Unable to detect city. Try again.");
@@ -214,7 +293,7 @@ export function HotelsSearchHero({
           onLoad={() => setBannerLoaded(true)}
           onError={() => setBannerLoaded(true)}
         />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(8,13,26,0.78)_0%,rgba(8,13,26,0.48)_16%,rgba(8,13,26,0.08)_42%,rgba(8,13,26,0.18)_100%)]" aria-hidden />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(7,10,18,0.88)_0%,rgba(7,10,18,0.62)_20%,rgba(7,10,18,0.28)_48%,rgba(7,10,18,0.45)_100%)]" aria-hidden />
       </div>
 
       {!bannerLoaded && (
@@ -227,29 +306,31 @@ export function HotelsSearchHero({
       <div className="relative z-10 mx-auto grid w-full max-w-[1320px] gap-8 px-4 pb-8 pt-6 sm:px-6 sm:pb-10 sm:pt-[128px] lg:grid-cols-[minmax(0,1fr)_minmax(460px,0.72fr)] lg:items-center lg:gap-14 lg:px-8">
 
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.45)] ring-1 ring-white/80 backdrop-blur-md">
+          <div className="hidden items-center gap-2 rounded-full bg-white px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-700 shadow-[0_12px_28px_-20px_rgba(15,23,42,0.45)] ring-1 ring-white/80 backdrop-blur-md sm:inline-flex">
             <BadgeCheck className="h-3.5 w-3.5 fill-primary text-white" aria-hidden />
             Verified hotel bookings
           </div>
 
-          <h1 className="mt-5 max-w-3xl text-[2.75rem] font-black leading-[1.05] tracking-tight text-white drop-shadow-[0_8px_28px_rgba(0,0,0,0.48)] sm:text-5xl md:text-[4.25rem]">
-            Find stays your guests would actually{" "}
-            <span className="relative inline-block text-primary">
-              recommend
-              <span className="absolute -bottom-2 left-0 h-3 w-full rounded-[50%] border-b-[4px] border-primary/80" aria-hidden />
-            </span>.
+          <h1 className="mt-5 hidden max-w-3xl text-[2.75rem] font-black leading-[1.05] tracking-tight text-white drop-shadow-[0_10px_30px_rgba(0,0,0,0.65)] sm:block sm:text-5xl md:text-[4.25rem]">
+            Hotels in the city or area you want
           </h1>
-          <div className="mt-7 flex flex-wrap items-center gap-3">
+          <p className="mt-4 hidden max-w-2xl rounded-2xl bg-black/45 px-4 py-3 text-[15px] font-semibold leading-[1.6] text-white shadow-[0_8px_24px_rgba(0,0,0,0.25)] ring-1 ring-white/15 backdrop-blur-md sm:block sm:text-[17px]">
+            Search by city, local area, or nearby place and see verified hotels with prices and availability.
+          </p>
+          <div className="mt-7 hidden flex-wrap items-center gap-3 sm:flex">
             {QUICK_DESTINATIONS.map((item) => (
               <button
                 key={item.slug}
                 type="button"
                 onClick={() => {
-                  setCity(item.city);
-                  setCountry("India");
-                  setSelectedSlug(item.slug);
-                  setNearMeActive(false);
-                  setSearchError(null);
+                  router.push(
+                    hotelResultsHref(item.slug, {
+                      check_in: checkInIso,
+                      check_out: checkOutIso,
+                      rooms,
+                      guests,
+                    }),
+                  );
                 }}
                 className="inline-flex items-center gap-1.5 rounded-full bg-white/85 px-4 py-2.5 text-[13px] font-bold text-slate-600 shadow-[0_10px_24px_-18px_rgba(15,23,42,0.45)] ring-1 ring-slate-200/80 backdrop-blur-md transition hover:bg-white hover:text-primary"
               >
@@ -265,7 +346,7 @@ export function HotelsSearchHero({
             </a>
           </div>
 
-          <div className="mt-9 grid max-w-[560px] grid-cols-3 divide-x divide-slate-200 overflow-hidden rounded-3xl bg-white/95 p-1 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.45)] ring-1 ring-white/80 backdrop-blur-xl">
+          <div className="mt-9 hidden max-w-[560px] grid-cols-3 divide-x divide-slate-200 overflow-hidden rounded-3xl bg-white/95 p-1 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.45)] ring-1 ring-white/80 backdrop-blur-xl sm:grid">
             <div className="flex items-center gap-3 px-4 py-4">
               <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-50 text-primary sm:flex">
                 <Building2 className="h-5 w-5" aria-hidden />
@@ -294,6 +375,7 @@ export function HotelsSearchHero({
               </div>
             </div>
           </div>
+
         </div>
 
         <form
@@ -325,32 +407,23 @@ export function HotelsSearchHero({
                 city={city}
                 country={country}
                 destinations={effectiveDestinations}
+                localities={fetchedLocalities}
                 nearMeActive={nearMeActive}
                 nearMeLoading={nearMeLoading}
                 nearMeError={nearMeError}
                 searchError={searchError}
                 onCityChange={handleCityChange}
                 onSelectDestination={handleSelectDestination}
+                onSelectLocality={handleSelectLocality}
                 onNearMe={handleNearMe}
               />
-              <div className="grid grid-cols-2">
-                <HotelDateField
-                  className="border-b border-r border-[#EEEEEE]"
-                  label="Check-In"
-                  iso={checkInIso}
-                  minIso={localDateInputString(today)}
-                  onIsoChange={handleCheckInChange}
-                  onAfterSelect={openCheckOutPicker}
-                />
-                <HotelDateField
-                  className="border-b border-[#EEEEEE]"
-                  label="Check-Out"
-                  iso={checkOutIso}
-                  minIso={checkOutMinIso}
-                  inputRef={checkOutInputRef}
-                  onIsoChange={setCheckOutIso}
-                />
-              </div>
+              <HeroDateRangeField
+                className="border-b border-[#EEEEEE]"
+                checkInIso={checkInIso}
+                checkOutIso={checkOutIso}
+                todayIso={localDateInputString(today)}
+                onChange={handleDateRangeChange}
+              />
               <HotelRoomsGuestsField
                 className="border-b border-[#EEEEEE]"
                 rooms={rooms}
