@@ -118,7 +118,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
       "@type": "TravelAgency",
       "name": "Uno Trips - Arunachal Pradesh Tour Packages",
       "description": "Book Arunachal Pradesh tour packages - Tawang, Ziro Valley, Bomdila, Dirang. Arunachal honeymoon packages, group tours, custom itineraries.",
-      "telephone": "+91-8353096965",
+      "telephone": "+91-7876505119",
       "areaServed": "Arunachal Pradesh, India",
       "serviceType": ["Arunachal Tour Packages", "Arunachal Trip", "Tawang Ziro Tour", "Arunachal Honeymoon Package", "Arunachal Group Tour"],
       "address": {
@@ -227,10 +227,10 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
       <!-- Right Side -->
       <div class="flex items-center space-x-3 md:space-x-4">
         <a
-          href="tel:+918353096965"
+          href="tel:+917876505119"
           class="header-call-btn px-4 py-2 rounded-xl text-white font-semibold text-sm flex items-center gap-2">
           <i class="fas fa-phone text-xs"></i>
-          <span>+91-8353096965</span>
+          <span>+91-7876505119</span>
         </a>
       </div>
     </div>
@@ -331,7 +331,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
           <i class="fas fa-arrow-right"></i>
         </button>
         <a
-          href="https://wa.me/918353096965"
+          href="https://wa.me/917876505119"
           target="_blank"
           class="whatsapp-btn text-white px-6 md:px-10 py-3 md:py-4 rounded-2xl text-sm md:text-base font-semibold inline-flex items-center justify-center gap-2 w-full max-w-md">
           <i class="fab fa-whatsapp text-lg"></i>
@@ -422,8 +422,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
               </div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="8-Day Arunachal Pradesh Group Tour - Tawang Special"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -477,8 +477,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
               </div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="9 Days Arunachal Pradesh Tour - Adventure & Culture Special"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -528,8 +528,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
               </div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Tawang Bomdila Tour Package (5N/6D)"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -580,8 +580,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
               </div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Tawang Ziro Valley Tour (6N/7D)"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -630,8 +630,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
               </div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Ziro Valley Dirang Tour Package (4N/5D)"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -680,8 +680,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
               </div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Itanagar Tawang Tour (4N/5D)"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -736,8 +736,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
               </div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Complete Arunachal Pradesh Tour – Tawang, Ziro & Itanagar (8N/9D)"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -790,8 +790,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
               </div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Romantic Arunachal Pradesh Honeymoon – Tawang & Dirang (5N/6D)"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -1016,11 +1016,11 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
           <ul class="space-y-2 text-sm text-gray-300">
             <li class="flex items-center gap-2">
               <i class="fas fa-phone text-blue-400"></i>
-              <a href="tel:+918353096965" class="hover:text-white transition-colors">+91-8353096965</a>
+              <a href="tel:+917876505119" class="hover:text-white transition-colors">+91-7876505119</a>
             </li>
             <li class="flex items-center gap-2">
               <i class="fab fa-whatsapp text-green-400"></i>
-              <a href="https://wa.me/918353096965" target="_blank" class="hover:text-white transition-colors">WhatsApp Us</a>
+              <a href="https://wa.me/917876505119" target="_blank" class="hover:text-white transition-colors">WhatsApp Us</a>
             </li>
           </ul>
         </div>

@@ -1,12 +1,24 @@
 import { HotelsPopularHotelsPreview } from "@/components/hotels/hotels-popular-hotels-preview";
-import { fetchAllHotels } from "@/lib/hotels-api";
+import { fetchAllHotels, fetchFeaturedHotels } from "@/lib/hotels-api";
+import type { HotelListing } from "@/lib/hotels-catalog";
 
 type HotelsPopularHotelsSectionProps = {
   viewMoreHref: string;
+  hotels?: HotelListing[];
 };
 
-export async function HotelsPopularHotelsSection({ viewMoreHref }: HotelsPopularHotelsSectionProps) {
-  const { hotels } = await fetchAllHotels(50);
+export async function HotelsPopularHotelsSection({ viewMoreHref, hotels: hotelsProp }: HotelsPopularHotelsSectionProps) {
+  const featuredHotels = hotelsProp ?? (await fetchFeaturedHotels());
+  const hotels =
+    featuredHotels.length >= 8
+      ? featuredHotels
+      : await fetchAllHotels(12).then(({ hotels: allHotels }) => {
+          const map = new Map<string, HotelListing>();
+          for (const hotel of [...featuredHotels, ...allHotels]) {
+            map.set(hotel.id, hotel);
+          }
+          return Array.from(map.values());
+        });
 
   if (!hotels.length) {
     return (

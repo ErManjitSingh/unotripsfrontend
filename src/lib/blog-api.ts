@@ -244,30 +244,6 @@ export async function getBlogs(
 }
 
 /**
- * Featured posts for homepage blog preview — max 3.
- *
- * Server: ISR-cached 5 min.
- * Client: no-store (homepage BlogPreviewSection is an async RSC — always server).
- */
-export async function getFeaturedBlogs(limit = 3): Promise<BlogPost[]> {
-  const raw = await apiGetRaw<{ data: RawPost[] }>(
-    `/v1/blog/posts/featured?limit=${limit}`,
-    _blogCacheInit(REVALIDATE_SECONDS),
-  );
-
-  const list = Array.isArray(raw?.data)
-    ? raw.data
-    : Array.isArray(raw)
-      ? (raw as unknown as RawPost[])
-      : [];
-
-  return list
-    .map(mapRawPost)
-    .filter((p): p is BlogPost => p !== null)
-    .slice(0, limit);
-}
-
-/**
  * Single published post by slug with 3 related posts.
  *
  * Server: ISR-cached 5 min per slug.

@@ -175,8 +175,12 @@ type RawPaginatedPackages = {
 // ── Mapping helpers ───────────────────────────────────────────────────────────
 
 function parseDuration(label: string, fallbackDays = 0, fallbackNights = 0) {
-  const d = label.match(/(\d+)\s*[Dd]ays?/);
-  const n = label.match(/(\d+)\s*[Nn]ights?/);
+  // Backend's real convention is compact — "6D / 5N" — not spelled-out
+  // "6 Days / 5 Nights". Try spelled-out first (in case it's ever used),
+  // then the compact form, then fall back to the numeric fields (only
+  // present on the detail endpoint, never on list rows).
+  const d = label.match(/(\d+)\s*[Dd]ays?\b/) ?? label.match(/(\d+)\s*D\b/i);
+  const n = label.match(/(\d+)\s*[Nn]ights?\b/) ?? label.match(/(\d+)\s*N\b/i);
   return {
     durationDays:   d ? parseInt(d[1]!, 10) : fallbackDays,
     durationNights: n ? parseInt(n[1]!, 10) : fallbackNights,
@@ -220,13 +224,19 @@ export function mapApiPackageSummary(row: RawPackageSummary): TourPackage {
     row.duration_days,
     row.duration_nights,
   );
-  const location = [
-    row.destination_name,
-    row.destination_city,
-    row.state,
-    row.country,
-  ]
-    .filter(Boolean)
+  // destination_name and destination_city are independent, denormalized
+  // snapshot fields on the backend — nothing stops ops from entering the
+  // same value in both (e.g. "Shimla Manali" / "Shimla Manali"). Dedupe
+  // case-insensitively so a repeated part doesn't show twice.
+  const seenParts = new Set<string>();
+  const location = [row.destination_name, row.destination_city, row.state, row.country]
+    .filter((part): part is string => Boolean(part?.trim()))
+    .filter((part) => {
+      const key = part.trim().toLowerCase();
+      if (seenParts.has(key)) return false;
+      seenParts.add(key);
+      return true;
+    })
     .join(", ");
 
   return {

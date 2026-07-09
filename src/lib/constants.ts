@@ -97,6 +97,9 @@ export type Testimonial = {
   avatar: string;
   rating: number;
   text: string;
+  trip?: string;
+  tripIcon?: "heart" | "palm" | "plane";
+  featured?: boolean;
 };
 
 export type { BlogPost, BlogCategory } from "@/lib/blog-api";
@@ -140,26 +143,19 @@ export const POPULAR_DESTINATIONS: DestinationCard[] = [
 ];
 
 export const TESTIMONIALS: Testimonial[] = [
-  { id: "m1", name: "Ananya Mehta", location: "Mumbai, India", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80", rating: 5, text: "Flawless coordination, boutique hotels, and thoughtful touches throughout our Europe tour. Felt truly five-star." },
-  { id: "m2", name: "James Porter", location: "London, UK", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80", rating: 5, text: "The Rajasthan itinerary balanced culture and comfort perfectly. Private guides made every monument come alive." },
-  { id: "m3", name: "Priya & Rahul", location: "Bengaluru, India", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&q=80", rating: 5, text: "Our honeymoon in the Maldives was seamless—from seaplane transfers to candlelit dinners on the sand." },
+  { id: "m1", name: "Ananya Mehta", location: "Mumbai, India", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80", rating: 5, text: "Flawless coordination, boutique hotels, and thoughtful touches throughout our Europe tour. Felt truly like a dream!", trip: "Europe Honeymoon", tripIcon: "heart" },
+  { id: "m2", name: "James Porter", location: "London, UK", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80", rating: 5, text: "The Maldives itinerary balanced luxury and comfort perfectly. Private guides made every moment one to cherish.", trip: "Maldives Getaway", tripIcon: "palm", featured: true },
+  { id: "m3", name: "Priya & Rahul", location: "Bengaluru, India", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&q=80", rating: 5, text: "Our first international trip and it was seamless—from visa assistance to handpicked experiences. Couldn't have asked for more.", trip: "Switzerland Vacation", tripIcon: "plane" },
 ];
 
 export const TRAVEL_CATEGORIES: TravelCategory[] = [
   { id: "cat1", title: "Adventure", description: "Hikes, wildlife, and adrenaline with expert-led safety.", image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=800&q=80" },
   { id: "cat2", title: "Family", description: "Kid-friendly pacing, spacious stays, and memorable bonding.", image: "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=800&q=80" },
-  { id: "cat3", title: "Honeymoon", description: "Private experiences, romantic dining, and serene escapes.", image: "https://images.unsplash.com/photo-1515934751975-4628bf386ecd?w=800&q=80" },
+  { id: "cat3", title: "Honeymoon", description: "Private experiences, romantic dining, and serene escapes.", image: "https://images.unsplash.com/photo-1519741497674-611481863552?w=800&q=80" },
   { id: "cat4", title: "Pilgrimage", description: "Respectful itineraries with comfortable transport and guides.", image: "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800&q=80" },
   { id: "cat5", title: "Luxury", description: "Chauffeurs, signature suites, and white-glove concierge.", image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80" },
-  { id: "cat6", title: "Corporate", description: "MICE-ready logistics, branded experiences, and seamless billing.", image: "https://images.unsplash.com/photo-1540575467063-027a693dca10?w=800&q=80" },
+  { id: "cat6", title: "Corporate", description: "MICE-ready logistics, branded experiences, and seamless billing.", image: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&q=80" },
 ];
-
-export const STATS = [
-  { id: "s1", value: 50, suffix: "K+", label: "Happy Travelers" },
-  { id: "s2", value: 200, suffix: "+", label: "Curated Destinations" },
-  { id: "s3", value: 4.9, suffix: "", label: "Average Rating", decimals: 1 },
-  { id: "s4", value: 12, suffix: "+", label: "Years of Excellence" },
-] as const;
 
 export const FOOTER_COLUMNS = [
   {
@@ -183,10 +179,10 @@ export const FOOTER_COLUMNS = [
   {
     title: "Policies",
     links: [
-      { label: "Privacy Policy", href: "#" },
-      { label: "Terms of Service", href: "#" },
-      { label: "Cancellation Policy", href: "#" },
-      { label: "Cookie Policy", href: "#" },
+      { label: "Privacy Policy", href: "/privacy-policy" },
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Cancellation Policy", href: "/cancellation-policy" },
+      { label: "Cookie Policy", href: "/cookie-policy" },
     ],
   },
 ] as const;

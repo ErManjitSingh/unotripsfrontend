@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
-import { ChevronRight, LayoutGrid, Star } from "lucide-react";
+import { ChevronRight, Star } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import type { TourPackage } from "@/lib/constants";
-import { SITE } from "@/lib/constants";
 import { PackageFilterSidebar } from "@/components/packages/package-filter-sidebar";
 import { PackageListingWithSearch } from "@/components/packages/package-listing-with-search";
+import { PackageSortSelect } from "@/components/packages/package-sort-select";
 import { PackageLeadForm } from "@/components/packages/package-lead-form";
 import { DestinationEaseHero } from "@/components/destinations/destination-ease-hero";
 import type { DestinationEaseHeroProps } from "@/components/destinations/destination-ease-hero";
@@ -31,7 +31,6 @@ export type PackageListingViewProps = {
   leadFormContextTitle?: string;
   countHeading?: string;
   showingRangeText?: string | null;
-  ongoingBadgeRegion?: string;
   footerNote?: string | null;
   emptyListing?: ReactNode;
   /** Veena-style header search pill hint, e.g. destination name */
@@ -103,7 +102,6 @@ export function PackageListingView({
   leadFormContextTitle,
   countHeading,
   showingRangeText,
-  ongoingBadgeRegion,
   footerNote,
   emptyListing,
   searchHint,
@@ -122,11 +120,7 @@ export function PackageListingView({
       : [];
   const count = packages.length;
   const fullStars = Math.min(5, Math.round(featured.rating));
-  const regionName = ongoingBadgeRegion ?? title;
-  const ongoingCount = Math.min(15, Math.max(count, 1) + 7);
-  const defaultFooter = `Itineraries and seat counts are sample UI — connect to your Laravel CMS for live inventory. ${SITE.name}`;
-  const resolvedFooter =
-    footerNote === "" ? null : (footerNote ?? defaultFooter);
+  const resolvedFooter = footerNote || null;
 
   const enquiryTitle = leadFormContextTitle ?? title;
 
@@ -221,31 +215,9 @@ export function PackageListingView({
                     pagination below
                   </p>
                 ) : null}
-                <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white sm:text-[11px]">
-                  <span
-                    className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-white"
-                    aria-hidden
-                  />
-                  {ongoingCount} Tours Ongoing in {regionName} right now!
-                </span>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:pt-1">
-                <label className="flex items-center gap-2 text-xs text-slate-600 sm:text-sm">
-                  <span className="font-medium">Sort by</span>
-                  <select className="rounded-md border border-[#e0e0e0] bg-white px-2.5 py-2 text-xs font-medium text-slate-800 shadow-sm">
-                    <option>Deals</option>
-                    <option>Price: Low to High</option>
-                    <option>Price: High to Low</option>
-                    <option>Duration</option>
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-2 rounded-md border border-[#e0e0e0] bg-white px-2.5 py-2 text-xs font-medium text-slate-700 shadow-sm"
-                >
-                  <LayoutGrid className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  Grid View
-                </button>
+                <PackageSortSelect />
               </div>
             </div>
 

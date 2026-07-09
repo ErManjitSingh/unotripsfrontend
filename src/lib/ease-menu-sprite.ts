@@ -36,12 +36,12 @@ export type EaseMenuIconId = EaseMenuSpriteId | "more";
 
 export function easeMenuSpritePosition(
   iconId: EaseMenuSpriteId,
-  _active: boolean,
+  active: boolean,
   /** Target icon width in px (height follows 67:71 cell aspect). */
   displayWidth: number,
 ) {
   const col = EASE_MENU_COL[iconId];
-  const row = EASE_MENU_ROW.orange;
+  const row = active ? EASE_MENU_ROW.orange : EASE_MENU_ROW.gray;
   const scale = displayWidth / EASE_MENU_CELL_W;
   const displayHeight = Math.round(EASE_MENU_CELL_H * scale);
   const sheetW = EASE_MENU_SHEET_W * scale;

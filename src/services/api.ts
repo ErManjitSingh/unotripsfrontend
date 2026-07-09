@@ -38,7 +38,7 @@
  *   that's correct — we always want fresh data.
  *
  * IMPACT:
- *   blog-api.ts      → getBlogs, getFeaturedBlogs, getBlogPost, getBlogCategories
+ *   blog-api.ts      → getBlogs, getBlogPost, getBlogCategories
  *                      all now correctly ISR-cached for 5 min
  *   cms-api.ts       → getDestinations, getDestinationBySlug
  *                      all now correctly ISR-cached for 10 min

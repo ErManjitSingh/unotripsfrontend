@@ -29,38 +29,3 @@ export const TrendingToursCarousel = dynamic(
   },
 );
 
-export const TestimonialsCarousel = dynamic(
-  () =>
-    import("@/components/home/testimonials-carousel").then((m) => ({
-      default: m.TestimonialsCarousel,
-    })),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex gap-4 overflow-hidden pb-12" aria-hidden>
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="min-h-[14rem] w-[min(100%,320px)] shrink-0 space-y-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-12 w-12 rounded-2xl" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-3 w-20" />
-              </div>
-            </div>
-            <div className="flex gap-1">
-              {Array.from({ length: 5 }).map((__, j) => (
-                <Skeleton key={j} className="h-4 w-4 rounded-sm" />
-              ))}
-            </div>
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-4/5" />
-          </div>
-        ))}
-      </div>
-    ),
-  },
-);

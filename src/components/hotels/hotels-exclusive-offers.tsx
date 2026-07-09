@@ -89,14 +89,13 @@ export function HotelsExclusiveOffers() {
     return out;
   }, [offersQ.data]);
 
-  // Filhal: demo offers jab tak live package offers API se na aayein
   const cards = apiCards.length > 0 ? apiCards.slice(0, 10) : DEMO_EXCLUSIVE_OFFERS;
 
-  const isLoading = false;
-  const isError = false;
+  const isLoading = offersQ.isLoading;
+  const isError = offersQ.isError;
 
   return (
-    <section className="border-b border-slate-200/60 bg-gradient-to-b from-white to-orange-50/25 py-12 sm:py-14">
+    <section className="border-b border-slate-200/60 bg-gradient-to-b from-white to-orange-50/25 py-10 sm:py-12 lg:py-14">
       <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
         <HotelsSectionHeader
           eyebrow="Save more"
@@ -104,7 +103,7 @@ export function HotelsExclusiveOffers() {
           description="Limited-time deals on top hotels and holiday packages — grab them before they are gone."
         />
 
-        <div className="relative mt-8 sm:mt-10">
+        <div className="relative mt-6 sm:mt-8">
           <ApiState
             isLoading={isLoading}
             isError={isError}
@@ -119,19 +118,19 @@ export function HotelsExclusiveOffers() {
               </div>
             }
           >
-            <Swiper
-              modules={[Navigation]}
-              navigation
-              spaceBetween={16}
-              slidesPerView={1.08}
-              slidesPerGroup={1}
-              watchOverflow
-              breakpoints={{
-                640: { slidesPerView: 2, slidesPerGroup: 2, spaceBetween: 16 },
-                1024: { slidesPerView: 3, slidesPerGroup: 3, spaceBetween: 18 },
-              }}
-              className="handpicked-hotels-swiper trending-packages-swiper !pb-4 !pt-1"
-            >
+              <Swiper
+                modules={[Navigation]}
+                navigation
+                spaceBetween={14}
+                slidesPerView={1.08}
+                slidesPerGroup={1}
+                watchOverflow
+                breakpoints={{
+                  640: { slidesPerView: 2, slidesPerGroup: 2, spaceBetween: 16 },
+                  1024: { slidesPerView: 3, slidesPerGroup: 3, spaceBetween: 18 },
+                }}
+                className="handpicked-hotels-swiper trending-packages-swiper !pb-3 !pt-1"
+              >
               {cards.map(({ key, ...cardProps }) => (
                 <SwiperSlide key={key} className="h-auto">
                   <OfferCard {...cardProps} />

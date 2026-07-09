@@ -120,14 +120,14 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
       "logo": "https://unotrips.com/images/logo.png",
       "image": "https://media.worldnomads.com/social-share-images/india/see-and-do-kerala-social.jpg",
       "description": "Book Kerala tour packages - Munnar, Alleppey, Thekkady, Kovalam. Kerala honeymoon packages, houseboat tours, custom itineraries.",
-      "telephone": "+91-8353096965",
+      "telephone": "+91-7876505119",
       "email": "unotripsit@gmail.com",
       "priceRange": "₹₹",
       "areaServed": "Kerala, India",
       "serviceType": ["Kerala Tour Packages", "Kerala Trip", "Munnar Alleppey Tour", "Kerala Honeymoon Package", "Kerala Group Tour", "Kerala Houseboat Package"],
       "contactPoint": {
         "@type": "ContactPoint",
-        "telephone": "+91-8353096965",
+        "telephone": "+91-7876505119",
         "contactType": "customer service",
         "areaServed": "IN",
         "availableLanguage": ["English", "Hindi"]
@@ -257,10 +257,10 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
       <!-- Right Side -->
       <div class="flex items-center space-x-3 md:space-x-4">
         <a
-          href="tel:+918353096965"
+          href="tel:+917876505119"
           class="header-call-btn px-4 py-2 rounded-xl text-white font-semibold text-sm flex items-center gap-2">
           <i class="fas fa-phone text-xs"></i>
-          <span>+91-8353096965</span>
+          <span>+91-7876505119</span>
         </a>
       </div>
     </div>
@@ -369,7 +369,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
           <i class="fas fa-arrow-right"></i>
         </button>
         <a
-          href="https://wa.me/918353096965"
+          href="https://wa.me/917876505119"
           target="_blank"
           class="whatsapp-btn text-white px-6 md:px-10 py-3 md:py-4 rounded-2xl text-sm md:text-base font-semibold inline-flex items-center justify-center gap-2 w-full max-w-md">
           <i class="fab fa-whatsapp text-lg"></i>
@@ -433,8 +433,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Padmanabhaswamy Temple</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Kerala Group Tour Package - 8 Days Best of Kerala"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -482,8 +482,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Kumarakom bird sanctuary</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Kerala Group Tour - 9 Days Adventure Special Edition"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -527,8 +527,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Marari beach (optional)</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Munnar Alleppey Tour Package - 5N/6D"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -573,8 +573,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Vizhinjam fishing harbour</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Munnar Alleppey Kovalam Tour - 6N/7D"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -617,8 +617,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Traditional Kerala cuisine on boat</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Alleppey Houseboat Tour Package - 4N/5D"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -673,8 +673,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Kathakali show (optional)</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Munnar Thekkady Tour Package - 4N/5D"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -716,8 +716,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Houseboat lunch cruise</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Munnar Alleppey Tour - 4N/5D"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -764,8 +764,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Kovalam sunset</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Complete Kerala Tour - 8N/9D Cochin, Munnar & Backwaters"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -809,8 +809,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Ayurveda spa session</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Romantic Kerala Honeymoon - 5N/6D Munnar & Houseboat"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -860,8 +860,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Chembra Peak viewpoint</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Wayanad & Athirapally Tour Package - 3N/4D"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -903,8 +903,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
                   <li><i class="fas fa-star text-yellow-500"></i><span>Sunset catamaran ride</span></li></ul></div>
             </div>
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/918353096965" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
-              <a href="tel:+918353096965" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
+              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+              <a href="tel:+917876505119" class="package-card-btn package-card-btn-call"><i class="fas fa-phone"></i><span>Call Now</span></a>
               <button type="button" class="package-card-btn package-card-btn-enquire package-enquire-btn" data-package-title="Kovalam Beach Tour Package - 3N/4D Kovalam & Varkala"><i class="fas fa-paper-plane"></i><span>Enquire Now</span></button>
             </div>
           </div>
@@ -1023,7 +1023,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
             <li><a href="#packages" class="hover:text-white transition-colors">Tour Packages</a></li>
             <li><a href="#faq" class="hover:text-white transition-colors">FAQs</a></li>
             <li><a href="https://unotrips.com" class="hover:text-white transition-colors" rel="noopener">About Uno Trips</a></li>
-            <li><a href="tel:+918353096965" class="hover:text-white transition-colors">Contact Us</a></li>
+            <li><a href="tel:+917876505119" class="hover:text-white transition-colors">Contact Us</a></li>
             <li><a href="privacy.html" class="hover:text-white transition-colors">Privacy Policy</a></li>
           </ul>
         </div>
@@ -1034,11 +1034,11 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
           <ul class="space-y-2 text-sm text-gray-300">
             <li class="flex items-center gap-2">
               <i class="fas fa-phone text-blue-400"></i>
-              <a href="tel:+918353096965" class="hover:text-white transition-colors">+91-8353096965</a>
+              <a href="tel:+917876505119" class="hover:text-white transition-colors">+91-7876505119</a>
             </li>
             <li class="flex items-center gap-2">
               <i class="fab fa-whatsapp text-green-400"></i>
-              <a href="https://wa.me/918353096965" target="_blank" class="hover:text-white transition-colors">WhatsApp Us</a>
+              <a href="https://wa.me/917876505119" target="_blank" class="hover:text-white transition-colors">WhatsApp Us</a>
             </li>
           </ul>
         </div>

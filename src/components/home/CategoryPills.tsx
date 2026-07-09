@@ -19,7 +19,7 @@ const DEFAULT_ITEMS: CategoryPillItem[] = [
     label: "Easy Book",
     href: "/packages",
     image:
-      "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=128&q=80",
+      "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=200&q=85",
     badge: "NEW",
   },
   {
@@ -27,21 +27,21 @@ const DEFAULT_ITEMS: CategoryPillItem[] = [
     label: "Honeymoon",
     href: "/packages?q=honeymoon",
     image:
-      "https://images.unsplash.com/photo-1519741497674-611481863552?w=128&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=200&q=85",
   },
   {
     id: "luxury",
     label: "Luxury",
     href: "/packages?q=luxury",
     image:
-      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=128&q=80",
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=85",
   },
   {
     id: "adventure",
     label: "Adventure",
     href: "/packages?q=adventure",
     image:
-      "https://images.unsplash.com/photo-1527004013197-933c4bb611b3?w=128&q=80",
+      "https://images.unsplash.com/photo-1527004013197-933c4bb611b3?w=200&q=85",
   },
 ];
 
@@ -57,7 +57,10 @@ export function CategoryPills({ className, items = DEFAULT_ITEMS }: CategoryPill
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "mx-auto flex w-full items-center justify-evenly overflow-x-auto rounded-full border border-[#ECECEC] bg-white px-1 py-2 shadow-[0_8px_32px_-6px_rgba(15,23,42,0.16),0_2px_12px_-2px_rgba(15,23,42,0.06)] sm:px-2",
+        "mx-auto flex w-full items-center justify-evenly overflow-x-auto",
+        "rounded-2xl border border-white/20 bg-white/10 px-2 py-3 backdrop-blur-md",
+        "shadow-[0_8px_32px_-4px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.15)]",
+        "sm:px-4 sm:py-4",
         "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className,
       )}
@@ -68,29 +71,30 @@ export function CategoryPills({ className, items = DEFAULT_ITEMS }: CategoryPill
           key={item.id}
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.08 + i * 0.04 }}
-          className={cn("shrink-0", i > 0 && "border-l border-[#EEEEEE]")}
+          transition={{ delay: 0.1 + i * 0.05, ease: [0.22, 1, 0.36, 1] }}
+          className="shrink-0 flex items-center"
         >
+          {i > 0 && <span className="h-8 w-px shrink-0 bg-white/20" />}
           <Link
             href={item.href}
-            className="group relative flex items-center justify-center gap-1.5 px-1 py-0.5 transition-colors hover:bg-[#FAFAFA] sm:gap-2 sm:px-1.5"
+            className="group relative flex items-center gap-3 rounded-xl mx-2 px-4 py-1 transition-all duration-200 hover:bg-white/10 sm:px-5"
           >
-            {item.badge ? (
-              <span className="absolute -top-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded bg-[#E91E63] px-1.5 py-px text-[7px] font-bold uppercase leading-none text-white shadow-sm sm:text-[8px]">
+            {item.badge && (
+              <span className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#E91E63] px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide text-white shadow-md">
                 {item.badge}
               </span>
-            ) : null}
-            <span className="inline-flex h-9 w-9 shrink-0 overflow-hidden rounded-full border border-[#E0E0E0] bg-white shadow-sm transition-transform duration-300 group-hover:scale-[1.03] sm:h-10 sm:w-10">
+            )}
+            <span className="inline-flex h-11 w-11 shrink-0 overflow-hidden rounded-full border-2 border-white/40 shadow-md transition-transform duration-300 group-hover:scale-105 sm:h-13 sm:w-13">
               <Image
                 src={item.image}
                 alt=""
-                width={40}
-                height={40}
+                width={52}
+                height={52}
                 className="h-full w-full object-cover"
-                sizes="40px"
+                sizes="52px"
               />
             </span>
-            <span className="whitespace-nowrap text-[10px] font-semibold leading-none text-[#212121] sm:text-[11px]">
+            <span className="whitespace-nowrap text-xs font-bold tracking-wide text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)] sm:text-sm">
               {item.label}
             </span>
           </Link>

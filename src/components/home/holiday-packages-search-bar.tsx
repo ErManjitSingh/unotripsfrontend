@@ -4,470 +4,874 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Minus, Plus, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  Calendar, ChevronDown, ChevronLeft, ChevronRight, Crosshair,
+  Headphones, Lock, MapPin, Minus, Plus,
+  Search, ShieldCheck, SlidersHorizontal, Tag, Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { HeroSearchCatalog } from "@/lib/hero-search-catalog";
 
-export type { HeroSearchCatalog } from "@/lib/hero-search-catalog";
+// ─── Constants ────────────────────────────────────────────────────────────────
 
-export type SearchBarProps = {
-  className?: string;
-  /** From server: destinations index + packages list for live suggestions. */
-  catalog?: HeroSearchCatalog;
-};
+const PACKAGE_TABS = [
+  { id: "search",       label: "Search",              thumb: null,   icon: "search" },
+  { id: "honeymoon",    label: "Honeymoon",            thumb: "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=80&q=70", icon: null },
+  { id: "family",       label: "Family Package",        thumb: "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=80&q=70", icon: null },
+  { id: "group",        label: "Group Tour Packages",   thumb: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=80&q=70", icon: null },
+  { id: "lastminute",   label: "Last Minute Deals",     thumb: "https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=80&q=70", icon: null },
+  { id: "bestprice",    label: "Best Price Guarantee",  thumb: null,   icon: "shield" },
+] as const;
 
-type PackageMode = {
-  id: string;
-  label: string;
-  thumb: string | null;
-};
-
-const PACKAGE_MODES: PackageMode[] = [
-  { id: "search", label: "Search", thumb: null },
-  {
-    id: "honeymoon",
-    label: "Honeymoon",
-    thumb:
-      "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?w=80&q=70",
-  },
-  {
-    id: "family",
-    label: "Family Package",
-    thumb:
-      "https://images.unsplash.com/photo-1511895426328-dc8714191300?w=80&q=70",
-  },
-  {
-    id: "trending",
-    label: "Trending tour packages",
-    thumb:
-      "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=80&q=70",
-  },
-  {
-    id: "lastminute",
-    label: "Last Minute Deals",
-    thumb:
-      "https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=80&q=70",
-  },
+const FROM_CITIES = [
+  { city: "New Delhi",  country: "India" },
+  { city: "Mumbai",     country: "India" },
+  { city: "Bangalore",  country: "India" },
+  { city: "Chennai",    country: "India" },
+  { city: "Kolkata",    country: "India" },
+  { city: "Hyderabad",  country: "India" },
+  { city: "Pune",       country: "India" },
+  { city: "Ahmedabad",  country: "India" },
+  { city: "Jaipur",     country: "India" },
+  { city: "Chandigarh", country: "India" },
 ];
 
-const TRENDING_PLACES: { label: string; query: string; accent: string }[] = [
-  { label: "Himachal", query: "Himachal", accent: "text-emerald-600 hover:text-emerald-500" },
-  { label: "Sikkim", query: "Sikkim", accent: "text-cyan-600 hover:text-cyan-500" },
-  { label: "Kashmir", query: "Kashmir", accent: "text-sky-600 hover:text-sky-500" },
-  { label: "Leh Ladakh", query: "Leh Ladakh", accent: "text-amber-600 hover:text-amber-500" },
-  { label: "Arunachal", query: "Arunachal", accent: "text-violet-600 hover:text-violet-500" },
-];
+const TRENDING_PLACES = ["Himachal", "Kashmir", "Ladakh", "Kerala", "Goa", "Sikkim"];
+
+const POPULAR_TO_CITIES = ["Shimla", "Dharamshala", "Leh", "Manali", "Jaipur", "Vrindavan"];
+
+const BUDGET_OPTIONS   = ["Under ₹10K", "₹10K–₹20K", "₹20K–₹50K", "Above ₹50K"];
+const DURATION_OPTIONS = ["1–3 Days", "4–6 Days", "7–10 Days", "10+ Days"];
+const TYPE_OPTIONS     = ["Beach", "Mountain", "Heritage", "Wildlife", "Adventure", "Pilgrimage"];
+
+const MO_NAMES  = ["January","February","March","April","May","June","July","August","September","October","November","December"] as const;
+const MO_SHORT  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] as const;
+const WD_HEADS  = ["Su","Mo","Tu","We","Th","Fr","Sa"] as const;
 
 const EMPTY_CATALOG: HeroSearchCatalog = { destinations: [], packages: [] };
 
-function matchesQuery(qRaw: string, ...parts: (string | undefined | null)[]) {
-  const q = qRaw.trim().toLowerCase();
-  if (!q) return false;
-  const hay = parts.filter(Boolean).join(" ").toLowerCase();
-  return hay.includes(q);
+// Curated destinations shown when a category tab is selected (instead of filling the To field)
+const TAB_CURATED: Record<string, { heading: string; places: string[]; featured: { name: string; img: string }[] }> = {
+  honeymoon: {
+    heading: "Popular Honeymoon Destinations",
+    places: ["Maldives", "Bali", "Thailand", "Mauritius", "Seychelles", "Goa", "Kashmir", "Kerala", "Switzerland", "Andaman"],
+    featured: [
+      { name: "Maldives",   img: "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=220&q=80" },
+      { name: "Bali",       img: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=220&q=80" },
+      { name: "Santorini",  img: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=220&q=80" },
+      { name: "View All",   img: "" },
+    ],
+  },
+  family: {
+    heading: "Popular Family Destinations",
+    places: ["Goa", "Rajasthan", "Himachal", "Kerala", "Andaman", "Manali", "Shimla", "Ooty", "Mussoorie", "Nainital"],
+    featured: [
+      { name: "Goa",        img: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=220&q=80" },
+      { name: "Rajasthan",  img: "https://images.unsplash.com/photo-1477587458883-47145ed94245?w=220&q=80" },
+      { name: "Andaman",    img: "https://images.unsplash.com/photo-1589741532720-6d50d2d8c5dd?w=220&q=80" },
+      { name: "View All",   img: "" },
+    ],
+  },
+  group: {
+    heading: "Popular Group Tour Destinations",
+    places: ["Rajasthan", "Kerala", "Himachal", "Kashmir", "Andaman", "North East", "Sikkim", "Ladakh", "Uttarakhand", "Meghalaya"],
+    featured: [
+      { name: "Rajasthan",  img: "https://images.unsplash.com/photo-1477587458883-47145ed94245?w=220&q=80" },
+      { name: "Kerala",     img: "https://images.unsplash.com/photo-1593693411515-c20261bcad6e?w=220&q=80" },
+      { name: "Himachal",   img: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=220&q=80" },
+      { name: "View All",   img: "" },
+    ],
+  },
+  lastminute: {
+    heading: "Last Minute Deals",
+    places: ["Goa", "Manali", "Shimla", "Mussoorie", "Ooty", "Rishikesh", "Coorg", "Jim Corbett", "Ranthambore", "Kodaikanal"],
+    featured: [
+      { name: "Goa",        img: "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=220&q=80" },
+      { name: "Manali",     img: "https://images.unsplash.com/photo-1509316785289-025f5b846b35?w=220&q=80" },
+      { name: "Rishikesh",  img: "https://images.unsplash.com/photo-1585016495481-91613ea2a4cb?w=220&q=80" },
+      { name: "View All",   img: "" },
+    ],
+  },
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function calendarGrid(year: number, month: number): (number | null)[] {
+  const firstDow = new Date(year, month, 1).getDay();
+  const days     = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = Array(firstDow).fill(null);
+  for (let d = 1; d <= days; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
 }
 
-/** Fixed calendar labels — no `Intl` (Node vs browser ICU can differ and break hydration). */
-const MO_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-] as const;
-const WD_LONG = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-] as const;
-
-function formatTravelDate(iso: string): { line: string; weekday: string } {
-  if (!iso) return { line: "Pick date", weekday: "" };
-  const [y, m, d] = iso.split("-").map((x) => Number.parseInt(x, 10));
-  if (!y || !m || !d || m < 1 || m > 12 || d < 1 || d > 31)
-    return { line: "Pick date", weekday: "" };
-  const utc = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-  if (Number.isNaN(utc.getTime())) return { line: "Pick date", weekday: "" };
-  return {
-    line: `${d} ${MO_SHORT[m - 1]}, ${y}`,
-    weekday: WD_LONG[utc.getUTCDay()],
-  };
+function formatSelectedDate(iso: string) {
+  if (!iso) return { primary: "Select Date", sub: "" };
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return { primary: "Select Date", sub: "" };
+  const dt = new Date(Date.UTC(y, m - 1, d, 12));
+  const wd = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][dt.getUTCDay()];
+  return { primary: `${d} ${MO_SHORT[m - 1]}, ${y}`, sub: wd };
 }
 
-/** `YYYY-MM-DD` in the user's local calendar (for `<input type="date" />`). */
-function localDateInputString(date = new Date()): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+function matchesQuery(q: string, ...parts: (string | undefined | null)[]) {
+  const lq = q.trim().toLowerCase();
+  if (!lq) return false;
+  return parts.filter(Boolean).join(" ").toLowerCase().includes(lq);
 }
 
-/** Holiday Packages hero search: package tabs, fields, trending places, SEARCH. */
-const GUEST_MIN = 1;
-const GUEST_MAX = 30;
-
-export function HolidayPackagesSearchBar({ className, catalog: catalogProp }: SearchBarProps) {
-  const catalog = catalogProp ?? EMPTY_CATALOG;
-  const router = useRouter();
-  const [packageMode, setPackageMode] = useState("search");
-  const [to, setTo] = useState("");
-  const [departIso, setDepartIso] = useState("");
-  const [guestCount, setGuestCount] = useState(2);
-  const dateInputRef = useRef<HTMLInputElement>(null);
-
-  const [toOpen, setToOpen] = useState(false);
-  const toWrapRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    setDepartIso((prev) => (prev === "" ? localDateInputString() : prev));
-  }, []);
-
-  const departFmt = useMemo(() => formatTravelDate(departIso), [departIso]);
-
-  const trimmedTo = to.trim();
-
-  const suggestionDestinations = useMemo(() => {
-    if (!trimmedTo) return [];
-    return catalog.destinations
-      .filter((d) =>
-        matchesQuery(trimmedTo, d.name, d.region, d.slug.replace(/-/g, " ")),
-      )
-      .slice(0, 6);
-  }, [catalog.destinations, trimmedTo]);
-
-  const suggestionPackages = useMemo(() => {
-    if (trimmedTo) {
-      return catalog.packages
-        .filter((p) =>
-          matchesQuery(
-            trimmedTo,
-            p.title,
-            p.location,
-            p.slug.replace(/-/g, " "),
-          ),
-        )
-        .slice(0, 8);
-    }
-    return catalog.packages.slice(0, 6);
-  }, [catalog.packages, trimmedTo]);
-
-  const showSuggestionsPanel =
-    toOpen &&
-    (suggestionDestinations.length > 0 || suggestionPackages.length > 0);
-
+function useOutsideClick(ref: React.RefObject<HTMLElement | null>, cb: () => void, enabled: boolean) {
   useEffect(() => {
-    if (!toOpen) return;
-    const onDoc = (e: MouseEvent) => {
-      if (toWrapRef.current && !toWrapRef.current.contains(e.target as Node)) {
-        setToOpen(false);
-      }
+    if (!enabled) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) cb();
     };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [toOpen]);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [ref, cb, enabled]);
+}
 
-  const openDatePicker = useCallback(() => {
-    const el = dateInputRef.current;
-    if (!el) return;
-    if (typeof el.showPicker === "function") el.showPicker();
-    else el.click();
-  }, []);
+// ─── Date Picker Dropdown ─────────────────────────────────────────────────────
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const fd = new FormData(e.currentTarget);
-    const dest = String(fd.get("to") ?? "").trim();
-    setToOpen(false);
-    if (!dest) {
-      router.push("/packages");
-      return;
-    }
-    router.push(`/packages?q=${encodeURIComponent(dest)}`);
-  };
+function DatePickerPanel({
+  value, onChange, onClose,
+}: { value: string; onChange: (iso: string) => void; onClose: () => void }) {
+  const today = new Date();
+  const [year,  setYear]  = useState(() => value ? Number(value.split("-")[0]) : today.getFullYear());
+  const [month, setMonth] = useState(() => value ? Number(value.split("-")[1]) - 1 : today.getMonth());
 
-  const applyTrendingPlace = (query: string) => {
-    setTo(query);
-    setToOpen(true);
+  const cells = useMemo(() => calendarGrid(year, month), [year, month]);
+
+  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
+  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+
+  const isPast = (d: number) =>
+    year < today.getFullYear() ||
+    (year === today.getFullYear() && month < today.getMonth()) ||
+    (year === today.getFullYear() && month === today.getMonth() && d < today.getDate());
+
+  const selectedDay = value?.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`)
+    ? Number(value.split("-")[2])
+    : null;
+
+  const pick = (d: number) => {
+    onChange(`${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+    onClose();
   };
 
   return (
-    <div
-      className={cn(
-        "relative z-20 mx-auto w-full max-w-5xl px-1 sm:px-0",
-        className,
-      )}
-    >
-      <div className="relative overflow-visible rounded-2xl border border-slate-200/90 bg-white shadow-[0_12px_48px_-12px_rgba(15,23,42,0.2)] sm:rounded-3xl">
-        {/* Package type tabs */}
-        <div className="flex gap-2 overflow-x-auto rounded-t-2xl border-b border-slate-100 px-2 py-2 sm:gap-3 sm:rounded-t-3xl sm:px-4 sm:py-2.5">
-          {PACKAGE_MODES.map((m) => {
-            const active = packageMode === m.id;
+    <div className="absolute left-0 top-full z-[200] mt-2 w-[300px] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+      <div className="mb-3 flex items-center justify-between">
+        <button type="button" onClick={prevMonth} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100">
+          <ChevronLeft className="h-4 w-4 text-slate-600" />
+        </button>
+        <span className="text-sm font-bold text-slate-900">{MO_NAMES[month]} {year}</span>
+        <button type="button" onClick={nextMonth} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100">
+          <ChevronRight className="h-4 w-4 text-slate-600" />
+        </button>
+      </div>
+      <div className="mb-1 grid grid-cols-7 gap-px">
+        {WD_HEADS.map(d => (
+          <div key={d} className="py-1 text-center text-[10px] font-bold uppercase text-slate-400">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-px">
+        {cells.map((d, i) => (
+          <button
+            key={i}
+            type="button"
+            disabled={!d || isPast(d)}
+            onClick={() => d && !isPast(d) && pick(d)}
+            className={cn(
+              "flex h-8 w-full items-center justify-center rounded-full text-sm transition",
+              !d && "pointer-events-none",
+              d && isPast(d) && "cursor-not-allowed text-slate-300",
+              d && !isPast(d) && d === selectedDay && "bg-primary font-bold text-white",
+              d && !isPast(d) && d !== selectedDay && "text-slate-700 hover:bg-primary/10 hover:text-primary",
+            )}
+          >
+            {d ?? ""}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Rooms & Guests Dropdown ──────────────────────────────────────────────────
+
+type GuestState = { rooms: number; adults: number; children: number };
+
+function RoomsGuestsPanel({
+  value, onChange, onClose,
+}: { value: GuestState; onChange: (v: GuestState) => void; onClose: () => void }) {
+  const [local, setLocal] = useState(value);
+
+  const counter = (label: string, key: keyof GuestState, min: number, max: number, sub?: string) => (
+    <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
+      <div>
+        <p className="text-sm font-semibold text-slate-800">{label}</p>
+        {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
+      </div>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          disabled={local[key] <= min}
+          onClick={() => setLocal(p => ({ ...p, [key]: Math.max(min, p[key] - 1) }))}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <Minus className="h-3.5 w-3.5" />
+        </button>
+        <span className="w-5 text-center text-sm font-bold text-slate-900">{local[key]}</span>
+        <button
+          type="button"
+          disabled={local[key] >= max}
+          onClick={() => setLocal(p => ({ ...p, [key]: Math.min(max, p[key] + 1) }))}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-30"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="absolute left-0 top-full z-[200] mt-2 w-[280px] rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+      {counter("Rooms", "rooms", 1, 8)}
+      {counter("Adults", "adults", 1, 30, "12+ years")}
+      {counter("Children", "children", 0, 10, "Below 12 years")}
+      <button
+        type="button"
+        onClick={() => { onChange(local); onClose(); }}
+        className="mt-4 w-full rounded-xl bg-primary py-2.5 text-sm font-bold text-white transition hover:bg-primary/90"
+      >
+        Apply
+      </button>
+    </div>
+  );
+}
+
+// ─── Filters Dropdown ─────────────────────────────────────────────────────────
+
+type FiltersState = { budget: string; duration: string; type: string };
+
+function FiltersPanel({
+  value, onChange, onClose,
+}: { value: FiltersState; onChange: (v: FiltersState) => void; onClose: () => void }) {
+  const [local, setLocal] = useState(value);
+
+  const toggle = (key: keyof FiltersState, opt: string) =>
+    setLocal(p => ({ ...p, [key]: p[key] === opt ? "" : opt }));
+
+  const pills = (key: keyof FiltersState, options: string[]) => (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {options.map(opt => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => toggle(key, opt)}
+          className={cn(
+            "rounded-full border px-3 py-1 text-[11px] font-semibold transition",
+            local[key] === opt
+              ? "border-primary bg-primary text-white"
+              : "border-slate-200 text-slate-600 hover:border-primary hover:text-primary",
+          )}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+
+  const hasFilters = local.budget || local.duration || local.type;
+
+  return (
+    <div className="absolute right-0 top-full z-[200] mt-2 w-[300px] rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+      <div className="mb-3 flex items-center justify-between">
+        <span className="text-sm font-bold text-slate-900">Filters</span>
+        {hasFilters && (
+          <button type="button" onClick={() => setLocal({ budget: "", duration: "", type: "" })} className="text-[11px] font-semibold text-primary hover:underline">
+            Clear all
+          </button>
+        )}
+      </div>
+      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Budget per person</p>
+      {pills("budget", BUDGET_OPTIONS)}
+      <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-slate-400">Duration</p>
+      {pills("duration", DURATION_OPTIONS)}
+      <p className="mt-4 text-[11px] font-bold uppercase tracking-wide text-slate-400">Trip Type</p>
+      {pills("type", TYPE_OPTIONS)}
+      <button
+        type="button"
+        onClick={() => { onChange(local); onClose(); }}
+        className="mt-5 w-full rounded-xl bg-primary py-2.5 text-sm font-bold text-white transition hover:bg-primary/90"
+      >
+        Apply Filters
+      </button>
+    </div>
+  );
+}
+
+// ─── Trust Badges Bar ─────────────────────────────────────────────────────────
+
+export function TrustBadgesBar({ className }: { className?: string }) {
+  const items = [
+    { icon: ShieldCheck, title: "Best Price Guarantee",  sub: "Find a lower price? We'll match it" },
+    { icon: Calendar,    title: "Easy Booking",           sub: "Quick, secure & hassle-free" },
+    { icon: Users,       title: "Trusted by Travelers",   sub: "4.8 ★ rating from 10M+ guests" },
+    { icon: Lock,        title: "Secure Payments",        sub: "100% safe & encrypted" },
+  ];
+  return (
+    <div className={cn("flex flex-wrap items-center justify-center gap-2 sm:gap-2.5", className)}>
+      {items.map(({ icon: Icon, title, sub }) => (
+        <div
+          key={title}
+          className="flex items-center gap-2.5 rounded-full border border-white/15 bg-white/[0.07] px-4 py-2 backdrop-blur-md transition hover:bg-white/[0.11] sm:px-5 sm:py-2.5"
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10">
+            <Icon className="h-[15px] w-[15px] text-amber-300" strokeWidth={1.8} />
+          </span>
+          <div className="hidden leading-tight sm:block">
+            <p className="text-[11.5px] font-bold text-white">{title}</p>
+            <p className="text-[10.5px] text-white/55">{sub}</p>
+          </div>
+          <p className="text-[11.5px] font-bold text-white sm:hidden">{title}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export type HolidayPackagesSearchBarProps = {
+  className?: string;
+  catalog?: HeroSearchCatalog;
+  initialFrom?: string;
+  initialTo?: string;
+  initialDate?: string;
+};
+
+export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initialFrom, initialTo, initialDate }: HolidayPackagesSearchBarProps) {
+  const catalog = rawCatalog ?? EMPTY_CATALOG;
+  const router  = useRouter();
+
+  // Tab
+  const [mode, setMode] = useState("search");
+
+  // From City
+  const [from, setFrom]         = useState(initialFrom ?? "New Delhi");
+  const [fromOpen, setFromOpen] = useState(false);
+  const fromRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(fromRef, () => setFromOpen(false), fromOpen);
+
+  const filteredFrom = useMemo(() =>
+    from.trim() ? FROM_CITIES.filter(c => c.city.toLowerCase().includes(from.toLowerCase())) : FROM_CITIES,
+    [from],
+  );
+
+  // To City
+  const [to, setTo]         = useState(initialTo ?? "");
+  const [toOpen, setToOpen] = useState(false);
+  const toRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(toRef, () => setToOpen(false), toOpen);
+
+  const destHits = useMemo(() => {
+    const q = to.trim();
+    if (!q || q.length < 2) return [];
+    return catalog.destinations.filter(d => matchesQuery(q, d.name, d.slug.replace(/-/g, " "))).slice(0, 5);
+  }, [catalog.destinations, to]);
+
+  const pkgHits = useMemo(() => {
+    const q = to.trim();
+    if (!q || q.length < 2) return [];
+    return catalog.packages.filter(p => matchesQuery(q, p.title, p.location, p.slug.replace(/-/g, " "))).slice(0, 4);
+  }, [catalog.packages, to]);
+
+  // Worldwide city search via Photon (OpenStreetMap) — no API key needed
+  type CityHit = { name: string; country: string; state: string };
+  const [cityHits, setCityHits]     = useState<CityHit[]>([]);
+  const [cityLoading, setCityLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const fetchCities = useCallback(async (q: string) => {
+    if (abortRef.current) abortRef.current.abort();
+    abortRef.current = new AbortController();
+    setCityLoading(true);
+    try {
+      const res = await fetch(
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=10&lang=en`,
+        { signal: abortRef.current.signal },
+      );
+      const data = await res.json();
+      const hits: CityHit[] = (data.features ?? [])
+        .filter((f: { properties: { type?: string; name?: string; country?: string } }) =>
+          ["city", "town", "village", "municipality", "suburb"].includes(f.properties.type ?? "") &&
+          f.properties.name,
+        )
+        .slice(0, 6)
+        .map((f: { properties: { name: string; country?: string; state?: string } }) => ({
+          name:    f.properties.name,
+          country: f.properties.country ?? "",
+          state:   f.properties.state   ?? "",
+        }));
+      setCityHits(hits);
+    } catch {
+      // AbortError or network error — silently ignore
+    } finally {
+      setCityLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const q = to.trim();
+    if (!q || q.length < 2) { setCityHits([]); return; }
+    const id = setTimeout(() => fetchCities(q), 320);
+    return () => clearTimeout(id);
+  }, [to, fetchCities]);
+
+  // Date
+  const [dateIso, setDateIso]   = useState(initialDate ?? "");
+  const [dateOpen, setDateOpen] = useState(false);
+  const dateRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(dateRef, () => setDateOpen(false), dateOpen);
+  useLayoutEffect(() => {
+    if (!dateIso) {
+      const t = new Date();
+      setDateIso(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`);
+    }
+  }, [dateIso]);
+  const dateFmt = useMemo(() => formatSelectedDate(dateIso), [dateIso]);
+
+  // Rooms & Guests
+  const [guests, setGuests]         = useState<GuestState>({ rooms: 1, adults: 2, children: 0 });
+  const [guestsOpen, setGuestsOpen] = useState(false);
+  const guestsRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(guestsRef, () => setGuestsOpen(false), guestsOpen);
+  const guestsMain = `${guests.rooms} Room${guests.rooms > 1 ? "s" : ""}, ${guests.adults} Adult${guests.adults > 1 ? "s" : ""}`;
+  const guestsSub  = `${guests.children} ${guests.children === 1 ? "Child" : "Children"}`;
+
+  // Filters
+  const [filters, setFilters]         = useState<FiltersState>({ budget: "", duration: "", type: "" });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(filtersRef, () => setFiltersOpen(false), filtersOpen);
+  const activeFilters = [filters.budget, filters.duration, filters.type].filter(Boolean).length;
+
+  // Tab click — never pre-fill To field; category tabs open the curated megamenu
+  const onTabClick = (id: string) => {
+    if (mode === id) {
+      setMode("search");   // clicking active category tab deselects it
+      return;
+    }
+    setMode(id);
+    setTo("");
+    setToOpen(false);
+  };
+
+  const onSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const params = new URLSearchParams();
+    if (to.trim())            params.set("q",        to.trim());
+    if (from.trim())          params.set("from",      from.trim());
+    if (dateIso)              params.set("date",      dateIso);
+    if (guests.rooms > 1)     params.set("rooms",     String(guests.rooms));
+    if (guests.adults > 0)    params.set("adults",    String(guests.adults));
+    if (guests.children > 0)  params.set("children",  String(guests.children));
+    if (mode !== "search")    params.set("mode",      mode);
+    if (filters.budget)       params.set("budget",    filters.budget);
+    if (filters.duration)     params.set("duration",  filters.duration);
+    if (filters.type)         params.set("type",      filters.type);
+    router.push(`/packages?${params.toString()}`);
+  };
+
+  return (
+    <div className={cn("hero-search-card mx-auto w-full max-w-5xl max-[900px]:max-w-4xl", className)}>
+
+      {/* ── White search card ─────────────────────────────── */}
+      <div className="hero-search-surface overflow-visible rounded-[28px] border border-white/70 bg-white/[0.92] shadow-[0_28px_70px_-18px_rgba(5,8,16,0.5),0_0_0_1px_rgba(245,158,11,0.08)] backdrop-blur-2xl sm:rounded-[32px] max-[900px]:rounded-[24px]">
+
+        {/* ── Tab row ─────────────────────────────────────── */}
+        <div className="flex gap-0.5 overflow-x-auto rounded-t-[28px] border-b border-slate-100 px-4 py-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-1 sm:rounded-t-[32px] sm:px-5 sm:py-3.5 max-[900px]:rounded-t-[24px] max-[900px]:px-4 max-[900px]:py-2.5">
+          {PACKAGE_TABS.map(tab => {
+            const active = mode === tab.id;
             return (
               <button
-                key={m.id}
+                key={tab.id}
                 type="button"
-                onClick={() => setPackageMode(m.id)}
+                onClick={() => onTabClick(tab.id)}
                 className={cn(
-                  "flex shrink-0 items-center gap-2 rounded-full border px-2 py-1 pr-3 text-left text-[11px] font-semibold transition sm:text-xs",
-                  active
-                    ? "border-primary bg-primary/5 text-primary"
-                    : "border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100",
+                  "relative flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-[10px] font-semibold transition sm:px-3 sm:text-[11px] max-[900px]:gap-1.5 max-[900px]:px-2",
+                  active ? "text-primary" : "text-slate-500 hover:text-slate-700",
                 )}
               >
-                {m.thumb ? (
+                {/* Icon / thumb */}
+                {tab.thumb ? (
                   <Image
-                    src={m.thumb}
+                    src={tab.thumb}
                     alt=""
-                    width={32}
-                    height={32}
-                    className="h-8 w-8 shrink-0 rounded-full border border-slate-200 object-cover"
-                    sizes="32px"
+                    width={22}
+                    height={22}
+                    className={cn(
+                      "h-5 w-5 shrink-0 rounded-full object-cover ring-2 shadow-sm sm:h-[26px] sm:w-[26px]",
+                      active ? "ring-primary/40" : "ring-white",
+                    )}
+                    sizes="26px"
+                    unoptimized
                   />
+                ) : tab.icon === "shield" ? (
+                  <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full border sm:h-[26px] sm:w-[26px]", active ? "border-primary/30 bg-primary/10" : "border-slate-200 bg-slate-50")}>
+                    <ShieldCheck className={cn("h-3 w-3", active ? "text-primary" : "text-slate-400")} strokeWidth={1.8} />
+                  </span>
                 ) : (
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Search className="h-3.5 w-3.5" aria-hidden />
+                  <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full sm:h-[26px] sm:w-[26px]", active ? "bg-primary/10" : "bg-slate-100")}>
+                    <Search className={cn("h-2.5 w-2.5 sm:h-3 sm:w-3", active ? "text-primary" : "text-slate-400")} />
                   </span>
                 )}
-                <span className="max-w-[8.5rem] leading-snug sm:max-w-[10rem]">
-                  {m.label}
-                </span>
+                <span className="whitespace-nowrap">{tab.label}</span>
+                {active && <span className="absolute inset-x-2 -bottom-[11px] h-0.5 rounded-full bg-primary" />}
               </button>
             );
           })}
         </div>
 
-        <form
-          onSubmit={onSubmit}
-          className="relative px-3 pb-16 pt-3 sm:px-5 sm:pb-[4.25rem] sm:pt-4"
-        >
-          <div className="grid gap-0 overflow-visible rounded-xl border border-slate-200 bg-slate-50/50 sm:grid-cols-2 lg:grid-cols-4">
-            <div
-              ref={toWrapRef}
-              className="relative flex cursor-pointer flex-col gap-0.5 border-b border-slate-100 p-3 sm:border-b-0 sm:border-r lg:border-r"
-            >
-              <span className="text-[10px] font-semibold text-slate-500">
-                To City/Country/Category
-              </span>
-              <Input
-                name="to"
-                value={to}
-                onChange={(e) => {
-                  setTo(e.target.value);
-                  setToOpen(true);
-                }}
-                onFocus={() => setToOpen(true)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") setToOpen(false);
-                }}
-                autoComplete="off"
-                className="h-auto border-0 bg-transparent p-0 text-base font-bold text-slate-900 shadow-none placeholder:text-slate-300 focus-visible:ring-0 sm:text-lg"
-                placeholder="Search Destination"
-              />
-              {showSuggestionsPanel ? (
-                <div
-                  className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-[min(70vh,22rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white py-2 text-left shadow-xl sm:left-2 sm:right-2"
-                  role="listbox"
-                  aria-label="Search suggestions"
-                >
-                  {suggestionDestinations.length > 0 ? (
-                    <div className="border-b border-slate-100 pb-2">
-                      <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                        Destinations
-                      </p>
-                      {suggestionDestinations.map((d) => (
-                        <Link
-                          key={d.slug}
-                          href={`/destinations/${encodeURIComponent(d.slug)}`}
-                          className="block px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
-                          onClick={() => setToOpen(false)}
-                        >
-                          {d.name}
-                        </Link>
-                      ))}
-                    </div>
-                  ) : null}
-                  {suggestionPackages.length > 0 ? (
-                    <div className="pt-1">
-                      <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                        {trimmedTo
-                          ? "Packages"
-                          : packageMode === "trending"
-                            ? "Trending tour packages"
-                            : "Popular packages"}
-                      </p>
-                      {suggestionPackages.map((p) => (
-                        <Link
-                          key={p.slug}
-                          href={`/packages/${encodeURIComponent(p.slug)}`}
-                          className="block px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
-                          onClick={() => setToOpen(false)}
-                        >
-                          {p.title}
-                        </Link>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
+        <form onSubmit={onSubmit}>
 
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={openDatePicker}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  openDatePicker();
-                }
-              }}
-              className="flex cursor-pointer flex-col gap-0.5 border-b border-slate-100 p-3 sm:border-b-0 sm:border-r lg:border-r"
-            >
-              <span className="flex items-center gap-0.5 text-[10px] font-semibold text-slate-500">
-                Travel date
-                <ChevronDown className="h-3 w-3 text-primary" aria-hidden />
-              </span>
-              <span className="text-base font-bold text-slate-900 sm:text-lg">
-                {departFmt.line}
-              </span>
-              {departFmt.weekday ? (
-                <span className="text-[10px] text-slate-500">
-                  {departFmt.weekday}
-                </span>
-              ) : null}
-              <input
-                ref={dateInputRef}
-                type="date"
-                name="depart"
-                value={departIso}
-                onChange={(e) => setDepartIso(e.target.value)}
-                className="sr-only"
-                aria-label="Travel date"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5 border-b border-slate-100 p-3 sm:border-b-0 sm:border-r lg:border-r">
-              <span className="text-[10px] font-semibold text-slate-500">
-                Guests
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 shrink-0 rounded-full border-slate-200"
-                  aria-label="Fewer guests"
-                  disabled={guestCount <= GUEST_MIN}
-                  onClick={() =>
-                    setGuestCount((n) => Math.max(GUEST_MIN, n - 1))
-                  }
-                >
-                  <Minus className="h-4 w-4" aria-hidden />
-                </Button>
-                <span className="min-w-[5.5rem] text-center text-base font-bold text-slate-900 sm:text-lg">
-                  {guestCount} {guestCount === 1 ? "Guest" : "Guests"}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 shrink-0 rounded-full border-slate-200"
-                  aria-label="More guests"
-                  disabled={guestCount >= GUEST_MAX}
-                  onClick={() =>
-                    setGuestCount((n) => Math.min(GUEST_MAX, n + 1))
-                  }
-                >
-                  <Plus className="h-4 w-4" aria-hidden />
-                </Button>
-              </div>
-              <input type="hidden" name="guests" value={guestCount} />
-            </div>
-
-            <button
-              type="button"
-              className="flex flex-col gap-0.5 p-3 text-left"
-            >
-              <span className="text-[10px] font-semibold text-slate-500">
-                Filters
-              </span>
-              <span className="text-sm font-bold text-slate-900 sm:text-base">
-                Select Filters (Optional)
-              </span>
-            </button>
-          </div>
-
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-            <div className="min-w-0 flex-1 rounded-lg border border-fuchsia-200/60 bg-gradient-to-r from-rose-50/90 via-amber-50/70 to-cyan-50/90 px-2.5 py-1.5 shadow-sm ring-1 ring-white/60 sm:px-3 sm:py-2">
-              <p className="bg-gradient-to-r from-orange-600 via-pink-600 to-violet-600 bg-clip-text text-[9px] font-bold uppercase tracking-[0.14em] text-transparent sm:text-[10px]">
-                Trending places
-              </p>
-              <div
-                className="mt-1 flex flex-nowrap items-center gap-x-0 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                role="list"
-                aria-label="Trending places"
-              >
-                {TRENDING_PLACES.map((place, index) => (
-                  <span
-                    key={place.query}
-                    className="inline-flex shrink-0 items-center whitespace-nowrap"
-                  >
-                    {index > 0 ? (
-                      <span
-                        className={cn(
-                          "select-none px-1.5 text-[10px] sm:px-2",
-                          index % 4 === 1 && "text-rose-400",
-                          index % 4 === 2 && "text-amber-400",
-                          index % 4 === 3 && "text-cyan-400",
-                          index % 4 === 0 && "text-violet-400",
-                        )}
-                        aria-hidden
-                      >
-                        ·
-                      </span>
-                    ) : null}
+          {/* ── Category megamenu OR 5-field row (same height, mutually exclusive) ── */}
+          {TAB_CURATED[mode] ? (
+            /* Compact megamenu — same height as the 5-field row */
+            <div className="flex min-h-[90px] items-center gap-4 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4">
+              {/* Destination text links */}
+              <div className="flex min-w-0 flex-1 flex-col gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-primary">
+                  {TAB_CURATED[mode].heading}
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {TAB_CURATED[mode].places.map(place => (
                     <button
+                      key={place}
                       type="button"
-                      onClick={() => applyTrendingPlace(place.query)}
-                      className={cn(
-                        "text-left text-[11px] font-semibold tracking-tight underline-offset-2 transition hover:underline sm:text-xs",
-                        place.accent,
-                      )}
+                      onClick={() => { setTo(place); setMode("search"); }}
+                      className="text-[13px] font-medium text-slate-600 hover:text-primary"
                     >
-                      {place.label}
+                      {place}
                     </button>
-                  </span>
-                ))}
+                  ))}
+                </div>
+              </div>
+              {/* Featured thumbnails — hidden on small screens */}
+              <div className="hidden shrink-0 gap-2 sm:flex">
+                {TAB_CURATED[mode].featured.map(({ name, img }) =>
+                  name === "View All" ? (
+                    <button
+                      key="view-all"
+                      type="button"
+                      onClick={() => { setMode("search"); onSubmit(); }}
+                      className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-primary/30 text-[9px] font-bold text-primary hover:border-primary hover:bg-primary/5"
+                    >
+                      View All
+                    </button>
+                  ) : (
+                    <button
+                      key={name}
+                      type="button"
+                      onClick={() => { setTo(name); setMode("search"); }}
+                      className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-lg"
+                    >
+                      <Image src={img} alt={name} fill className="object-cover transition-transform duration-300 group-hover:scale-105" sizes="56px" unoptimized />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" />
+                      <span className="absolute bottom-0.5 left-0 right-0 text-center text-[9px] font-bold leading-tight text-white">{name}</span>
+                    </button>
+                  )
+                )}
               </div>
             </div>
-            <p className="shrink-0 self-end text-right text-[9px] font-medium text-slate-400 sm:self-center sm:text-[10px]">
-              Holiday Packages
-            </p>
+          ) : (
+          /* ── 5-field row ─────────────────────────────────── */
+          <div className="grid grid-cols-1 bg-gradient-to-b from-white/35 to-orange-50/25 sm:grid-cols-2 xl:grid-cols-5">
+
+            {/* 1 — From City */}
+            <div ref={fromRef} className="relative border-b border-slate-100 lg:border-b-0 lg:border-r">
+              <button
+                type="button"
+                onClick={() => setFromOpen(o => !o)}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3 max-[900px]:px-4 max-[900px]:py-2.5"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 xl:hidden">
+                  <MapPin className="h-5 w-5 text-primary" strokeWidth={1.8} />
+                </span>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <MapPin className="hidden h-3 w-3 xl:block" strokeWidth={2} />
+                    From City
+                  </span>
+                  <span className="text-[15px] font-bold leading-tight text-slate-900 sm:text-[19px] max-[900px]:text-[17px]">{from || "Select City"}</span>
+                  <span className="text-[11px] text-slate-400">India</span>
+                </div>
+                <Crosshair className="h-5 w-5 shrink-0 text-primary xl:hidden" strokeWidth={1.5} />
+              </button>
+              {fromOpen && (
+                <div className="absolute left-0 top-full z-[200] mt-1 w-64 rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
+                  <div className="px-3 pb-2">
+                    <input
+                      autoFocus
+                      value={from}
+                      onChange={e => setFrom(e.target.value)}
+                      placeholder="Search city..."
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-primary"
+                    />
+                  </div>
+                  {filteredFrom.map(c => (
+                    <button
+                      key={c.city}
+                      type="button"
+                      onClick={() => { setFrom(c.city); setFromOpen(false); }}
+                      className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50"
+                    >
+                      <span className="text-sm font-semibold text-slate-800">{c.city}</span>
+                      <span className="ml-auto text-[11px] text-slate-400">{c.country}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 2 — To City */}
+            <div ref={toRef} className="relative border-b border-slate-100 lg:border-b-0 lg:border-r">
+              <div className="flex items-center gap-3 px-4 py-4 xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-4 max-[900px]:px-4 max-[900px]:py-2.5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 xl:hidden">
+                  <Search className="h-5 w-5 text-primary" strokeWidth={1.8} />
+                </span>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <Search className="hidden h-3 w-3 xl:block" strokeWidth={2} />
+                    To City / Category
+                  </span>
+                  <input
+                    value={to}
+                    onChange={e => { setTo(e.target.value); setToOpen(true); }}
+                    onFocus={() => setToOpen(true)}
+                    onKeyDown={e => { if (e.key === "Escape") setToOpen(false); if (e.key === "Enter") { e.preventDefault(); onSubmit(); } }}
+                    autoComplete="off"
+                    placeholder="Search Destination"
+                    className="w-full border-0 bg-transparent p-0 text-[15px] font-bold leading-tight text-slate-900 outline-none placeholder:font-bold placeholder:text-slate-300 sm:text-[19px] max-[900px]:text-[17px]"
+                  />
+                  <span className="text-[11px] text-slate-400">{to ? "" : "e.g. Goa, Dubai, Thailand"}</span>
+                </div>
+              </div>
+              {toOpen && to.trim().length < 2 && (
+                <div className="absolute left-0 top-full z-[200] mt-1 max-h-[280px] w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white py-3 shadow-xl">
+                  <p className="px-4 pb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Popular Destinations</p>
+                  <div className="flex flex-col">
+                    {POPULAR_TO_CITIES.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => { setTo(name); setToOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-2.5 text-left transition hover:bg-orange-50"
+                      >
+                        <MapPin className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.8} />
+                        <span className="text-[13px] font-semibold text-slate-800">{name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {toOpen && to.trim().length >= 2 && (
+                <div className="absolute left-0 top-full z-[200] mt-1 max-h-[280px] w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white py-2 shadow-xl">
+
+                  {/* World cities from Photon/OpenStreetMap */}
+                  {cityLoading && (
+                    <div className="flex items-center gap-2 px-4 py-3 text-[12px] text-slate-400">
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-200 border-t-primary" />
+                      Searching cities…
+                    </div>
+                  )}
+                  {!cityLoading && cityHits.length > 0 && (
+                    <>
+                      <p className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Cities &amp; Destinations</p>
+                      {cityHits.map((c, i) => (
+                        <button
+                          key={`${c.name}-${c.country}-${i}`}
+                          type="button"
+                          onClick={() => { setTo(`${c.name}${c.country ? `, ${c.country}` : ""}`); setToOpen(false); }}
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50"
+                        >
+                          <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-800">{c.name}</p>
+                            <p className="truncate text-[11px] text-slate-400">{[c.state, c.country].filter(Boolean).join(", ")}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Catalog packages */}
+                  {pkgHits.length > 0 && (
+                    <>
+                      {cityHits.length > 0 && <div className="my-1 border-t border-slate-100" />}
+                      <p className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">Packages</p>
+                      {pkgHits.map(p => (
+                        <Link key={p.slug} href={`/packages/${p.slug}`} onClick={() => setToOpen(false)} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
+                          <Tag className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                          <span className="truncate text-sm font-medium text-slate-800">{p.title}</span>
+                        </Link>
+                      ))}
+                    </>
+                  )}
+
+                  {/* No results */}
+                  {!cityLoading && cityHits.length === 0 && pkgHits.length === 0 && (
+                    <p className="px-4 py-3 text-[12px] text-slate-400">No destinations found</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 3 — Departure Date */}
+            <div ref={dateRef} className="relative border-b border-slate-100 lg:border-b-0 lg:border-r">
+              <button
+                type="button"
+                onClick={() => setDateOpen(o => !o)}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3 max-[900px]:px-4 max-[900px]:py-2.5"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 xl:hidden">
+                  <Calendar className="h-5 w-5 text-primary" strokeWidth={1.8} />
+                </span>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <Calendar className="hidden h-3 w-3 xl:block" strokeWidth={2} />
+                    Departure Date
+                    <ChevronDown className={cn("hidden h-3 w-3 transition-transform xl:block", dateOpen && "rotate-180")} />
+                  </span>
+                  <span className="text-[15px] font-bold leading-tight text-slate-900 sm:text-[19px] max-[900px]:text-[17px]">{dateFmt.primary}</span>
+                  {dateFmt.sub && <span className="text-[11px] text-slate-400">{dateFmt.sub}</span>}
+                </div>
+                <ChevronDown className={cn("h-5 w-5 shrink-0 text-slate-400 transition-transform xl:hidden", dateOpen && "rotate-180")} />
+              </button>
+              {dateOpen && (
+                <DatePickerPanel value={dateIso} onChange={setDateIso} onClose={() => setDateOpen(false)} />
+              )}
+            </div>
+
+            {/* 4 — Rooms & Guests */}
+            <div ref={guestsRef} className="relative border-b border-slate-100 lg:border-b-0 lg:border-r">
+              <button
+                type="button"
+                onClick={() => setGuestsOpen(o => !o)}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3 max-[900px]:px-4 max-[900px]:py-2.5"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 xl:hidden">
+                  <Users className="h-5 w-5 text-primary" strokeWidth={1.8} />
+                </span>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <Users className="hidden h-3 w-3 xl:block" strokeWidth={2} />
+                    Rooms &amp; Guests
+                    <ChevronDown className={cn("hidden h-3 w-3 transition-transform xl:block", guestsOpen && "rotate-180")} />
+                  </span>
+                  <span className="text-[15px] font-bold leading-tight text-slate-900 sm:text-[19px] max-[900px]:text-[17px]">{guestsMain}</span>
+                  <span className="text-[11px] text-slate-400">{guestsSub}</span>
+                </div>
+                <ChevronDown className={cn("h-5 w-5 shrink-0 text-slate-400 transition-transform xl:hidden", guestsOpen && "rotate-180")} />
+              </button>
+              {guestsOpen && (
+                <RoomsGuestsPanel value={guests} onChange={setGuests} onClose={() => setGuestsOpen(false)} />
+              )}
+            </div>
+
+            {/* 5 — Filters */}
+            <div ref={filtersRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setFiltersOpen(o => !o)}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left xl:flex-col xl:items-start xl:gap-0.5 xl:px-5 xl:py-3 max-[900px]:px-4 max-[900px]:py-2.5"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-50 xl:hidden">
+                  <SlidersHorizontal className="h-5 w-5 text-primary" strokeWidth={1.8} />
+                </span>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                    <SlidersHorizontal className="hidden h-3 w-3 xl:block" strokeWidth={2} />
+                    Filters
+                    {activeFilters > 0 && (
+                      <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-white">{activeFilters}</span>
+                    )}
+                  </span>
+                  <span className={cn("text-[13px] font-bold leading-snug sm:text-[15px] max-[900px]:text-[14px]", activeFilters ? "text-primary" : "text-slate-400")}>
+                    {activeFilters ? [filters.budget, filters.duration, filters.type].filter(Boolean).join(" · ") : "Select Filters (Optional)"}
+                  </span>
+                  <span className="text-[11px] text-slate-400">{activeFilters ? "" : "Budget, Amenities, etc."}</span>
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-slate-400 xl:hidden" />
+              </button>
+              {filtersOpen && (
+                <FiltersPanel value={filters} onChange={setFilters} onClose={() => setFiltersOpen(false)} />
+              )}
+            </div>
+          </div>
+          )} {/* end of fields row conditional */}
+
+          {/* ── Trending row ─────────────────────────────────── */}
+          <div className="flex items-center justify-between border-t border-orange-100/70 bg-white/45 px-4 py-2.5 sm:px-5 sm:py-3 max-[900px]:py-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <span className="text-[11px] font-bold text-slate-500">Trending:</span>
+              {TRENDING_PLACES.map(place => (
+                <button
+                  key={place}
+                  type="button"
+                  onClick={() => { setTo(place); setToOpen(false); }}
+                  className="rounded-full border border-primary/40 bg-primary/5 px-3 py-0.5 text-[11px] font-semibold text-primary transition hover:bg-primary/10"
+                >
+                  {place}
+                </button>
+              ))}
+            </div>
+            <Link href="/packages" className="hidden shrink-0 items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-primary sm:flex">
+              Explore All Packages
+              <ChevronDown className="h-3 w-3 -rotate-90" />
+            </Link>
           </div>
 
-          <div className="pointer-events-none absolute inset-x-0 -bottom-5 flex justify-center sm:-bottom-6">
-            <Button
-              type="submit"
-              className="pointer-events-auto min-w-[min(100%,15rem)] rounded-full border-0 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-600 px-12 py-6 text-base font-bold uppercase tracking-[0.14em] text-slate-950 shadow-[0_14px_32px_-6px_rgba(234,88,12,0.45)] transition hover:brightness-105 sm:min-w-[17rem] sm:px-16 sm:text-lg"
-            >
-              SEARCH
-            </Button>
+          {/* ── Search button row ─────────────────────────────── */}
+          <div className="grid grid-cols-1 items-center gap-3 rounded-b-[28px] border-t border-orange-100/70 bg-gradient-to-r from-orange-50/55 via-white/65 to-orange-50/45 px-4 py-3 sm:grid-cols-3 sm:gap-4 sm:rounded-b-[32px] sm:px-5 sm:py-4 max-[900px]:rounded-b-[24px] max-[900px]:py-3">
+            {/* Left — Exclusive Deals */}
+            <div className="hidden items-center gap-3 sm:flex">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                <Tag className="h-[18px] w-[18px] text-primary" strokeWidth={1.8} />
+              </span>
+              <div>
+                <p className="text-[12px] font-bold text-slate-800">Exclusive Deals</p>
+                <p className="text-[11px] text-slate-400">Up to 40% Off</p>
+              </div>
+            </div>
+
+            {/* Center — SEARCH PACKAGES */}
+            <div className="flex justify-center">
+              <button
+                type="submit"
+                className="flex w-full items-center justify-center gap-2.5 rounded-full bg-primary py-3.5 text-sm font-black uppercase tracking-widest text-white shadow-[0_8px_24px_-4px_rgba(234,88,12,0.5)] transition hover:bg-primary/90 hover:shadow-[0_12px_28px_-4px_rgba(234,88,12,0.55)] xl:max-w-[340px] max-[900px]:py-3"
+              >
+                <Search className="h-4 w-4" strokeWidth={2.5} />
+                Search Packages
+              </button>
+            </div>
+
+            {/* Right — 24/7 Travel Support */}
+            <div className="hidden items-center justify-end gap-3 sm:flex">
+              <div className="text-right">
+                <p className="text-[12px] font-bold text-slate-800">24/7 Travel Support</p>
+                <p className="text-[11px] text-slate-400">We&apos;re here for you</p>
+              </div>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                <Headphones className="h-[18px] w-[18px] text-primary" strokeWidth={1.8} />
+              </span>
+            </div>
           </div>
         </form>
       </div>
+
     </div>
   );
 }

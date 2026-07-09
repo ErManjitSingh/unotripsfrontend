@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
   ChevronLeft,
@@ -12,6 +13,12 @@ import {
   MapPin,
   ShieldCheck,
 } from "lucide-react";
+import { getFeaturedHotels } from "@/services/hotels";
+import {
+  hotelDetailHref,
+  hotelListingKey,
+  type HotelListing,
+} from "@/lib/hotels-catalog";
 import { cn } from "@/lib/utils";
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -127,7 +134,60 @@ const TRUST_ITEMS = [
 
 const AUTO_SCROLL_MS = 5000;
 
+const DESTINATION_HOTEL_KEYWORDS: Record<string, string[]> = {
+  himachal: ["himachal", "shimla", "manali", "dharamshala", "dalhousie"],
+  rajasthan: ["rajasthan", "jaipur", "udaipur", "jodhpur"],
+  kerala: ["kerala", "kochi", "munnar", "alleppey", "thekkady"],
+  "north-east": ["sikkim", "gangtok", "darjeeling", "north east", "northeast"],
+  kashmir: ["kashmir", "srinagar", "gulmarg", "pahalgam"],
+  goa: ["goa", "calangute", "baga", "candolim", "panaji"],
+};
+
 /* ═══════════════════════════════════════════════════════════════════════════ */
+
+function FeaturedHotelCard({ hotel, index }: { hotel: HotelListing; index: number }) {
+  const href = hotelDetailHref(hotel.citySlug, hotelListingKey(hotel));
+  const image = hotel.images[0] || "https://images.unsplash.com/photo-1566073771259-6a850609ee90?w=800&q=80";
+
+  return (
+    <Link
+      href={href}
+      className="group min-w-0 overflow-hidden rounded-2xl bg-white/95 shadow-[0_18px_44px_-24px_rgba(15,23,42,0.75)] ring-1 ring-white/80 backdrop-blur-md transition hover:-translate-y-0.5 hover:bg-white"
+    >
+      <div className="relative h-[118px] overflow-hidden bg-slate-100">
+        <Image
+          src={image}
+          alt={hotel.name}
+          fill
+          unoptimized
+          className="object-cover transition duration-500 group-hover:scale-105"
+          sizes="112px"
+        />
+        <span className="absolute left-2 top-2 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-black text-white backdrop-blur">
+          Stay {index + 1}
+        </span>
+      </div>
+      <div className="min-w-0 p-3">
+        <div>
+          <p className="line-clamp-2 min-h-[34px] text-[13px] font-black leading-snug text-slate-950">
+            {hotel.name}
+          </p>
+          <p className="mt-1 line-clamp-1 text-[11px] font-semibold text-slate-500">
+            {hotel.locationLine || hotel.area || hotel.citySlug.replace(/-/g, " ")}
+          </p>
+        </div>
+        <div className="mt-3 flex items-end justify-between gap-2">
+          <p className="text-[11px] font-semibold text-slate-500">
+            From <span className="text-[17px] font-black text-primary">₹{hotel.price.toLocaleString("en-IN")}</span>
+          </p>
+          <span className="inline-flex items-center rounded-full bg-orange-50 px-2 py-1 text-[10px] font-black text-primary">
+            {hotel.rating.toFixed(1)} ★
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 export function HotelsFeaturedDestinations() {
   const [active, setActive] = useState(0);
@@ -135,6 +195,11 @@ export function HotelsFeaturedDestinations() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
   const total = DESTINATIONS.length;
+  const { data: featuredHotels = [] } = useQuery({
+    queryKey: ["hotels", "featured-destination-stays"],
+    queryFn: () => getFeaturedHotels(12),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const goTo = useCallback(
     (idx: number) => setActive(((idx % total) + total) % total),
@@ -155,9 +220,15 @@ export function HotelsFeaturedDestinations() {
   }, [next, isPaused]);
 
   useEffect(() => {
-    if (!thumbRef.current) return;
-    const el = thumbRef.current.children[active] as HTMLElement | undefined;
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    const container = thumbRef.current;
+    if (!container) return;
+    const el = container.children[active] as HTMLElement | undefined;
+    if (!el) return;
+    // Scroll only the thumbnail strip — never the page
+    container.scrollTo({
+      left: el.offsetLeft - container.offsetWidth / 2 + el.offsetWidth / 2,
+      behavior: "smooth",
+    });
   }, [active]);
 
   const handlePrev = () => { prev(); resetTimer(); };
@@ -165,6 +236,20 @@ export function HotelsFeaturedDestinations() {
   const handleGo = (i: number) => { goTo(i); resetTimer(); };
 
   const dest = DESTINATIONS[active];
+  const destinationHotels = useMemo(() => {
+    const keywords = DESTINATION_HOTEL_KEYWORDS[dest.slug] ?? [dest.slug, dest.name.toLowerCase()];
+    const matches = featuredHotels.filter((hotel) => {
+      const haystack = [
+        hotel.citySlug,
+        hotel.name,
+        hotel.area,
+        hotel.locationLine,
+        ...hotel.tags,
+      ].join(" ").toLowerCase();
+      return keywords.some((keyword) => haystack.includes(keyword));
+    });
+    return (matches.length >= 2 ? matches : featuredHotels).slice(0, 2);
+  }, [dest.name, dest.slug, featuredHotels]);
 
   return (
     <section
@@ -199,41 +284,61 @@ export function HotelsFeaturedDestinations() {
           ))}
 
           {/* Content */}
-          <div className="relative z-10 flex min-h-[220px] flex-col justify-end px-5 pb-5 pt-8 sm:min-h-[260px] sm:px-8 sm:pb-6 sm:pt-10 lg:min-h-[300px] lg:px-10 lg:pb-8 lg:pt-12">
-            <div key={`slide-${active}`} className="animate-[fadeSlideUp_0.45s_ease-out_both] max-w-lg">
-              <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-400 sm:text-[11px]">
-                Featured Destination
-              </span>
-              <h2 className="mt-1.5 text-2xl font-bold leading-[1.1] tracking-tight text-white sm:text-3xl lg:text-4xl">
-                {dest.name}
-              </h2>
-              <p className="mt-0.5 text-[12px] font-medium italic text-orange-300/80 sm:text-[13px]">
-                {dest.tagline}
-              </p>
-              <p className="mt-2 text-[12px] leading-relaxed text-white/70 sm:text-[13px]">
-                {dest.description}
-              </p>
-              <Link
-                href={`/destinations/${dest.slug}`}
-                className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-[12px] font-semibold text-white backdrop-blur-sm transition-all hover:bg-white hover:text-[#212121] sm:text-[13px]"
-              >
-                Explore Destination
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-              </Link>
+          <div className="relative z-10 grid min-h-[220px] gap-5 px-5 pb-5 pt-8 sm:min-h-[260px] sm:px-8 sm:pb-6 sm:pt-10 lg:min-h-[300px] lg:grid-cols-[minmax(0,1fr)_520px] lg:items-end lg:px-10 lg:pb-8 lg:pt-12">
+            <div>
+              <div key={`slide-${active}`} className="animate-[fadeSlideUp_0.45s_ease-out_both] max-w-lg">
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-orange-400 sm:text-[11px]">
+                  Featured Destination
+                </span>
+                <h2 className="mt-1.5 text-2xl font-bold leading-[1.1] tracking-tight text-white sm:text-3xl lg:text-4xl">
+                  {dest.name}
+                </h2>
+                <p className="mt-0.5 text-[12px] font-medium italic text-orange-300/80 sm:text-[13px]">
+                  {dest.tagline}
+                </p>
+                <p className="mt-2 text-[12px] leading-relaxed text-white/70 sm:text-[13px]">
+                  {dest.description}
+                </p>
+                <Link
+                  href={`/destinations/${dest.slug}`}
+                  className="mt-3 inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-[12px] font-semibold text-white backdrop-blur-sm transition-all hover:bg-white hover:text-[#212121] sm:text-[13px]"
+                >
+                  Explore Destination
+                  <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                </Link>
+              </div>
+
+              {/* Trust row — compact */}
+              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-white/10 pt-3 sm:gap-x-7">
+                {TRUST_ITEMS.map((item) => (
+                  <div key={item.title} className="flex items-center gap-2">
+                    <item.icon className="h-3.5 w-3.5 text-orange-400" aria-hidden />
+                    <div>
+                      <span className="text-[10px] font-semibold text-white sm:text-[11px]">{item.title}</span>
+                      <span className="ml-1 text-[9px] text-white/50 sm:text-[10px]">{item.sub}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Trust row — compact */}
-            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-white/10 pt-3 sm:gap-x-7">
-              {TRUST_ITEMS.map((item) => (
-                <div key={item.title} className="flex items-center gap-2">
-                  <item.icon className="h-3.5 w-3.5 text-orange-400" aria-hidden />
-                  <div>
-                    <span className="text-[10px] font-semibold text-white sm:text-[11px]">{item.title}</span>
-                    <span className="ml-1 text-[9px] text-white/50 sm:text-[10px]">{item.sub}</span>
-                  </div>
+            {destinationHotels.length > 0 ? (
+              <div className="hidden lg:block">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-300">
+                    Recommended stays in {dest.name}
+                  </p>
+                  <Link href="/hotels#popular-hotels" className="text-[12px] font-bold text-white/85 transition hover:text-white">
+                    View all
+                  </Link>
                 </div>
-              ))}
-            </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {destinationHotels.map((hotel, index) => (
+                    <FeaturedHotelCard key={hotel.id} hotel={hotel} index={index} />
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* Arrows */}

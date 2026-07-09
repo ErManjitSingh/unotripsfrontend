@@ -51,6 +51,40 @@ function amenityIcon(label: string): LucideIcon {
   return Check;
 }
 
+type AmenityCategory = {
+  label: string;
+  chipClass: string;
+  iconClass: string;
+  match: (key: string) => boolean;
+};
+
+const CATEGORIES: AmenityCategory[] = [
+  {
+    label: "Food & Dining",
+    chipClass: "border-[#c8e6c9] bg-[#f1f8f1] text-[#2E7D32]",
+    iconClass: "text-[#2E7D32]",
+    match: (k) => /restaurant|dining|food|bar|lounge|coffee|caf|room service/.test(k),
+  },
+  {
+    label: "Recreation",
+    chipClass: "border-[#bbdefb] bg-[#e8f4fd] text-[#1565C0]",
+    iconClass: "text-[#1565C0]",
+    match: (k) => /gym|fitness|spa|massage|pool|game|sport/.test(k),
+  },
+  {
+    label: "Connectivity",
+    chipClass: "border-[#f0d8c8] bg-[#fdf5ef] text-[#c94e0a]",
+    iconClass: "text-[#EF6614]",
+    match: (k) => /wifi|wi-fi|internet|tv|cable/.test(k),
+  },
+  {
+    label: "Services",
+    chipClass: "border-[#e0e0e0] bg-[#fafafa] text-[#424242]",
+    iconClass: "text-[#757575]",
+    match: () => true, // catch-all
+  },
+];
+
 function titleCaseAmenity(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return trimmed;
@@ -77,22 +111,59 @@ export function HotelDetailAmenitiesGrid({ hotel, roomTypes, className }: HotelD
     );
   }
 
+  // Group amenities
+  const grouped: { category: AmenityCategory; items: string[] }[] = CATEGORIES.map((cat) => ({
+    category: cat,
+    items: [],
+  }));
+
+  for (const label of unique) {
+    const key = label.toLowerCase();
+    let placed = false;
+    for (const group of grouped) {
+      if (group.category.match(key) && group.category.label !== "Services") {
+        group.items.push(label);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      grouped[grouped.length - 1]!.items.push(label);
+    }
+  }
+
+  const nonEmpty = grouped.filter((g) => g.items.length > 0);
+
   return (
     <div className={cn("p-5 sm:p-6", className)}>
       <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-[#212121]">Amenities</h2>
       <p className="mt-1 text-[12px] text-[#757575]">
         {unique.length} amenit{unique.length === 1 ? "y" : "ies"} from property &amp; room listings
       </p>
-      <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        {unique.map((label) => {
-          const Icon = amenityIcon(label);
-          return (
-            <div key={label} className="flex items-center gap-2 text-[12px] text-[#424242] sm:text-[13px]">
-              <Icon className="h-4 w-4 shrink-0 text-[#9E9E9E]" strokeWidth={1.75} aria-hidden />
-              <span className="leading-snug">{label}</span>
+
+      <div className="mt-5 space-y-5">
+        {nonEmpty.map(({ category, items }) => (
+          <div key={category.label}>
+            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.08em] text-[#9E9E9E]">{category.label}</p>
+            <div className="flex flex-wrap gap-2">
+              {items.map((label) => {
+                const Icon = amenityIcon(label);
+                return (
+                  <div
+                    key={label}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[12px] sm:text-[13px]",
+                      category.chipClass,
+                    )}
+                  >
+                    <Icon className={cn("h-3.5 w-3.5 shrink-0", category.iconClass)} strokeWidth={1.75} aria-hidden />
+                    <span className="leading-snug">{label}</span>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );

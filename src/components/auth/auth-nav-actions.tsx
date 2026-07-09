@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, LogOut, User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
@@ -12,14 +12,20 @@ type AuthNavActionsProps = {
   variant?: "overlay" | "solid" | "ease";
   className?: string;
   onNavigate?: () => void;
+  /** Single "Login / Sign up" link instead of two separate buttons — no
+   *  filled button chrome on either, just plain text linking to /signup. */
+  combined?: boolean;
 };
 
-export function AuthNavActions({ variant = "solid", className, onNavigate }: AuthNavActionsProps) {
+export function AuthNavActions({ variant = "solid", className, onNavigate, combined = false }: AuthNavActionsProps) {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const isOverlay = variant === "overlay";
   const isEase = variant === "ease";
+
+  useEffect(() => { setMounted(true); }, []);
 
   const handleLogout = async () => {
     setMenuOpen(false);
@@ -28,10 +34,12 @@ export function AuthNavActions({ variant = "solid", className, onNavigate }: Aut
     router.push("/");
   };
 
-  if (isLoading) {
+  // Render a neutral placeholder on server AND client until hydration is complete.
+  // This prevents the server skeleton vs. client auth-state mismatch.
+  if (!mounted || isLoading) {
     return (
       <div
-        className={cn("h-9 w-20 animate-pulse rounded-full bg-slate-200/80 sm:h-10", className)}
+        className={cn("h-9 w-20 rounded-full sm:h-10", mounted && isLoading ? "animate-pulse bg-slate-200/80" : "bg-transparent", className)}
         aria-hidden
       />
     );
@@ -113,6 +121,22 @@ export function AuthNavActions({ variant = "solid", className, onNavigate }: Aut
           </>
         ) : null}
       </div>
+    );
+  }
+
+  if (combined) {
+    return (
+      <Link
+        href="/signup"
+        onClick={onNavigate}
+        className={cn(
+          "shrink-0 text-sm font-semibold transition",
+          isOverlay ? "text-white/90 hover:text-white" : "text-[#424242] hover:text-primary",
+          className,
+        )}
+      >
+        Login / Sign up
+      </Link>
     );
   }
 

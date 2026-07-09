@@ -3,7 +3,17 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Calendar, Heart, MapPin, Star, Users } from "lucide-react";
+import {
+  Calendar,
+  Car,
+  ChevronRight,
+  Compass,
+  Heart,
+  Hotel,
+  MapPin,
+  Star,
+  Utensils,
+} from "lucide-react";
 import type { TourPackage } from "@/lib/constants";
 import { packageDetailHref } from "@/lib/packages";
 import { cn, formatInrAmount } from "@/lib/utils";
@@ -13,7 +23,13 @@ import { cn, formatInrAmount } from "@/lib/utils";
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1523906834658-2e24ef238147?w=800&q=80";
 
-/** Ensure the image URL is an absolute HTTPS URL, else use placeholder. */
+const INCLUSIONS = [
+  { icon: Hotel,    label: "Hotel" },
+  { icon: Utensils, label: "Meals" },
+  { icon: Car,      label: "Transfers" },
+  { icon: Compass,  label: "Sightseeing" },
+] as const;
+
 function safeImage(url: string | null | undefined): string {
   const u = (url ?? "").trim();
   return u && (/^https?:\/\//i.test(u) || u.startsWith("data:")) ? u : PLACEHOLDER_IMAGE;
@@ -34,16 +50,33 @@ function reviewLabel(score10: number): string {
   return "New";
 }
 
-// ── Tour type badge colour ────────────────────────────────────────────────────
+// ── Badge helpers ─────────────────────────────────────────────────────────────
 
-function tourTypeBadgeClass(packageType: string): string {
+function getTopBadge(packageType: string): {
+  label: string;
+  className: string;
+  showStar: boolean;
+} {
   const t = packageType.toLowerCase();
-  if (t.includes("honeymoon"))    return "bg-rose-50 text-rose-700 border-rose-200";
-  if (t.includes("adventure"))    return "bg-amber-50 text-amber-700 border-amber-200";
-  if (t.includes("family"))       return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (t.includes("international")) return "bg-blue-50 text-blue-700 border-blue-200";
-  if (t.includes("weekend"))      return "bg-purple-50 text-purple-700 border-purple-200";
-  return "bg-orange-50 text-orange-700 border-orange-200";
+  if (t.includes("family"))
+    return { label: "Great for Families", className: "bg-emerald-500", showStar: false };
+  if (t.includes("honeymoon") || t.includes("romantic"))
+    return { label: "Romantic Getaway", className: "bg-rose-500", showStar: false };
+  if (t.includes("adventure"))
+    return { label: "Adventure", className: "bg-amber-500", showStar: false };
+  if (t.includes("beach"))
+    return { label: "Beach Escape", className: "bg-purple-500", showStar: false };
+  if (t.includes("luxury") || t.includes("premium"))
+    return { label: "Best Seller", className: "bg-blue-600", showStar: false };
+  if (t.includes("weekend"))
+    return { label: "Weekend Escape", className: "bg-violet-500", showStar: false };
+  if (t.includes("international"))
+    return { label: "International", className: "bg-indigo-500", showStar: false };
+  return { label: "Top Rated", className: "bg-primary", showStar: true };
+}
+
+function getLocationType(packageType: string): string {
+  return packageType.toLowerCase().includes("international") ? "International" : "Domestic";
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -52,21 +85,18 @@ export function TrendingTourCard({ tour }: { tour: TourPackage }) {
   const [saved, setSaved] = useState(false);
   const [imgSrc, setImgSrc] = useState(() => safeImage(tour.image));
 
-  const hasRating  = tour.rating > 0;
-  const score10    = useMemo(() => scoreOutOf10(tour.rating), [tour.rating]);
-  const label      = useMemo(() => reviewLabel(score10), [score10]);
-  const fullStars  = Math.min(5, Math.round(tour.rating));
+  const hasRating = tour.rating > 0;
+  const score10   = useMemo(() => scoreOutOf10(tour.rating), [tour.rating]);
+  const fullStars = Math.min(5, Math.round(tour.rating));
 
-  const packageType    = (tour.packageType ?? "Holiday").replace(/\s+package$/i, "");
-  const location       = tour.location ?? "";
-  const detailHref     = packageDetailHref(tour);
-  const badgeClass     = tourTypeBadgeClass(packageType);
-
-  const hasDiscount    = Boolean(tour.oldPriceINR && tour.oldPriceINR > tour.priceINR);
-  const discountPct    = hasDiscount && tour.discountPct ? tour.discountPct : null;
+  const packageType = (tour.packageType ?? "Holiday").replace(/\s+package$/i, "");
+  const location    = tour.location ?? "";
+  const detailHref  = packageDetailHref(tour);
+  const topBadge    = getTopBadge(packageType);
+  const locType     = getLocationType(packageType);
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-[0_4px_20px_-4px_rgba(15,23,42,0.10)] transition hover:shadow-[0_12px_32px_-8px_rgba(15,23,42,0.16)]">
+    <article className="group flex h-full flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-[0_4px_20px_-4px_rgba(15,23,42,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_40px_-8px_rgba(15,23,42,0.18)]">
 
       {/* ── Image ─────────────────────────────────────────────────────────── */}
       <div className="relative aspect-[4/3] shrink-0 overflow-hidden rounded-t-xl bg-slate-100">
@@ -75,29 +105,25 @@ export function TrendingTourCard({ tour }: { tour: TourPackage }) {
           alt={tour.title}
           fill
           sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 25vw"
-          className="object-cover transition duration-500 group-hover:scale-[1.03]"
+          className="object-cover transition duration-500 group-hover:scale-[1.04]"
           loading="lazy"
           onError={() => setImgSrc(PLACEHOLDER_IMAGE)}
         />
 
-        {/* Discount badge */}
-        {discountPct ? (
-          <span className="absolute left-2.5 top-2.5 z-[1] rounded bg-emerald-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow">
-            {discountPct}% OFF
-          </span>
-        ) : null}
-
-        {/* Package type badge */}
+        {/* Top-left: category badge */}
         <span
           className={cn(
-            "absolute bottom-2.5 left-2.5 z-[1] rounded-full border px-2.5 py-0.5 text-[10px] font-semibold capitalize",
-            badgeClass,
+            "absolute left-2.5 top-2.5 z-[1] flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold text-white shadow",
+            topBadge.className,
           )}
         >
-          {packageType}
+          {topBadge.showStar && (
+            <Star className="h-2.5 w-2.5 fill-white text-white" aria-hidden />
+          )}
+          {topBadge.label}
         </span>
 
-        {/* Save button */}
+        {/* Top-right: save button */}
         <button
           type="button"
           onClick={() => setSaved((v) => !v)}
@@ -110,6 +136,12 @@ export function TrendingTourCard({ tour }: { tour: TourPackage }) {
           />
         </button>
 
+        {/* Bottom-left: location type */}
+        <span className="absolute bottom-2.5 left-2.5 z-[1] flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold text-white backdrop-blur-sm">
+          <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+          {locType}
+        </span>
+
         {/* Invisible link overlay */}
         <Link href={detailHref} className="absolute inset-0 z-0" aria-label={`View ${tour.title}`} />
       </div>
@@ -117,11 +149,10 @@ export function TrendingTourCard({ tour }: { tour: TourPackage }) {
       {/* ── Card body ────────────────────────────────────────────────────── */}
       <Link
         href={detailHref}
-        className="group flex flex-1 flex-col gap-1.5 p-3 outline-none focus-visible:ring-2 focus-visible:ring-primary/30 sm:p-3.5"
+        className="flex flex-1 flex-col gap-1.5 p-3 outline-none focus-visible:ring-2 focus-visible:ring-primary/30 sm:p-3.5"
       >
-
         {/* Title */}
-        <h3 className="line-clamp-2 text-left text-[15px] font-bold leading-snug text-slate-900 group-hover:underline sm:text-base">
+        <h3 className="truncate text-left text-[15px] font-bold leading-snug text-slate-900 sm:text-base">
           {tour.title}
         </h3>
 
@@ -136,38 +167,22 @@ export function TrendingTourCard({ tour }: { tour: TourPackage }) {
         {/* Duration */}
         <p className="flex items-center gap-1 text-xs text-slate-600">
           <Calendar className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
-          <span>
-            {tour.durationDays} Days / {tour.durationNights} Nights
-          </span>
+          <span>{tour.durationDays} Days / {tour.durationNights} Nights</span>
         </p>
 
-        {/* Rating row — only shown when the package has actual reviews */}
+        {/* Rating / New */}
         {hasRating ? (
           <div className="mt-0.5 flex flex-wrap items-center gap-2">
-            <span className="flex h-7 min-w-[2rem] items-center justify-center rounded bg-primary px-1.5 text-xs font-bold text-white">
-              {score10.toFixed(1)}
-            </span>
-            <span className="text-sm font-semibold text-slate-800">{label}</span>
-            <span className="flex items-center gap-0.5 text-amber-500" aria-label={`${tour.rating} out of 5 stars`}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  className={cn(
-                    "h-3 w-3 sm:h-3.5 sm:w-3.5",
-                    i < fullStars ? "fill-amber-400 text-amber-400" : "fill-slate-200 text-slate-200",
-                  )}
-                  aria-hidden
-                />
-              ))}
+            <span className="flex items-center justify-center rounded bg-emerald-700 px-1.5 py-0.5 text-xs font-bold text-white">
+              {tour.rating.toFixed(1)}
             </span>
             {tour.reviewCount > 0 ? (
               <span className="text-xs text-slate-500">
-                {formatInrAmount(tour.reviewCount)} reviews
+                {formatInrAmount(tour.reviewCount)}+ reviews
               </span>
             ) : null}
           </div>
         ) : (
-          /* No reviews yet — show a neutral "New" pill */
           <div className="mt-0.5">
             <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-500">
               New
@@ -175,29 +190,30 @@ export function TrendingTourCard({ tour }: { tour: TourPackage }) {
           </div>
         )}
 
-        {/* Inclusions strip */}
-        <p className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-emerald-700">
-          <Users className="h-3 w-3 shrink-0" aria-hidden />
-          <span>Hotel · Meals · Transfers · Sightseeing included</span>
-        </p>
+        {/* Inclusions */}
+        <div className="mt-0.5 flex flex-nowrap items-center gap-x-1 overflow-hidden">
+          {INCLUSIONS.map(({ icon: Icon, label }, i) => (
+            <span key={label} className="flex items-center gap-1">
+              {i > 0 && <span className="text-slate-300">·</span>}
+              <Icon className="h-3 w-3 shrink-0 text-emerald-600" aria-hidden />
+              <span className="text-[11px] font-medium text-emerald-700">{label}</span>
+            </span>
+          ))}
+        </div>
 
         {/* ── Price + CTA ─────────────────────────────────────────────────── */}
         <div className="mt-auto flex items-end justify-between gap-3 border-t border-slate-100 pt-3">
           <div className="min-w-0 flex-1 text-left">
             <p className="text-[11px] text-slate-500">Starting from</p>
-            {hasDiscount && tour.oldPriceINR ? (
-              <p className="text-xs text-slate-400 line-through">
-                ₹ {formatInrAmount(tour.oldPriceINR)}
-              </p>
-            ) : null}
             <p className="text-lg font-bold text-slate-900 sm:text-xl">
               ₹ {formatInrAmount(tour.priceINR)}
             </p>
             <p className="text-[10px] text-slate-400">per person</p>
           </div>
 
-          <span className="shrink-0 rounded-lg border-2 border-primary bg-white px-3 py-2 text-center text-xs font-bold text-primary shadow-sm transition group-hover:bg-primary group-hover:text-white sm:px-3.5 sm:text-sm">
+          <span className="flex shrink-0 items-center gap-1 rounded-lg border-2 border-primary bg-white px-3 py-2 text-xs font-bold text-primary shadow-sm transition group-hover:bg-primary group-hover:text-white sm:text-sm">
             View details
+            <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} />
           </span>
         </div>
       </Link>

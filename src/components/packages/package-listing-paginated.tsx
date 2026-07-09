@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { TourPackage } from "@/lib/constants";
@@ -18,14 +18,21 @@ export type PackageListingPaginatedProps = {
 
 export function PackageListingPaginated({ tours, textFilter }: PackageListingPaginatedProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sort = searchParams.get("sort") ?? "popular";
+
   const filtered = useMemo(() => {
     const q = textFilter?.trim().toLowerCase();
-    if (!q) return tours;
-    return tours.filter((t) => {
-      const blob = [t.title, t.location, t.slug, t.id].filter(Boolean).join(" ").toLowerCase();
-      return blob.includes(q);
-    });
-  }, [tours, textFilter]);
+    const list = !q
+      ? tours
+      : tours.filter((t) => {
+          const blob = [t.title, t.location, t.slug, t.id].filter(Boolean).join(" ").toLowerCase();
+          return blob.includes(q);
+        });
+    if (sort === "price_asc") return [...list].sort((a, b) => a.priceINR - b.priceINR);
+    if (sort === "price_desc") return [...list].sort((a, b) => b.priceINR - a.priceINR);
+    return list;
+  }, [tours, textFilter, sort]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));

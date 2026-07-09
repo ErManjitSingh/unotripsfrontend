@@ -42,7 +42,7 @@
 "use client";
 
 import { useQuery }          from "@tanstack/react-query";
-import type { PackageListParams } from "@/services/packages";
+import type { PackageListParams, PaginatedPackages } from "@/services/packages";
 import {
   getAllPackages,
   getPackageBySlug,
@@ -109,11 +109,13 @@ export function usePackage(slug: string) {
  *     automatically deduplicates if both are called with same params
  *   - No "load all 50 packages to show 12" waste
  */
-export function useFeaturedPackages(limit = 12) {
+export function useFeaturedPackages(limit = 12, initialData?: PaginatedPackages) {
   return useQuery({
     queryKey: ["packages", "list", { sort: "featured", limit }],
     queryFn:  () => listPackages({ sort: "featured", limit }),
     ...PACKAGE_QUERY_CONFIG,
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
   });
 }
 

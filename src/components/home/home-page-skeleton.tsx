@@ -17,11 +17,11 @@ function SectionShell({
   );
 }
 
-/** Matches `Navbar` ease (~72px) + `HeroSection` (300px) + floating chrome. */
+/** Matches `Navbar` ease (~72px) + `HeroSection` image + search panel + pills. */
 export function NavbarHeroSkeleton() {
   return (
-    <div className="relative mb-24 w-full overflow-visible bg-[#0c0a09] sm:mb-28 md:mb-32">
-      <div className="relative h-[300px] w-full overflow-hidden">
+    <div className="relative w-full overflow-visible bg-[#0c0a09]">
+      <div className="relative h-[520px] w-full overflow-hidden">
         <div className="absolute inset-0 z-0 bg-slate-800" aria-hidden />
         <div
           className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-black/55 via-black/35 to-black/70"
@@ -108,31 +108,6 @@ export function TestimonialsSectionSkeleton({ className }: { className?: string 
   );
 }
 
-export function BlogPreviewSectionSkeleton({ className }: { className?: string }) {
-  return (
-    <section className={cn("py-8 sm:py-10 lg:py-12", className)}>
-      <SectionShell>
-        <Skeleton className="h-8 w-48 rounded-lg" />
-        <Skeleton className="mt-2 h-4 w-96 max-w-full rounded" />
-        <div className="mt-8 grid gap-5 md:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="space-y-4 rounded-[1.35rem] border border-slate-100 p-1">
-              <Skeleton className="aspect-[16/10] w-full rounded-[1.15rem]" />
-              <div className="space-y-2 px-4 pb-4">
-                <Skeleton className="h-3 w-24 rounded-full" />
-                <Skeleton className="h-5 w-full rounded" />
-                <Skeleton className="h-4 w-full rounded" />
-                <Skeleton className="h-4 w-2/3 rounded" />
-                <Skeleton className="mt-2 h-9 w-28 rounded-full" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </SectionShell>
-    </section>
-  );
-}
-
 export function HomePageSkeleton() {
   return (
     <main>
@@ -167,7 +142,6 @@ export function HomePageSkeleton() {
             </div>
           </SectionShell>
         </section>
-        <BlogPreviewSectionSkeleton />
         <section className="py-10">
           <SectionShell>
             <Skeleton className="h-8 w-40 rounded-lg" />

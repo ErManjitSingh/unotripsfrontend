@@ -25,7 +25,7 @@ export default function AccountPage() {
 
   if (isLoading || !isAuthenticated) {
     return (
-      <main className="min-h-screen bg-[#e8edf4]">
+      <main className="min-h-screen bg-[#f5f5f5]">
         <Navbar variant="ease" easeActiveNavId="hotels" />
         <div className="flex flex-col items-center justify-center gap-3 px-4 py-24">
           <Loader2 className="h-9 w-9 animate-spin text-[#2196F3]" aria-hidden />
@@ -37,17 +37,9 @@ export default function AccountPage() {
 
   return (
     <>
-      <main className="relative min-h-screen overflow-hidden bg-[#e8edf4] text-[#212121] antialiased">
-        <div className="pointer-events-none absolute inset-0 dashboard-mesh" />
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -left-32 top-20 h-[28rem] w-[28rem] rounded-full bg-[#2196F3]/12 blur-3xl" />
-          <div className="absolute -right-24 top-1/4 h-96 w-96 rounded-full bg-[#EF6614]/10 blur-3xl" />
-          <div className="absolute bottom-1/4 left-1/3 h-72 w-72 rounded-full bg-[#7B1FA2]/8 blur-3xl" />
-        </div>
-
+      <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
         <Navbar variant="ease" easeActiveNavId="hotels" />
-
-        <div className="relative mx-auto w-full max-w-[1320px] px-3 py-8 sm:px-4 sm:py-12 lg:px-6 lg:py-14">
+        <div className="mx-auto w-full max-w-[1280px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
           <AccountDashboard onLogout={handleLogout} />
         </div>
       </main>

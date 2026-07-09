@@ -23,7 +23,6 @@ import {
 import {
   getBlogs as getBlogsFromApi,
   getBlogPost as getBlogPostFromApi,
-  getFeaturedBlogs,
   type BlogPost,
 } from "@/lib/blog-api";
 
@@ -144,14 +143,6 @@ export async function getBlogs(
 ): Promise<BlogPost[]> {
   const { posts } = await getBlogsFromApi(limit, category);
   return posts;
-}
-
-/**
- * Featured posts for homepage.
- * Python: GET /v1/blog/posts/featured
- */
-export async function getFeaturedBlogPosts(limit = 3): Promise<BlogPost[]> {
-  return getFeaturedBlogs(limit);
 }
 
 /**
