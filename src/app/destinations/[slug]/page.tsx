@@ -48,7 +48,9 @@ import { DestinationPageContent } from "./destination-page-content";
 // ISR: revalidate every 10 min — destinations change very rarely.
 // Aligns with backend Redis TTL for /v1/destinations/* (10 min).
 // Admin updates to destination data visible within 10 min.
-export const revalidate = 600;
+// Destination package results must reflect the same live catalog as the
+// packages listing; do not serve an old cached empty result.
+export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ slug: string }> };
 

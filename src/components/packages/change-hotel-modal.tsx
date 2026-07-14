@@ -17,6 +17,7 @@ export type ChangeHotelModalProps = {
   /** Real check-in date for this destination leg, only when the visitor picked a travel date upstream. */
   checkIn: Date | null;
   onSelect: (index: number) => void;
+  mode?: "hotel" | "room";
 };
 
 const STAR_FILTERS = [3, 4, 5] as const;
@@ -75,7 +76,7 @@ function useMounted() {
 }
 
 export function ChangeHotelModal({
-  open, onClose, destination, selectedIndex, checkIn, onSelect,
+  open, onClose, destination, selectedIndex, checkIn, onSelect, mode = "hotel",
 }: ChangeHotelModalProps) {
   const [query, setQuery] = useState("");
   const [minStars, setMinStars] = useState<number | null>(null);
@@ -94,6 +95,9 @@ export function ChangeHotelModal({
       return true;
     });
     const containsSelected = (g: HotelGroup) => g.rooms.some((r) => r.index === selectedIndex);
+    if (mode === "room") {
+      return matches.filter(containsSelected);
+    }
     const selectedGroup = matches.find(containsSelected);
     const rest = matches.filter((g) => g !== selectedGroup);
     const cheapest = (g: HotelGroup) => Math.min(...g.rooms.map((r) => r.opt.extra));
@@ -101,7 +105,7 @@ export function ChangeHotelModal({
     else if (sort === "price_desc") rest.sort((a, b) => cheapest(b) - cheapest(a));
     else rest.sort((a, b) => Number(b.pop) - Number(a.pop));
     return selectedGroup ? [selectedGroup, ...rest] : rest;
-  }, [destination, minStars, query, sort, selectedIndex]);
+  }, [destination, minStars, query, sort, selectedIndex, mode]);
 
   if (!mounted) return null;
 
@@ -138,7 +142,7 @@ export function ChangeHotelModal({
             {/* Header */}
             <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[#f0f0f0] px-5 py-4">
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-[#1a1a1a]">Change Hotel</h2>
+                <h2 className="text-lg font-bold text-[#1a1a1a]">{mode === "room" ? "Change Room" : "Change Hotel"}</h2>
                 <p className="truncate text-[11px] text-[#9e9e9e]">{destination.dest} · {destination.nights} night{destination.nights === 1 ? "" : "s"}</p>
               </div>
               <button type="button" onClick={onClose}
@@ -147,16 +151,16 @@ export function ChangeHotelModal({
               </button>
             </div>
 
-            <div className="shrink-0 border-b border-[#f0f0f0] px-5 py-3">
+            <div className={cn("shrink-0 border-b border-[#f0f0f0] px-5 py-3", mode === "room" && "hidden")}>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9e9e9e]" aria-hidden />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by hotel name"
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={mode === "room" ? "Search room type" : "Search by hotel name"}
                   aria-label="Search by hotel name" className={searchInputClass} />
               </div>
             </div>
 
             {/* Filters */}
-            <div className="flex shrink-0 flex-wrap items-end gap-4 border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-3">
+            <div className={cn("flex shrink-0 flex-wrap items-end gap-4 border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-3", mode === "room" && "hidden")}>
               <div>
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#9e9e9e]">Star Rating</p>
                 <div className="flex gap-1.5">
@@ -179,8 +183,25 @@ export function ChangeHotelModal({
               </label>
             </div>
 
-            <p className="shrink-0 px-5 py-2.5 text-[12px] text-[#616161]">
-              Showing <b className="font-bold text-[#1a1a1a]">{groups.length}</b> stay{groups.length === 1 ? "" : "s"} in {destination.dest}
+            {mode === "room" && groups[0] && (
+              <div className="mx-5 mt-5 flex items-center gap-4 rounded-2xl bg-[#F8FAFC] p-3.5">
+                <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl bg-white">
+                  <Image src={groups[0].img} alt={groups[0].name} fill className="object-cover" sizes="80px" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-extrabold text-[#172033]">{groups[0].name}</p>
+                    <span className="rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-emerald-700">Selected hotel</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => <Star key={i} className={cn("h-3 w-3", i < groups[0].stars ? "fill-amber-400 text-amber-400" : "fill-slate-200 text-slate-200")} />)}
+                    <span className="ml-1 text-[10px] text-slate-500">{groups[0].desc}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            <p className="shrink-0 px-5 py-3 text-[12px] text-[#616161]">
+              {mode === "room" ? <>Available rooms in <b className="font-bold text-[#1a1a1a]">{destination.dest}</b></> : <>Showing <b className="font-bold text-[#1a1a1a]">{groups.length}</b> stay{groups.length === 1 ? "" : "s"} in {destination.dest}</>}
             </p>
 
             {/* List */}
@@ -196,7 +217,7 @@ export function ChangeHotelModal({
                         className={cn("overflow-hidden rounded-xl border-[1.5px] transition",
                           groupIsSelected ? "border-primary bg-orange-50/50" : "border-[#e8e8e8] bg-white")}>
                         {/* Hotel header */}
-                        <div className="flex gap-3 p-3 sm:gap-4 sm:p-4">
+                        <div className={cn("flex gap-3 p-3 sm:gap-4 sm:p-4", mode === "room" && "hidden")}>
                           <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-28 sm:w-32">
                             <Image src={group.img} alt="" fill className="object-cover" sizes="128px" />
                             {groupIsSelected && (
@@ -233,7 +254,12 @@ export function ChangeHotelModal({
                             const isSelected = index === selectedIndex;
                             const delta = priceDeltaVsCurrent(opt.extra, currentExtra);
                             return (
-                              <div key={opt.id} className={cn("flex items-center justify-between gap-3 px-3 py-2.5 sm:px-4", isSelected && "bg-orange-50/70")}>
+                              <div key={opt.id} className={cn("flex items-center gap-3 px-3 py-3 sm:px-4", isSelected && "bg-orange-50/70", mode === "room" && "min-h-[132px] bg-white")}>
+                                {mode === "room" && (
+                                  <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                                    <Image src={opt.img} alt={opt.roomType ?? "Room"} fill className="object-cover" sizes="128px" />
+                                  </div>
+                                )}
                                 <div className="min-w-0 flex-1">
                                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#616161]">
                                     <span className="inline-flex items-center gap-1 font-semibold text-[#1a1a1a]">
@@ -273,7 +299,7 @@ export function ChangeHotelModal({
                                   {!isSelected && (
                                     <button type="button" onClick={() => { onSelect(index); onClose(); }}
                                       className="shrink-0 rounded-lg bg-primary px-4 py-1.5 text-[12px] font-bold text-white transition hover:opacity-90">
-                                      Select
+                                      {mode === "room" ? "Select room" : "Select"}
                                     </button>
                                   )}
                                 </div>
@@ -287,6 +313,12 @@ export function ChangeHotelModal({
                 </div>
               )}
             </div>
+            {mode === "room" && (
+              <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-3.5">
+                <p className="text-[11px] text-slate-500">Room and meal plan changes update your package total.</p>
+                <button type="button" onClick={onClose} className="shrink-0 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-[0_8px_18px_rgba(255,107,0,0.2)] transition hover:-translate-y-0.5">Update room</button>
+              </div>
+            )}
           </motion.aside>
         </>
       ) : null}

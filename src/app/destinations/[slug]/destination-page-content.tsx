@@ -31,11 +31,11 @@
  */
 
 import Link       from "next/link";
-import { redirect } from "next/navigation";
 import { PackageListingView }             from "@/components/packages/package-listing-view";
 import type { DestinationCard, TourPackage } from "@/lib/constants";
 import { getDestinationBySlug } from "@/lib/cms-api";
-import { listPackages } from "@/services/packages";
+import { getAllPackages, listPackages } from "@/services/packages";
+import { filterTourPackagesByDestinationSlug } from "@/lib/package-destination-filter";
 
 // Fallback destination images keyed by common slugs
 const FALLBACK_IMAGES: Record<string, string> = {
@@ -104,18 +104,17 @@ function breadcrumbScope(d: DestinationCard): { label: string; href: string } {
 export async function DestinationPageContent({ params, destination: destinationProp }: Props) {
   const { slug } = await params;
 
-  // Himachal is a regional grouping in the package data, while its packages
-  // are stored under Shimla/Manali destinations. Use the canonical listing
-  // search so the regional page cannot incorrectly render an empty result.
-  if (slug === "himachal") redirect("/packages?q=Himachal&sort=popular");
-
   // Use pre-fetched destination prop if available — zero extra network call.
   // Fall back to fetching if called without prop (backward compat).
   const d = destinationProp !== undefined
     ? destinationProp
     : await getDestinationBySlug(slug);
 
-  if (!d) {
+  // Himachal is a regional landing page and may not have its own CMS row.
+  // Keep the fallback presentation, but continue into the package query.
+  const resolvedDestination = d ?? (slug === "himachal" ? makeFallbackDestination(slug) : null);
+
+  if (!resolvedDestination) {
     // CMS doesn't have this destination yet — render a graceful fallback
     // instead of a 404 so links don't die.
     const fallback = makeFallbackDestination(slug);
@@ -152,28 +151,25 @@ export async function DestinationPageContent({ params, destination: destinationP
     );
   }
 
-  // getPackages() → getAllPackages() — ISR-cached 5 min + in-process dedup.
-  // Multiple destination pages rendered in the same deploy share this cache.
-  // Use the same live paginated package source as `/packages`. The older
-  // CMS wrapper can return a stale/empty destination catalog and caused
-  // destination pages to show 0 even while the listing endpoint had data.
-  const { items: allPackages } = await listPackages({
+  // Use the exact live query used by `/packages?q=Himachal&sort=popular`.
+  // Fall back to the cached full catalog if the filtered request is empty.
+  const queried = await listPackages({
     page: 1,
     limit: 50,
-    search: slug === "himachal" ? "Himachal" : d.name,
+    search: slug === "himachal" ? "Himachal" : resolvedDestination.name,
     sort: "popular",
   });
-  // The backend search is authoritative here: it matches destination name,
-  // city, state, and country. Applying the older client keyword filter after
-  // that incorrectly dropped valid state-level matches such as Himachal.
-  const destinationMatches = allPackages;
+  const allPackages = queried.items.length ? queried.items : await getAllPackages();
+  const destinationMatches = slug === "himachal" && queried.items.length
+    ? queried.items
+    : filterTourPackagesByDestinationSlug(allPackages, slug);
 
-  const featured         = destinationMatches[0] ?? destinationHeroTour(d, slug);
-  const scope            = breadcrumbScope(d);
-  const pageTitle        = `${d.name} Tour Packages`;
+  const featured         = destinationMatches[0] ?? destinationHeroTour(resolvedDestination, slug);
+  const scope            = breadcrumbScope(resolvedDestination);
+  const pageTitle        = `${resolvedDestination.name} Tour Packages`;
   const heroDescription  =
     destinationMatches[0]?.description ??
-    `Discover curated ${d.name} holidays with clear inclusions, flexible nights, and competitive pricing. Use filters to narrow by budget and departure city, or request a call back for a tailor-made itinerary.`;
+    `Discover curated ${resolvedDestination.name} holidays with clear inclusions, flexible nights, and competitive pricing. Use filters to narrow by budget and departure city, or request a call back for a tailor-made itinerary.`;
 
   const emptyListing = (
     <div className="rounded-lg border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
@@ -194,23 +190,23 @@ export async function DestinationPageContent({ params, destination: destinationP
     <PackageListingView
       featured={featured}
       packages={destinationMatches}
-      breadcrumbs={[scope, { label: d.name }]}
+      breadcrumbs={[scope, { label: resolvedDestination.name }]}
       heroTitle={pageTitle}
       heroDescription={heroDescription}
       leadFormContextTitle={pageTitle}
-      countHeading={`${destinationMatches.length} ${d.name} Holiday ${destinationMatches.length === 1 ? "Package" : "Packages"}`}
+      countHeading={`${destinationMatches.length} ${resolvedDestination.name} Holiday ${destinationMatches.length === 1 ? "Package" : "Packages"}`}
       showingRangeText={
         destinationMatches.length > 0
           ? `${destinationMatches.length} package${destinationMatches.length === 1 ? "" : "s"} — 5 per page with pagination below`
           : null
       }
       footerNote=""
-      searchHint={d.name}
+      searchHint={resolvedDestination.name}
       emptyListing={destinationMatches.length === 0 ? emptyListing : undefined}
       easeHero={{
         title:           pageTitle,
-        image:           d.image,
-        destinationName: d.name,
+        image:           resolvedDestination.image,
+        destinationName: resolvedDestination.name,
         fromCity:        "New Delhi",
       }}
     />

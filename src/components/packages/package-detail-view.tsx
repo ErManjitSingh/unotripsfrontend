@@ -249,6 +249,7 @@ export function PackageDetailView({
   const [activeDay,    setActiveDay]    = useState(1);
   const [openTermIdx,  setOpenTermIdx]  = useState<number | null>(null);
   const [changeHotelDestIdx, setChangeHotelDestIdx] = useState<number | null>(null);
+  const [changeHotelMode, setChangeHotelMode] = useState<"hotel" | "room">("hotel");
   const [changeVehicleOpen, setChangeVehicleOpen] = useState(false);
   const tabBarRef = useRef<HTMLDivElement>(null);
 
@@ -519,7 +520,8 @@ export function PackageDetailView({
           else switchTab("book");
         }}
         onEnquire={() => setShowLoginModal(true)}
-        onChangeHotel={(index) => setChangeHotelDestIdx(index)}
+        onChangeHotel={(index) => { setChangeHotelMode("hotel"); setChangeHotelDestIdx(index); }}
+        onChangeRoom={(index) => { setChangeHotelMode("room"); setChangeHotelDestIdx(index); }}
         onChangeCab={() => setChangeVehicleOpen(true)}
       />
       <BookingAuthModal
@@ -535,6 +537,7 @@ export function PackageDetailView({
         onClose={() => setChangeHotelDestIdx(null)}
         destination={changeHotelDestIdx !== null ? hotelGroups[changeHotelDestIdx] : undefined}
         selectedIndex={changeHotelDestIdx !== null ? (selectedHotels[changeHotelDestIdx] ?? 0) : 0}
+        mode={changeHotelMode}
         checkIn={changeHotelDestIdx !== null ? dateForDay(destStartDayOf(changeHotelDestIdx)) : null}
         onSelect={(oi) => {
           if (changeHotelDestIdx === null) return;
@@ -901,10 +904,16 @@ export function PackageDetailView({
                                 ) : (
                                   <span className="text-[12px] font-bold text-primary">+₹{fmtINR(opt.extra)}</span>
                                 )}
-                                <button type="button" onClick={() => setChangeHotelDestIdx(di)}
-                                  className="rounded-lg border border-primary px-3 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary hover:text-white">
-                                  Change
-                                </button>
+                                <div className="flex flex-wrap justify-end gap-1.5">
+                                  <button type="button" onClick={() => { setChangeHotelMode("hotel"); setChangeHotelDestIdx(di); }}
+                                    className="rounded-lg border border-primary px-3 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary hover:text-white">
+                                    Change hotel
+                                  </button>
+                                  <button type="button" onClick={() => { setChangeHotelMode("room"); setChangeHotelDestIdx(di); }}
+                                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-primary hover:text-primary">
+                                    Change room
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -1258,6 +1267,7 @@ export function PackageDetailView({
         onClose={() => setChangeHotelDestIdx(null)}
         destination={changeHotelDestIdx !== null ? hotelGroups[changeHotelDestIdx] : undefined}
         selectedIndex={changeHotelDestIdx !== null ? (selectedHotels[changeHotelDestIdx] ?? 0) : 0}
+        mode={changeHotelMode}
         checkIn={changeHotelDestIdx !== null ? dateForDay(destStartDayOf(changeHotelDestIdx)) : null}
         onSelect={(oi) => {
           if (changeHotelDestIdx === null) return;
