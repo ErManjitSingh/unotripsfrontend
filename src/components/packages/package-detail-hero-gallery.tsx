@@ -53,6 +53,7 @@ export function PackageDetailHeroGallery({
           fill
           className="object-cover"
           sizes="(max-width: 1024px) 100vw, 75vw"
+          quality={78}
           priority
         />
         <div
@@ -113,7 +114,7 @@ export function PackageDetailHeroGallery({
                 : "border-transparent opacity-90 hover:opacity-100",
             )}
           >
-            <Image src={src} alt="" fill className="object-cover" sizes="100px" />
+            <Image src={src} alt="" fill className="object-cover" sizes="100px" quality={68} loading="lazy" />
             {i === 2 ? (
               <span className="absolute inset-0 flex items-end justify-center bg-black/55 pb-2 text-[10px] font-bold uppercase tracking-wide text-white">
                 +{guestPhotoExtraCount} guest photos

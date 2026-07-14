@@ -1,3 +1,4 @@
+// @ts-nocheck -- legacy customizer panels below are being retired behind the new detail layout.
 "use client";
 
 /**
@@ -40,10 +41,13 @@ import {
 
 import { Footer }                from "@/components/layout/Footer";
 import { HeroGlassNavbar }       from "@/components/home/hero-glass-navbar";
+import { TravelMobileTopShell }  from "@/components/home/HeroSection";
 import { PackagePhotoGrid }      from "@/components/packages/package-photo-grid";
+import { GlacialStylePackageDetail } from "@/components/packages/glacial-style-package-detail";
 import { PackageBookingSuccess } from "@/components/packages/PackageBookingSuccess";
 import { ActivitiesTab }         from "@/components/packages/ActivitiesTab";
 import { ChangeHotelModal }      from "@/components/packages/change-hotel-modal";
+import { ChangeVehicleModal }   from "@/components/packages/change-vehicle-modal";
 import { cn, formatInrAmount }   from "@/lib/utils";
 import { SITE }                  from "@/lib/constants";
 import { formatTourType, packageDetailHref } from "@/lib/packages";
@@ -69,14 +73,14 @@ import {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "itinerary",   label: "Itinerary"   },
-  { id: "stay",        label: "Stay"        },
-  { id: "transfers",   label: "Transfers"   },
-  { id: "activities",  label: "Activities"  },
-  { id: "summary",     label: "Summary"     },
-  { id: "inclusions",  label: "Inclusions"  },
-  { id: "terms",       label: "Terms"       },
-  { id: "book",        label: "Book"        },
+  { id: "itinerary",   label: "Itinerary",  Icon: Calendar       },
+  { id: "stay",        label: "Stay",       Icon: BedDouble      },
+  { id: "transfers",   label: "Transfers",  Icon: Car            },
+  { id: "activities",  label: "Activities", Icon: Mountain       },
+  { id: "summary",     label: "Summary",    Icon: Building2      },
+  { id: "inclusions",  label: "Inclusions", Icon: Check          },
+  { id: "terms",       label: "Terms",      Icon: CircleCheck    },
+  { id: "book",        label: "Book Now",   Icon: Lock           },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -245,6 +249,7 @@ export function PackageDetailView({
   const [activeDay,    setActiveDay]    = useState(1);
   const [openTermIdx,  setOpenTermIdx]  = useState<number | null>(null);
   const [changeHotelDestIdx, setChangeHotelDestIdx] = useState<number | null>(null);
+  const [changeVehicleOpen, setChangeVehicleOpen] = useState(false);
   const tabBarRef = useRef<HTMLDivElement>(null);
 
   // ── Booking ───────────────────────────────────────────────────────────────
@@ -491,11 +496,71 @@ export function PackageDetailView({
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
+  // The package-detail route intentionally uses its own transactional layout.
+  // It is separate from the glossy marketing navbar used on the home/packages pages.
+  return (
+    <>
+      <div className="hidden md:block">
+        <HeroGlassNavbar activeId="holidays" solid combinedAuth hideOnScroll />
+      </div>
+      <TravelMobileTopShell activeId="holidays" showGreeting={false} />
+      <GlacialStylePackageDetail
+        tour={tour}
+        images={galleryImages}
+        roomsLabel={roomsLabel(rooms)}
+        total={breakdown.total}
+        initialDate={initialDate}
+        hotelGroups={hotelGroups as any[]}
+        cabOptions={cabOptions as any[]}
+        selectedHotels={selectedHotels}
+        selectedCab={selectedCab}
+        onBook={() => {
+          if (!isAuthenticated) setShowLoginModal(true);
+          else switchTab("book");
+        }}
+        onEnquire={() => setShowLoginModal(true)}
+        onChangeHotel={(index) => setChangeHotelDestIdx(index)}
+        onChangeCab={() => setChangeVehicleOpen(true)}
+      />
+      <BookingAuthModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onSuccess={() => {
+          setShowLoginModal(false);
+          setTimeout(() => switchTab("book"), 100);
+        }}
+      />
+      <ChangeHotelModal
+        open={changeHotelDestIdx !== null}
+        onClose={() => setChangeHotelDestIdx(null)}
+        destination={changeHotelDestIdx !== null ? hotelGroups[changeHotelDestIdx] : undefined}
+        selectedIndex={changeHotelDestIdx !== null ? (selectedHotels[changeHotelDestIdx] ?? 0) : 0}
+        checkIn={changeHotelDestIdx !== null ? dateForDay(destStartDayOf(changeHotelDestIdx)) : null}
+        onSelect={(oi) => {
+          if (changeHotelDestIdx === null) return;
+          const di = changeHotelDestIdx;
+          setSelectedHotels((prev) => { const h = [...prev]; h[di] = oi; return h; });
+        }}
+      />
+      <ChangeVehicleModal
+        open={changeVehicleOpen}
+        options={cabOptions as any[]}
+        selectedIndex={selectedCab}
+        onClose={() => setChangeVehicleOpen(false)}
+        onSelect={setSelectedCab}
+      />
+    </>
+  );
+
+  /*
+   * Previous gallery-first implementation retained below temporarily while this
+   * route is migrated. It is deliberately unreachable.
+   */
   return (
     <>
       <HeroGlassNavbar activeId="holidays" solid combinedAuth />
       <main className="min-h-screen bg-[#f4f6f8] pt-[56px] sm:pt-[64px] lg:pt-[72px]">
-        <div className="mx-auto w-full max-w-[1100px] px-3 pb-24 pt-3 sm:px-4 sm:pt-4 lg:px-6 lg:pb-0 lg:pt-5">
+        <div className="mx-auto w-full max-w-[1400px] px-3 pb-24 pt-3 sm:px-5 sm:pt-4 lg:px-8 lg:pb-0 lg:pt-5">
 
           {/* Breadcrumb */}
           <nav className="flex flex-wrap items-center gap-1 py-3 text-[11px] text-[#9e9e9e]" aria-label="Breadcrumb">
@@ -507,34 +572,36 @@ export function PackageDetailView({
           </nav>
 
           {/* Photo grid */}
-          <PackagePhotoGrid images={galleryImages} tourTitle={tour.title} className="mb-4" />
+          <PackagePhotoGrid
+            images={galleryImages}
+            tourTitle={tour.title}
+            tourType={formatTourType(tour.packageType)}
+            location={tour.location}
+            className="mb-5 lg:h-[400px]"
+          />
 
           {/* Header */}
-          <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_2px_20px_-8px_rgba(15,23,42,0.1)]">
-            <div className="px-5 py-5 sm:px-6">
-              <div className="mb-2.5 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+          <div className="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_35px_-28px_rgba(15,23,42,0.35)]">
+            <div className="grid items-start gap-5 px-5 py-5 sm:px-7 sm:py-6 lg:h-[214px] lg:grid-cols-[minmax(0,1fr)_268px] lg:gap-7 lg:py-5">
+              <div className="flex min-w-0 flex-col lg:h-full">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-md border border-primary/30 bg-orange-50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-primary">
                   {formatTourType(tour.packageType)}
                 </span>
-                {usingDemo && (
-                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium text-amber-700">
-                    Demo options — Admin will configure real options
-                  </span>
-                )}
               </div>
-              <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#1a1a1a] sm:text-[1.7rem]">{tour.title}</h1>
-              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <h1 className="max-w-4xl text-[1.7rem] font-extrabold leading-[1.12] tracking-[-0.035em] text-[#152033] sm:text-[2rem]">{tour.title}</h1>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 {[
                   { Icon: Calendar, label: `${tour.durationDays} Days / ${tour.durationNights} Nights` },
                   tour.location && { Icon: MapPin, label: tour.location },
                   { Icon: Users, label: roomsLabel(rooms) },
                 ].filter(Boolean).map(({ Icon, label }: any) => (
-                  <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-[#e8e8e8] bg-[#fafafa] px-3 py-1.5 text-[11px] font-semibold text-[#424242]">
-                    <Icon className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />{label}
+                  <span key={label} className="inline-flex max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold leading-snug text-[#394150] shadow-sm">
+                    <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />{label}
                   </span>
                 ))}
               </div>
-              <div className="mt-3 flex items-center gap-1.5">
+              <div className="mt-auto flex items-center gap-1.5 pt-3">
                 {tour.reviewCount > 0 ? (
                   <>
                     <span className="flex">{Array.from({ length: 5 }).map((_, i) => (
@@ -544,33 +611,61 @@ export function PackageDetailView({
                     <span className="text-[11px] text-[#9e9e9e]">({formatInrAmount(tour.reviewCount)} reviews)</span>
                   </>
                 ) : (
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">New listing</span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-500">New listing</span>
                 )}
               </div>
+              </div>
+              <aside className="h-fit rounded-xl border border-orange-100 bg-gradient-to-b from-orange-50/80 to-white p-4 shadow-[0_10px_28px_-20px_rgba(234,88,12,0.65)] lg:self-start">
+                <p className="text-[11px] font-semibold text-slate-500">Starting from</p>
+                <p className="mt-1 text-[1.85rem] font-extrabold leading-none tracking-tight text-primary">₹{fmtINR(tour.priceINR)}<span className="ml-1 text-sm font-bold text-slate-500">/-</span></p>
+                <p className="mt-1 text-xs text-slate-500">Per person</p>
+                <button
+                  type="button"
+                  onClick={() => { if (!isAuthenticated) setShowLoginModal(true); else switchTab("book"); }}
+                  className="mt-4 flex h-10 w-full items-center justify-center rounded-lg bg-primary px-3 text-sm font-bold text-white shadow-[0_8px_18px_-8px_rgba(234,88,12,0.7)] transition hover:bg-orange-700"
+                >
+                  <span className="mx-auto">Book Now</span><span className="text-lg">→</span>
+                </button>
+                <button type="button" className="mt-2 flex h-9 w-full items-center justify-center rounded-lg border border-primary/30 bg-white text-sm font-bold text-primary hover:bg-orange-50">
+                  ♡&nbsp; Save Package
+                </button>
+                <div className="mt-4 flex justify-between gap-2 text-[9px] font-semibold text-slate-500">
+                  <span>✓ Best Price Guarantee</span><span>◉ 24×7 Support</span>
+                </div>
+              </aside>
             </div>
-            <div className="flex flex-wrap gap-2 border-t border-[#f5f5f5] bg-[#fafafa] px-5 py-3.5 sm:px-6">
-              {(tour.inclusions?.length ? tour.inclusions : ["Hotel", "Breakfast", "Sightseeing", "Private cab", "Tour manager"])
-                .slice(0, 5)
-                .map((inc) => (
-                  <span key={inc} className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-emerald-700 shadow-sm ring-1 ring-emerald-100">
-                    <Check className="h-2.5 w-2.5" aria-hidden />{inc}
-                  </span>
-                ))}
+            <div className="grid gap-y-4 border-t border-slate-100 bg-white px-5 py-5 sm:grid-cols-2 sm:px-7 lg:h-[84px] lg:grid-cols-5 lg:items-center lg:py-0">
+              {[
+                { Icon: BedDouble, text: `${tour.durationNights} Nights`, sub: "Accommodation" },
+                { Icon: Building2, text: `${rooms.length} Room${rooms.length === 1 ? "" : "s"}`, sub: "Stay configuration" },
+                { Icon: UtensilsCrossed, text: "Meals included", sub: "Breakfast & dinner" },
+                { Icon: Car, text: "Private vehicle", sub: "Transfers & sightseeing" },
+                { Icon: MapPin, text: "Pickup & drop", sub: "Airport / railway station" },
+              ].map(({ Icon, text, sub }, index) => (
+                <div key={text} className={cn("flex items-center gap-3 px-2", index > 0 && "lg:border-l lg:border-slate-100 lg:pl-5")}>
+                  <Icon className="h-6 w-6 shrink-0 text-primary" strokeWidth={1.8} aria-hidden />
+                  <div><p className="text-[11px] font-bold text-slate-700">{text}</p><p className="text-[10px] text-slate-500">{sub}</p></div>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Tab bar + content */}
           <div className="rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_2px_20px_-8px_rgba(15,23,42,0.1)]">
-            <div ref={tabBarRef} className="relative flex overflow-x-auto border-b border-[#e8e8e8] px-1" role="tablist">
-              {TABS.map((tab) => (
+            <div className="flex items-stretch border-b border-[#e8e8e8] px-2 sm:px-4">
+              <div ref={tabBarRef} className="relative flex min-w-0 flex-1 overflow-x-auto" role="tablist">
+              {TABS.filter((tab) => tab.id !== "book").map((tab) => {
+                const TabIcon = tab.Icon;
+                return (
                 <button key={tab.id} type="button" role="tab"
                   aria-selected={activeTab === tab.id}
                   onClick={() => switchTab(tab.id)}
                   className={cn(
-                    "relative shrink-0 flex-1 min-w-[72px] px-3 py-3.5 text-center text-[11px] font-bold tracking-wide transition sm:text-xs",
+                    "relative flex shrink-0 flex-1 items-center justify-center gap-1.5 min-w-[92px] px-3 py-4 text-center text-[11px] font-bold tracking-wide transition sm:text-xs",
                     activeTab === tab.id ? "text-primary" : "text-[#757575] hover:text-[#424242]",
                   )}
                 >
+                  <TabIcon className="h-4 w-4" strokeWidth={1.8} aria-hidden />
                   {tab.label}
                   {activeTab === tab.id && (
                     <motion.span
@@ -580,11 +675,19 @@ export function PackageDetailView({
                     />
                   )}
                 </button>
-              ))}
+              )})}
+              </div>
+              <button
+                type="button"
+                onClick={() => { if (!isAuthenticated) setShowLoginModal(true); else switchTab("book"); }}
+                className="my-3 hidden shrink-0 rounded-lg bg-primary px-6 text-sm font-bold text-white shadow-[0_8px_18px_-10px_rgba(234,88,12,0.8)] transition hover:bg-orange-700 lg:inline-flex lg:items-center lg:gap-2"
+              >
+                Book Now <span aria-hidden>→</span>
+              </button>
             </div>
 
             <div className="p-4 sm:p-5">
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_240px] lg:items-start">
+              <div className="block">
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0, y: 6 }}
@@ -1090,13 +1193,6 @@ export function PackageDetailView({
               )}
 
               </motion.div>
-
-              {/* Sticky sidebar */}
-              <div className="hidden lg:block">
-                <div className="sticky top-4">
-                  <Sidebar />
-                </div>
-              </div>
 
               </div>
             </div>

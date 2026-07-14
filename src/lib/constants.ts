@@ -60,6 +60,8 @@ export type TourItineraryDay = {
   day: number;
   title: string;
   body: string;
+  image?: string;
+  location?: string;
 };
 
 export type TourPackage = {

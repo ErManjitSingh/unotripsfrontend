@@ -19,6 +19,8 @@ import {
 import { DatePickerPopover } from "@/components/hotels/hotel-date-range-picker";
 import {
   hotelResultsHref,
+  hotelDetailHref,
+  hotelListingKey,
   findHotelLocality,
   matchHotelDestinationFromList,
   slugifyCityName,
@@ -28,6 +30,7 @@ import {
 } from "@/lib/hotels-catalog";
 import { fetchHotelDestinations, fetchHotelLocalities } from "@/services/hotels";
 import { cn } from "@/lib/utils";
+import type { HotelListing } from "@/lib/hotels-api";
 import { HotelsHeroSkeleton } from "@/components/hotels/hotels-page-skeleton";
 
 const HOTELS_BANNER_IMAGE = "/images/hotels/hero-banner.webp";
@@ -127,6 +130,10 @@ export function HotelsSearchHero({
   const [city,           setCity]           = useState(defaultCity);
   const [country,        setCountry]        = useState(defaultCountry);
   const [selectedSlug,   setSelectedSlug]   = useState(defaultSlug);
+  // Keep the current destination available while the user types a hotel name.
+  // The visible input is also used for free-text hotel searches, so it must not
+  // become the city slug sent in the results URL.
+  const [searchCitySlug, setSearchCitySlug] = useState(defaultSlug);
   const [searchLocation, setSearchLocation] = useState("");
   const [nearMeActive,   setNearMeActive]   = useState(false);
   const [nearMeLoading,  setNearMeLoading]  = useState(false);
@@ -162,6 +169,7 @@ export function HotelsSearchHero({
     if (defaultCity)    setCity(defaultCity);
     if (defaultCountry) setCountry(defaultCountry);
     if (defaultSlug)    setSelectedSlug(defaultSlug);
+    if (defaultSlug)    setSearchCitySlug(defaultSlug);
   }, [defaultCity, defaultCountry, defaultSlug]);
 
   useEffect(() => {
@@ -190,6 +198,7 @@ export function HotelsSearchHero({
     setCity(dest.city);
     setCountry(dest.country);
     setSelectedSlug(dest.slug);
+    setSearchCitySlug(dest.slug);
     setSearchLocation("");
     setNearMeActive(false);
     setSearchError(null);
@@ -199,9 +208,14 @@ export function HotelsSearchHero({
     setCity(locality.name);
     setCountry(`${locality.city}, ${locality.country}`);
     setSelectedSlug(locality.citySlug);
+    setSearchCitySlug(locality.citySlug);
     setSearchLocation(locality.name);
     setNearMeActive(false);
     setSearchError(null);
+  };
+
+  const handleSelectHotel = (hotel: HotelListing) => {
+    router.push(hotelDetailHref(hotel.citySlug, hotelListingKey(hotel)));
   };
 
   const handleSearch = () => {
@@ -220,11 +234,12 @@ export function HotelsSearchHero({
           `${item.name} ${item.city}`.toLowerCase() === localQuery,
       ) ?? findHotelLocality(trimmedCity);
     const matched = matchHotelDestinationFromList(locality?.city ?? trimmedCity, effectiveDestinations);
-    const slug    = selectedSlug || locality?.citySlug || matched?.slug || slugifyCityName(trimmedCity);
+    const slug    = selectedSlug || locality?.citySlug || matched?.slug || searchCitySlug || slugifyCityName(trimmedCity);
     const q       = searchLocation.trim() || locality?.name || (!matched && selectedSlug ? trimmedCity : undefined);
 
     if (matched && !selectedSlug) {
       setSelectedSlug(matched.slug);
+      setSearchCitySlug(matched.slug);
       setCountry(matched.country);
     }
 
@@ -248,8 +263,8 @@ export function HotelsSearchHero({
             position.coords.latitude, position.coords.longitude,
           );
           const match = matchHotelDestinationFromList(resolvedCity, effectiveDestinations);
-          if (match) { setCity(match.city); setCountry(match.country); setSelectedSlug(match.slug); setSearchLocation(""); }
-          else        { setCity(resolvedCity); setCountry(resolvedCountry); setSelectedSlug(""); setSearchLocation(resolvedCity); }
+          if (match) { setCity(match.city); setCountry(match.country); setSelectedSlug(match.slug); setSearchCitySlug(match.slug); setSearchLocation(""); }
+          else        { setCity(resolvedCity); setCountry(resolvedCountry); setSelectedSlug(""); setSearchCitySlug(""); setSearchLocation(resolvedCity); }
           setNearMeActive(true);
         } catch {
           setNearMeError("Unable to detect city. Try again.");
@@ -415,6 +430,7 @@ export function HotelsSearchHero({
                 onCityChange={handleCityChange}
                 onSelectDestination={handleSelectDestination}
                 onSelectLocality={handleSelectLocality}
+                onSelectHotel={handleSelectHotel}
                 onNearMe={handleNearMe}
               />
               <HeroDateRangeField

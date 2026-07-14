@@ -52,6 +52,7 @@ export type CabOption = {
   seats: number;
   extra: number;   // flat INR delta for the entire trip
   pop:   boolean;
+  img?:  string;
 };
 
 export type AddonOption = {

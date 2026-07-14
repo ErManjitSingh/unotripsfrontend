@@ -45,7 +45,7 @@ import { cache }         from "react";
 import { notFound }      from "next/navigation";
 import type { Metadata } from "next";
 import { PackageDetailView }              from "@/components/packages/package-detail-view";
-import { getPackageBySlug, listPackages } from "@/services/packages";
+import { getPackageBySlug } from "@/services/packages";
 import { getRelatedPackages }             from "@/services/packages";
 import { getTourSlugs }                   from "@/lib/packages";
 import { decodeRooms }                    from "@/lib/rooms-utils";

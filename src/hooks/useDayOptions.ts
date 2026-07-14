@@ -21,6 +21,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiData } from "@/lib/api";
+import { searchHotels, type HotelListing } from "@/lib/hotels-api";
 import {
   DEMO_HOTELS, DEMO_CABS, DEMO_ADDONS,
   type DestinationHotels, type CabOption, type AddonOption,
@@ -91,18 +92,145 @@ export type DayOptionsData = {
   balance_due_days: number;
   is_customizable:  boolean;
   days:             DayOption[];
+  stays?: Array<{
+    id: string;
+    destination_city: string;
+    sort_order?: number;
+    nights: number;
+    is_active?: boolean;
+    default_hotel_id?: string | null;
+    default_hotel_name?: string | null;
+    default_room_type_name?: string | null;
+    default_meal_plan?: string | null;
+    hotel_options?: Array<{
+      id: string;
+      hotel_id: string;
+      hotel_name: string;
+      default_room_type_name?: string | null;
+      sort_order?: number;
+      upgrade_price?: number;
+      image_url?: string | null;
+    }>;
+  }>;
   // Trip-level, not per-day — mirrors backend PackageDayOptionsOut.cabs
   // (package_cab_options table). day-level "cab_options" is not a real
   // backend field; cabs cover all transfers for the whole trip.
   cabs: Array<{
     id: string; name: string; description: string | null; seats: number;
-    price_delta: number; is_default: boolean; is_popular: boolean;
+    image_url?: string | null; price_delta: number; is_default: boolean; is_popular: boolean; sort_order: number;
   }>;
   addons:           Array<{
     id: string; name: string; icon: string | null;
     description: string | null; price_per_person: number; is_default_on: boolean;
   }>;
 };
+
+/**
+ * Frontend-only preview of the next package contract.
+ *
+ * This is deliberately opt-in via ?preview=new-data so the normal page keeps
+ * using the live API response. It lets us validate the new top-level `stays`
+ * shape before the backend starts returning it.
+ */
+function addNewDataPreview(data: DayOptionsData): DayOptionsData {
+  return {
+    ...data,
+    stays: [
+      {
+        id: "e9c67f91-3a83-4222-bc2b-ac954f3f8b75",
+        destination_city: "Shimla",
+        sort_order: 1,
+        nights: 1,
+        is_active: true,
+        default_hotel_id: "5c92cae7-e7bf-4006-82d3-86f791927ba9",
+        default_hotel_name: "CK International",
+        default_room_type_name: "Deluxe",
+        default_meal_plan: "map",
+        hotel_options: [
+          {
+            id: "37449bc5-a869-4869-9ae5-eeac103667af",
+            hotel_id: "5c92cae7-e7bf-4006-82d3-86f791927ba9",
+            hotel_name: "CK International",
+            default_room_type_name: "Deluxe",
+            sort_order: 1,
+            upgrade_price: 0,
+          },
+          {
+            id: "6a5cd0dc-fd26-4e17-aa73-b7625648747f",
+            hotel_id: "8f6ae0f6-da75-488c-ac67-ae3720c9a7b6",
+            hotel_name: "DLS Hillcrest Resort Shimla",
+            default_room_type_name: "Deluxe",
+            sort_order: 2,
+            upgrade_price: 4500,
+          },
+        ],
+      },
+      {
+        id: "2a5c2062-80cb-4f64-a739-2cdb04305aeb",
+        destination_city: "Shimla",
+        sort_order: 2,
+        nights: 2,
+        is_active: true,
+        default_hotel_id: "4270c240-8d70-4ec7-a88e-b06c735d3f58",
+        default_hotel_name: "Hotel Himalayan Heights",
+        default_room_type_name: "Deluxe",
+        default_meal_plan: "map",
+        hotel_options: [
+          {
+            id: "28e02454-d456-479b-95e3-f957e90f70b2",
+            hotel_id: "4270c240-8d70-4ec7-a88e-b06c735d3f58",
+            hotel_name: "Hotel Himalayan Heights",
+            default_room_type_name: "Deluxe",
+            sort_order: 1,
+            upgrade_price: 0,
+          },
+          {
+            id: "c91fc8b5-6666-4284-9d4b-31b83e80c880",
+            hotel_id: "5020d30d-277c-48e7-91c8-da0f92f49595",
+            hotel_name: "Hotel De Park Shimla",
+            default_room_type_name: "Luxury Room",
+            sort_order: 2,
+            upgrade_price: 7000,
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/** Resolve package hotel ids against the existing Hotels API. */
+async function attachHotelDetails(data: DayOptionsData): Promise<DayOptionsData> {
+  if (!data.stays?.length) return data;
+
+  const cities = [...new Set(data.stays.map((stay) => stay.destination_city).filter(Boolean))];
+  const results = await Promise.all(cities.map(async (city) => {
+    try {
+      const result = await searchHotels({ city, page: 1, limit: 50, sort: "popular" });
+      return [city, result.hotels] as const;
+    } catch {
+      return [city, [] as HotelListing[]] as const;
+    }
+  }));
+  const hotelsByCity = new Map(results);
+
+  return {
+    ...data,
+    stays: data.stays.map((stay) => {
+      const hotels = hotelsByCity.get(stay.destination_city) ?? [];
+      const byId = new Map(hotels.map((hotel) => [hotel.id, hotel]));
+      return {
+        ...stay,
+        hotel_options: stay.hotel_options?.map((option, index) => {
+          const hotel = byId.get(option.hotel_id) ?? hotels[index];
+          return {
+            ...option,
+            image_url: option.image_url ?? hotel?.images?.[0] ?? null,
+          };
+        }),
+      };
+    }),
+  };
+}
 
 // ── Derived data ──────────────────────────────────────────────────────────────
 
@@ -155,14 +283,43 @@ function buildHotelGroups(days: DayOption[]): DestinationHotels[] {
   return groups;
 }
 
+function buildHotelGroupsFromStays(stays: NonNullable<DayOptionsData["stays"]>): DestinationHotels[] {
+  return stays
+    .filter((stay) => stay.is_active !== false && (stay.hotel_options?.length ?? 0) > 0)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    .map((stay) => {
+      const options = [...(stay.hotel_options ?? [])].sort((a, b) => {
+        const aDefault = a.hotel_id === stay.default_hotel_id ? 0 : 1;
+        const bDefault = b.hotel_id === stay.default_hotel_id ? 0 : 1;
+        return aDefault - bDefault || (a.sort_order ?? 0) - (b.sort_order ?? 0);
+      });
+      return {
+        dest: stay.destination_city,
+        nights: stay.nights,
+        opts: options.map((hotel, index) => ({
+          id: hotel.id,
+          name: hotel.hotel_name,
+          desc: hotel.default_room_type_name || stay.default_room_type_name || "Comfortable stay",
+          stars: 3,
+          extra: hotel.upgrade_price ?? 0,
+          pop: hotel.hotel_id === stay.default_hotel_id || index === 0,
+          img: hotel.image_url || "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80",
+          roomType: hotel.default_room_type_name || stay.default_room_type_name || undefined,
+          mealsIncluded: stay.default_meal_plan ? [stay.default_meal_plan.toUpperCase()] : [],
+        })),
+      };
+    });
+}
+
 function buildCabOptions(cabs: DayOptionsData["cabs"]): CabOption[] {
-  return cabs.map((c) => ({
+  return [...cabs].sort((a, b) => Number(b.is_default) - Number(a.is_default) || a.sort_order - b.sort_order).map((c) => ({
     id:    c.id,
     name:  c.name,
     desc:  c.description ?? "",
     seats: c.seats,
     extra: c.price_delta,
     pop:   c.is_popular,
+    img:   c.image_url ?? undefined,
   }));
 }
 
@@ -182,13 +339,16 @@ function buildAddonOptions(
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useDayOptions(slug: string) {
+  const previewEnabled = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("preview") === "new-data";
   const query = useQuery({
-    queryKey: ["packages", "day-options", slug],
+    queryKey: ["packages", "day-options", slug, previewEnabled ? "new-data-preview" : "live"],
     queryFn:  async () => {
       const data = await apiData<DayOptionsData>(
         `/v1/packages/${encodeURIComponent(slug)}/day-options`,
       );
-      return data;
+      const previewData = previewEnabled && slug === "test-packages" ? addNewDataPreview(data) : data;
+      return attachHotelDetails(previewData);
     },
     staleTime:   5 * 60 * 1000,  // 5 min — matches backend cache TTL
     gcTime:      10 * 60 * 1000,
@@ -206,7 +366,7 @@ export function useDayOptions(slug: string) {
   // useMemo ensures references only change when query.data actually changes.
 
   const hotelGroups = useMemo(
-    () => (data?.days?.length ? buildHotelGroups(data.days) : []),
+    () => (data?.stays?.length ? buildHotelGroupsFromStays(data.stays) : data?.days?.length ? buildHotelGroups(data.days) : []),
     [data],
   );
 

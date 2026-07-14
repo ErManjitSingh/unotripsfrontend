@@ -327,9 +327,10 @@ type DatePickerPopoverProps = {
   onApply: () => void;
   onClose: () => void;
   compact?: boolean;
+  placement?: "top" | "bottom";
 };
 
-export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClose, compact = false }: DatePickerPopoverProps) {
+export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClose, compact = false, placement = "bottom" }: DatePickerPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -344,7 +345,8 @@ export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClos
     <div
       ref={ref}
       className={cn(
-        "absolute left-0 top-full z-[260] mt-2 max-w-[calc(100vw-1rem)] overflow-auto rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_8px_40px_-8px_rgba(0,0,0,0.18)]",
+        "absolute left-0 z-[9999] max-w-[calc(100vw-1rem)] overflow-auto rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_8px_40px_-8px_rgba(0,0,0,0.18)]",
+        placement === "top" ? "bottom-full mb-2" : "top-full mt-2",
         compact
           ? "max-h-[min(42vh,16rem)] w-[min(290px,calc(100vw-1rem))] p-2"
           : "max-h-[min(62vh,24rem)] w-[min(360px,calc(100vw-1rem))] p-2.5 sm:p-3",

@@ -149,6 +149,13 @@ export type ApiRoomType = {
   available_count: number;
   meal_plans?: ApiMealPlans;
   rates?: ApiRates | null;
+  rate_plan_prices?: Record<string, {
+    price: number;
+    gst: number;
+    tcs: number;
+    taxes: number;
+    total: number;
+  }>;
   price_is_for_dates?: boolean;
   total_price?: number | null;
   nightly_breakdown?: { date: string; price: number }[];
@@ -179,6 +186,10 @@ export type ApiReview = {
 };
 
 export type ApiHotelDetail = ApiHotel & {
+  starting_price_summary: {
+    price: number; nights: number; rooms: number; subtotal: number;
+    gst: number; tcs: number; taxes: number; total: number;
+  };
   rooms: ApiRoomType[];
   policies: ApiHotelPolicies;
   reviews: ApiReview[];
@@ -307,7 +318,8 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
         mealAddOn: planPrice - ep,
         originalPrice,
         price: planPrice,
-        taxes: roomTaxes(planPrice),
+        taxes: room.rate_plan_prices?.[suffix]?.taxes ?? 0,
+        total: room.rate_plan_prices?.[suffix]?.total ?? planPrice,
         discountAmount: originalBase != null ? Math.max(0, originalPrice - planPrice) : 0,
         nonRefundable: false,
         couponCode: "",
@@ -345,7 +357,8 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
       mealAddOn: mealCost,
       originalPrice,
       price,
-      taxes: roomTaxes(price),
+      taxes: room.rate_plan_prices?.[suffix]?.taxes ?? 0,
+      total: room.rate_plan_prices?.[suffix]?.total ?? price,
       discountAmount: originalBase != null ? Math.max(0, originalPrice - price) : 0,
       nonRefundable: false,
       couponCode: "",
@@ -1030,6 +1043,7 @@ export async function getHotelDetailBundle(
     city,
     hotel: {
       ...hotel,
+      startingPriceSummary: detail.starting_price_summary,
       roomOptionsCount: roomTypes.length,
       defaultRoomType:  roomTypes[0]?.name ?? hotel.defaultRoomType,
       nearbyLandmark:   detail.nearby_attractions?.[0] ?? hotel.nearbyLandmark,

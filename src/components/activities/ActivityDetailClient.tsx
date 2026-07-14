@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { formatInrAmount } from "@/lib/utils";
 
 // Type must match HARDCODED_ACTIVITIES in ActivitiesClient.tsx
-type Activity = {
+export type ActivityDetail = {
   slug:              string;
   name:              string;
   short_description: string | null;
@@ -40,7 +40,7 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   hard:     "bg-red-100 text-red-700",
 };
 
-export function ActivityDetailClient({ activity }: { activity: Activity }) {
+export function ActivityDetailClient({ activity }: { activity: ActivityDetail }) {
   const [activeImg, setActiveImg] = useState(0);
   const [persons,   setPersons]   = useState(1);
   const [imgLoaded, setImgLoaded] = useState(false);

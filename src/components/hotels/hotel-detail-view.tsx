@@ -543,10 +543,10 @@ function BookingSummary({
 
   const nights      = nightCount(bookingContext.check_in, bookingContext.check_out);
   const roomsCount  = bookingContext.rooms ?? 1;
-  const gstRate     = getGstRate(hotel.price);
-  const baseTotal   = hotel.price * nights * roomsCount;
-  const taxesTotal  = Math.round(baseTotal * gstRate);
-  const grandTotal  = baseTotal + taxesTotal;
+  const summary = hotel.startingPriceSummary;
+  const baseTotal = summary?.subtotal ?? hotel.price * nights * roomsCount;
+  const taxesTotal = summary?.taxes ?? 0;
+  const grandTotal = summary?.total ?? baseTotal;
 
   return (
     <div>
@@ -568,9 +568,9 @@ function BookingSummary({
               </p>
               <p className="text-[13px] font-bold text-[#212121]">₹{formatInrAmount(baseTotal)}</p>
             </div>
-            {gstRate > 0 && (
+            {taxesTotal > 0 && (
               <div className="mt-1 flex items-center justify-between">
-                <p className="text-[11px] text-[#9E9E9E]">Taxes &amp; fees ({Math.round(gstRate * 100)}% GST)</p>
+                <p className="text-[11px] text-[#9E9E9E]">Taxes &amp; fees</p>
                 <p className="text-[12px] font-medium text-[#616161]">₹{formatInrAmount(taxesTotal)}</p>
               </div>
             )}

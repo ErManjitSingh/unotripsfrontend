@@ -10,6 +10,7 @@ import { PackageLeadForm } from "@/components/packages/package-lead-form";
 import { DestinationEaseHero } from "@/components/destinations/destination-ease-hero";
 import type { DestinationEaseHeroProps } from "@/components/destinations/destination-ease-hero";
 import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
+import { TravelMobileTopShell } from "@/components/home/HeroSection";
 import {
   FloatingEnquireButton,
   QuickEnquiryProvider,
@@ -126,7 +127,10 @@ export function PackageListingView({
 
   return (
     <QuickEnquiryProvider>
-      <HeroGlassNavbar activeId="holidays" solid combinedAuth />
+      <div className="hidden md:block">
+        <HeroGlassNavbar activeId="holidays" combinedAuth />
+      </div>
+      <TravelMobileTopShell activeId="holidays" showGreeting={false} />
       {easeHero ? <DestinationEaseHero {...easeHero} /> : null}
       <div className="min-h-screen bg-[#f4f6f8]">
         {/* Centered column + viewport gutters once (avoid edge-to-edge + avoid double padding) */}
@@ -197,7 +201,7 @@ export function PackageListingView({
           {/* ~24px rhythm below hero */}
           <section
             id="all-packages"
-            className="w-full pb-8 pt-5 sm:pb-10 sm:pt-6"
+            className="w-full pb-8 pt-3 sm:pb-10 sm:pt-6"
           >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-2">
@@ -221,7 +225,7 @@ export function PackageListingView({
               </div>
             </div>
 
-            <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,290px)_1fr] lg:gap-8">
+            <div className="mt-4 grid items-start gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[minmax(0,290px)_1fr] lg:gap-8">
               <div className="self-start lg:sticky lg:top-[4.75rem] lg:z-40 lg:max-h-[calc(100vh-5.25rem)] lg:overflow-y-auto lg:pr-1">
                 <PackageFilterSidebar />
               </div>

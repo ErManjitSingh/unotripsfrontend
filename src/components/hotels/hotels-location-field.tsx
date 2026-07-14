@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Building2, LocateFixed, MapPin, Search, Sparkles } from "lucide-react";
 import {
   HOTEL_LOCALITY_OPTIONS,
@@ -9,6 +10,7 @@ import {
   type HotelLocalityOption,
 } from "@/lib/hotels-catalog";
 import { cn } from "@/lib/utils";
+import { searchHotels, type HotelListing } from "@/lib/hotels-api";
 
 export type HotelLocationFieldProps = {
   city: string;
@@ -22,6 +24,7 @@ export type HotelLocationFieldProps = {
   onCityChange: (city: string) => void;
   onSelectDestination: (dest: HotelDestinationOption) => void;
   onSelectLocality?: (locality: HotelLocalityOption) => void;
+  onSelectHotel?: (hotel: HotelListing) => void;
   onNearMe: () => void;
   className?: string;
   inputRef?: RefObject<HTMLInputElement | null>;
@@ -89,6 +92,7 @@ export function HotelLocationField({
   onCityChange,
   onSelectDestination,
   onSelectLocality,
+  onSelectHotel,
   onNearMe,
   className,
   inputRef: externalInputRef,
@@ -97,6 +101,13 @@ export function HotelLocationField({
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const internalInputRef = useRef<HTMLInputElement>(null);
+  const hotelQuery = city.trim();
+  const { data: hotelSuggestions = [] } = useQuery({
+    queryKey: ["hotels", "name-suggestions", hotelQuery],
+    queryFn: async () => (await searchHotels({ q: hotelQuery, limit: 6, sort: "popular" })).hotels,
+    enabled: hotelQuery.length >= 2,
+    staleTime: 30_000,
+  });
 
   const assignInputRef = (el: HTMLInputElement | null) => {
     internalInputRef.current = el;
@@ -144,7 +155,7 @@ export function HotelLocationField({
     };
     }, [city, destinations, localities]);
 
-  const hasSuggestions = destinationSuggestions.length > 0 || localitySuggestions.length > 0;
+  const hasSuggestions = destinationSuggestions.length > 0 || localitySuggestions.length > 0 || hotelSuggestions.length > 0;
 
   useEffect(() => {
     if (!open) return;
@@ -182,9 +193,10 @@ export function HotelLocationField({
             onFocus={() => setOpen(true)}
             onKeyDown={(e) => {
               if (e.key === "Escape") setOpen(false);
-              if (e.key === "Enter" && open && (localitySuggestions.length > 0 || destinationSuggestions.length > 0)) {
+              if (e.key === "Enter" && open && (hotelSuggestions.length > 0 || localitySuggestions.length > 0 || destinationSuggestions.length > 0)) {
                 e.preventDefault();
-                if (localitySuggestions[0] && onSelectLocality) onSelectLocality(localitySuggestions[0]);
+                if (hotelSuggestions[0] && onSelectHotel) onSelectHotel(hotelSuggestions[0]);
+                else if (localitySuggestions[0] && onSelectLocality) onSelectLocality(localitySuggestions[0]);
                 else if (destinationSuggestions[0]) onSelectDestination(destinationSuggestions[0]);
                 setOpen(false);
               }
@@ -237,6 +249,17 @@ export function HotelLocationField({
                     {d.country}
                   </span>
                 </span>
+              </button>
+            </li>
+          ))}
+          {hotelSuggestions.length > 0 ? (
+            <li className="px-4 pb-1 pt-2 text-[9px] font-black uppercase tracking-[0.16em] text-[#9E9E9E]">Hotels</li>
+          ) : null}
+          {hotelSuggestions.map((hotel) => (
+            <li key={hotel.id} role="option" aria-selected={false}>
+              <button type="button" className="flex w-full items-start gap-2 px-4 py-2 text-left text-[13px] text-[#212121] transition-colors hover:bg-[#F5F5F5]" onMouseDown={(e) => e.preventDefault()} onClick={() => { onSelectHotel?.(hotel); setOpen(false); }}>
+                <Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+                <span className="min-w-0"><span className="block truncate font-bold">{hotel.name}</span><span className="block truncate text-[11px] leading-snug text-[#757575]">{hotel.locationLine}{hotel.area ? ` · ${hotel.area}` : ""}</span></span>
               </button>
             </li>
           ))}

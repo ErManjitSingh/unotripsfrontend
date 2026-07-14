@@ -42,7 +42,7 @@ const fadeUp = {
 };
 
 const mobileCategories = [
-  { id: "holidays", label: "Holidays", href: "/", icon: Palmtree },
+  { id: "holidays", label: "Holidays", href: "/packages", icon: Palmtree },
   { id: "hotels", label: "Hotels", href: "/hotels", icon: Building2 },
   { id: "flights", label: "Flights", href: "/flights", icon: Plane },
   { id: "trains", label: "Trains", href: "/trains", icon: TrainFront },
@@ -283,7 +283,7 @@ export function HeroSection({ searchCatalog, className }: HeroSectionProps) {
       </div>
 
       {/* Homepage nav is the shared source of truth for desktop pages. */}
-      <HeroGlassNavbar activeId="holidays" />
+      <HeroGlassNavbar activeId="holidays" showActiveUnderline={false} />
 
       {/* Content — fills remaining height, centered. pt- clears the now-fixed nav sitting on top. */}
       <div className="hero-content-stack relative z-30 flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-3 pb-3 pt-16 sm:gap-4 sm:px-6 sm:pb-4 sm:pt-20 lg:px-8 max-[900px]:justify-start max-[900px]:gap-2 max-[900px]:pt-28">

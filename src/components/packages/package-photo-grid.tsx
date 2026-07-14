@@ -13,12 +13,14 @@
 
 import Image from "next/image";
 import { useState, useEffect, useCallback } from "react";
-import { X, ChevronLeft, ChevronRight, Grid2X2 } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ImageIcon, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Props = {
   images: string[];
   tourTitle: string;
+  tourType?: string;
+  location?: string;
   className?: string;
 };
 
@@ -163,7 +165,7 @@ function PlaceholderTile({ idx }: { idx: number }) {
   );
 }
 
-export function PackagePhotoGrid({ images, tourTitle, className }: Props) {
+export function PackagePhotoGrid({ images, tourTitle, tourType, location, className }: Props) {
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
 
   // Ensure we always have 5 slots
@@ -177,8 +179,8 @@ export function PackagePhotoGrid({ images, tourTitle, className }: Props) {
         className={cn(
           // Mobile: 2 rows, 2-col grid with first tile spanning
           // Desktop: 3-col, 2-row grid
-          "grid h-[300px] overflow-hidden rounded-xl sm:h-[360px] lg:h-[400px]",
-          "grid-cols-[2fr_1fr_1fr] grid-rows-2 gap-[3px]",
+          "grid h-[300px] overflow-hidden rounded-2xl sm:h-[360px] lg:h-[400px]",
+          "grid-cols-[2fr_1fr_1fr] grid-rows-2 gap-1",
           className,
         )}
       >
@@ -196,10 +198,31 @@ export function PackagePhotoGrid({ images, tourTitle, className }: Props) {
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               sizes="(max-width: 768px) 66vw, 50vw"
+              quality={78}
               priority
             />
           ) : (
             <PlaceholderTile idx={0} />
+          )}
+          {tourType && (
+            <span className="absolute left-4 top-4 rounded-lg bg-white px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide text-primary shadow-md">
+              {tourType}
+            </span>
+          )}
+          {(location || totalPhotos > 0) && (
+            <div className="absolute inset-x-4 bottom-4 flex items-end justify-between gap-3">
+              {location && (
+                <span className="flex max-w-[75%] items-start gap-2 rounded-lg bg-black/65 px-3 py-2 text-left text-[11px] font-semibold leading-snug text-white backdrop-blur-sm">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  <span>{location}</span>
+                </span>
+              )}
+              {totalPhotos > 0 && (
+                <span className="shrink-0 rounded-lg bg-black/65 px-3 py-2 text-[11px] font-semibold text-white backdrop-blur-sm">
+                  1 / {totalPhotos}
+                </span>
+              )}
+            </div>
           )}
           {/* Subtle dark gradient at bottom for "see all photos" hint */}
           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/30 to-transparent" aria-hidden />
@@ -230,6 +253,7 @@ export function PackagePhotoGrid({ images, tourTitle, className }: Props) {
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.05]"
                   sizes="(max-width: 768px) 33vw, 25vw"
+                  quality={72}
                   loading="lazy"
                 />
               ) : (
@@ -239,8 +263,9 @@ export function PackagePhotoGrid({ images, tourTitle, className }: Props) {
               {/* +N overlay on last tile */}
               {showMore && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/55 text-white backdrop-blur-[2px]">
-                  <Grid2X2 className="h-5 w-5 opacity-90" aria-hidden />
-                  <span className="text-sm font-semibold">+{extraCount} photos</span>
+                  <ImageIcon className="h-6 w-6 opacity-90" aria-hidden />
+                  <span className="text-sm font-semibold">+{extraCount} Photos</span>
+                  <span className="text-[10px] text-white/80">View All Photos&nbsp; →</span>
                 </div>
               )}
             </button>

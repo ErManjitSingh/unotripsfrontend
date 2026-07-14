@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 type NavItem = { id: string; label: string; href: string; icon: typeof Plane };
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "holidays",   label: "Holidays",   href: "/",           icon: Palmtree },
+  { id: "holidays",   label: "Holidays",   href: "/packages",   icon: Palmtree },
   { id: "hotels",     label: "Hotels",     href: "/hotels",     icon: Building2 },
   { id: "activities", label: "Activities", href: "/activities", icon: TicketCheck },
   { id: "flights",    label: "Flights",    href: "/flights",    icon: Plane },
@@ -44,28 +44,38 @@ export type HeroGlassNavbarProps = {
   activeId?: string;
   solid?: boolean;
   combinedAuth?: boolean;
+  showActiveUnderline?: boolean;
+  /** Keep navigation labels dark when the navbar sits over a light hero. */
+  darkText?: boolean;
+  /** Detail pages can hand off the viewport to their own sticky booking bar. */
+  hideOnScroll?: boolean;
 };
 
-export function HeroGlassNavbar({ activeId = "holidays", solid = false, combinedAuth = false }: HeroGlassNavbarProps) {
+export function HeroGlassNavbar({ activeId = "holidays", solid = false, combinedAuth = false, showActiveUnderline = true, hideOnScroll = false, darkText = false }: HeroGlassNavbarProps) {
   const [scrolled, setScrolled] = useState(false);
+  const [hiddenOnScroll, setHiddenOnScroll] = useState(false);
   const [open, setOpen] = useState(false);
   const [logoSrc, setLogoSrc] = useState(TRAVEL_HOME_LOGO_SRC);
 
   useEffect(() => {
-    if (solid) {
-      setScrolled(true);
-      return;
-    }
-    const onScroll = () => setScrolled(window.scrollY > 72);
+    const onScroll = () => {
+      setScrolled(solid || window.scrollY > 72);
+      // On detail pages the booking rail is the scroll-stage header. Hide the
+      // navigation immediately, before the rail reaches the sticky position.
+      if (hideOnScroll) setHiddenOnScroll(window.scrollY > 8);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [solid]);
+  }, [solid, hideOnScroll]);
 
   const resolvedScrolled = solid || scrolled;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 w-full px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8 max-[900px]:pt-3">
+    <header className={cn(
+      "fixed top-0 left-0 right-0 z-50 w-full px-4 pt-4 transition-[transform,opacity] duration-150 ease-out sm:px-6 sm:pt-5 lg:px-8 max-[900px]:pt-3",
+      hiddenOnScroll && "pointer-events-none -translate-y-[calc(100%+1rem)] opacity-0",
+    )}>
       <div
         className={cn(
           "mx-auto flex w-full max-w-[1320px] items-center gap-2 rounded-2xl border px-3 py-2 transition-all duration-500 sm:gap-3 sm:px-4 max-[900px]:max-w-[1180px] max-[900px]:py-1.5",
@@ -104,13 +114,15 @@ export function HeroGlassNavbar({ activeId = "holidays", solid = false, combined
                   className={cn(
                     "relative flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-semibold tracking-wide transition-colors xl:px-4 max-[900px]:gap-1.5 max-[900px]:px-2.5 max-[900px]:py-2 max-[900px]:text-[13px]",
                     resolvedScrolled
-                      ? active ? "text-primary" : "text-[#424242] hover:text-primary"
-                      : active ? "text-white" : "text-white/75 hover:text-white",
+                      ? active && showActiveUnderline ? "text-primary" : "text-[#424242] hover:text-primary"
+                      : darkText
+                        ? active && showActiveUnderline ? "text-[#212121]" : "text-[#424242] hover:text-primary"
+                        : active && showActiveUnderline ? "text-white" : "text-white/75 hover:text-white",
                   )}
                 >
                   <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={2} aria-hidden />
                   {label}
-                  {active && (
+                  {active && showActiveUnderline && (
                     <motion.span
                       layoutId="hero-nav-underline"
                       className={cn(
@@ -140,7 +152,9 @@ export function HeroGlassNavbar({ activeId = "holidays", solid = false, combined
               "hidden items-center gap-2 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition lg:inline-flex max-[900px]:px-3 max-[900px]:py-1.5 max-[900px]:text-[12px]",
               resolvedScrolled
                 ? "border-slate-200 text-[#424242] hover:border-primary/40 hover:text-primary"
-                : "border-white/20 text-white/85 hover:border-white/40 hover:bg-white/10",
+                : darkText
+                  ? "border-slate-300 text-[#424242] hover:border-primary/40 hover:text-primary"
+                  : "border-white/20 text-white/85 hover:border-white/40 hover:bg-white/10",
             )}
           >
             <Building2 className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden />
@@ -149,7 +163,7 @@ export function HeroGlassNavbar({ activeId = "holidays", solid = false, combined
           </Link>
 
           <AuthNavActions
-            variant={resolvedScrolled ? "ease" : "overlay"}
+            variant={resolvedScrolled || darkText ? "ease" : "overlay"}
             combined={combinedAuth}
             className="hidden sm:flex"
           />
@@ -160,7 +174,7 @@ export function HeroGlassNavbar({ activeId = "holidays", solid = false, combined
             onClick={() => setOpen((v) => !v)}
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition lg:hidden",
-              resolvedScrolled ? "text-[#424242] hover:bg-slate-100" : "text-white hover:bg-white/10",
+              resolvedScrolled || darkText ? "text-[#424242] hover:bg-slate-100" : "text-white hover:bg-white/10",
             )}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}

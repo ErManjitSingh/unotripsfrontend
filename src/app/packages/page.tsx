@@ -36,7 +36,7 @@ type Props = {
 };
 
 const FALLBACK_HERO =
-  "https://images.unsplash.com/photo-1477587458883-47145ed94245?w=1400&q=85"; // Mehrangarh Fort, Jodhpur — bright & colourful
+  "/images/holiday-packages-hero.png";
 
 export default async function PackagesPage({ searchParams }: Props) {
   const params = await searchParams;
@@ -50,11 +50,17 @@ export default async function PackagesPage({ searchParams }: Props) {
     page,
     limit: 50,
     sort:  sort as "popular" | "price_asc" | "price_desc" | "featured",
-    destination_id: dest,
+    // `q` is the user's free-text destination (for example "Shimla"), not
+    // a UUID. Passing it as destination_id makes the backend try to parse
+    // the city name as a UUID and returns no results. Use the public search
+    // filter, which matches destination_name and destination_city.
+    search: dest,
   });
 
   const featured  = packages[0];
-  const heroImage = featured?.image ?? FALLBACK_HERO;
+  // Keep the listing hero generic and editorial; package imagery belongs in
+  // the cards below and should not determine the page-wide backdrop.
+  const heroImage = FALLBACK_HERO;
 
   const destLabel = dest
     ? dest.split(",")[0].trim()

@@ -61,12 +61,6 @@ type HotelDetailRoomsTableProps = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function getGstRate(pricePerNight: number): number {
-  if (pricePerNight <= 999) return 0;
-  if (pricePerNight <= 7499) return 0.12;
-  return 0.18;
-}
-
 function lowestNightlyPrice(plans: HotelRoomRatePlan[]): number {
   if (!plans.length) return 0;
   return Math.min(...plans.map((p) => p.price));
@@ -174,11 +168,10 @@ function RoomTypeCard({
   const nights       = nightCount(bookingContext?.check_in, bookingContext?.check_out);
   const roomsCount   = bookingContext?.rooms ?? 1;
   const pricePerNight = selectedPlan ? selectedPlan.price : 0;
-  const gstRate      = getGstRate(pricePerNight);
   const baseTotal    = pricePerNight * nights * roomsCount;
   const totalTaxes   = (selectedPlan ? selectedPlan.taxes : 0) * nights * roomsCount;
   const discountTotal = selectedPlan ? selectedPlan.discountAmount * nights * roomsCount : 0;
-  const grandTotal   = baseTotal + totalTaxes - discountTotal;
+  const grandTotal   = (selectedPlan ? selectedPlan.total : 0) * nights * roomsCount - discountTotal;
 
   // Notify parent of current selection
   useEffect(() => {
@@ -222,17 +215,17 @@ function RoomTypeCard({
     )}>
 
       {/* ── ROOM HEADER ── */}
-      <div className="flex">
+      <div className="flex flex-col sm:flex-row">
         {/* Thumbnail */}
         <button
           type="button"
           onClick={() => onRoomPhotoClick?.(roomType.image)}
-          className="relative w-[130px] shrink-0 overflow-hidden rounded-tl-xl sm:w-[180px]"
+          className="relative h-[112px] w-full shrink-0 overflow-hidden rounded-t-xl sm:h-auto sm:w-[180px] sm:rounded-tl-xl sm:rounded-tr-none"
           style={{ minHeight: 130 }}
           tabIndex={-1}
         >
-          <Image src={roomType.image} alt={roomType.name} fill unoptimized className="object-cover transition-transform duration-500 hover:scale-105" sizes="180px" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+          <Image src={roomType.image} alt={roomType.name} fill unoptimized className="object-cover object-center transition-transform duration-500 hover:scale-105" sizes="(max-width: 640px) 100vw, 180px" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
           {roomType.availableCount != null && roomType.availableCount <= 5 && roomType.availableCount > 0 && (
             <span className="absolute bottom-2 left-2 rounded bg-[#c62828] px-1.5 py-0.5 text-[10px] font-bold text-white">
               Only {roomType.availableCount} left
@@ -244,11 +237,11 @@ function RoomTypeCard({
         <button
           type="button"
           onClick={onToggle}
-          className="flex min-w-0 flex-1 items-start gap-4 px-4 py-4 text-left sm:px-5"
+          className="flex min-w-0 flex-1 flex-col gap-2 px-3 py-2.5 text-left sm:flex-row sm:items-start sm:gap-4 sm:px-5 sm:py-4"
         >
           <div className="min-w-0 flex-1">
             {/* Top badges */}
-            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
               {roomIndex === 1 && (
                 <span className="rounded-sm bg-[#EF6614] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">Most Popular</span>
               )}
@@ -263,10 +256,10 @@ function RoomTypeCard({
             </div>
 
             {/* Room name */}
-            <p className="text-[17px] font-bold leading-snug text-[#1a1a1a]">{roomType.name}</p>
+            <p className="text-[18px] font-bold leading-snug text-[#1a1a1a]">{roomType.name}</p>
 
             {/* Key specs row */}
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-[#616161]">
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[#616161]">
               {specs.bed && (
                 <span className="flex items-center gap-1.5">
                   <BedDouble className="h-3.5 w-3.5 shrink-0 text-[#9E9E9E]" />
@@ -296,12 +289,12 @@ function RoomTypeCard({
 
             {/* Description */}
             {roomType.description && (
-              <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-[#757575]">{roomType.description}</p>
+              <p className="mt-1.5 hidden line-clamp-2 text-[12px] leading-relaxed text-[#757575] sm:block">{roomType.description}</p>
             )}
 
             {/* Amenity chips */}
             {amenities.length > 0 && (
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
+              <div className="mt-2 hidden flex-wrap gap-1.5 sm:flex">
                 {amenities.slice(0, 6).map(a => (
                   <span key={a} className="flex items-center gap-1 rounded bg-[#f5f5f5] px-2 py-0.5 text-[10px] text-[#424242]">
                     <Check className="h-2.5 w-2.5 shrink-0 text-[#2E7D32]" strokeWidth={3} />
@@ -316,7 +309,7 @@ function RoomTypeCard({
 
             {/* Extra bed */}
             {roomType.extraBedPrice != null && (
-              <p className="mt-2 flex items-center gap-1.5 text-[11px] text-[#757575]">
+              <p className="mt-1.5 hidden items-center gap-1.5 text-[11px] text-[#757575] sm:flex">
                 <PlusCircle className="h-3.5 w-3.5 shrink-0 text-[#9E9E9E]" />
                 Extra bed available · ₹{formatInrAmount(roomType.extraBedPrice)}/night
               </p>
@@ -324,7 +317,7 @@ function RoomTypeCard({
           </div>
 
           {/* Pricing + expand */}
-          <div className="shrink-0 text-right">
+          <div className="flex w-full shrink-0 items-center justify-between gap-3 border-t border-[#f1f1f1] pt-3 text-left sm:block sm:w-auto sm:border-0 sm:pt-0 sm:text-right">
             {hasDiscount && (
               <p className="text-[11px] text-[#9E9E9E] line-through">
                 ₹{formatInrAmount(nights > 1
@@ -343,7 +336,7 @@ function RoomTypeCard({
               {nights > 1 ? `incl. taxes · ${roomsCount} room${roomsCount > 1 ? "s" : ""}` : "per night + taxes"}
             </p>
             <span className={cn(
-              "mt-2.5 inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-[12px] font-bold transition",
+              "mt-0 inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-[12px] font-bold transition sm:mt-2.5",
               isExpanded
                 ? "border-[#EF6614] text-[#EF6614]"
                 : "border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]"
@@ -376,9 +369,8 @@ function RoomTypeCard({
               <div className="divide-y divide-[#f5f5f5]">
                 {roomType.ratePlans.map((plan) => {
                   const sel = plan.id === selectedPlanId;
-                  const planBaseTotal = plan.price * nights * roomsCount;
                   const planTaxes = plan.taxes * nights * roomsCount;
-                  const planGrandTotal = planBaseTotal + planTaxes - (plan.discountAmount * nights * roomsCount);
+                  const planGrandTotal = plan.total * nights * roomsCount - (plan.discountAmount * nights * roomsCount);
                   const planDiscPct = plan.originalPrice > plan.price
                     ? Math.round((1 - plan.price / plan.originalPrice) * 100)
                     : 0;
@@ -389,7 +381,7 @@ function RoomTypeCard({
                       type="button"
                       onClick={() => setSelectedPlanId(plan.id)}
                       className={cn(
-                        "grid w-full grid-cols-1 gap-3 px-5 py-4 text-left transition sm:grid-cols-[1fr_150px_150px_140px] sm:items-start sm:gap-4",
+                        "grid w-full grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 px-3 py-2.5 text-left transition sm:grid-cols-[1fr_150px_150px_140px] sm:items-start sm:gap-4 sm:px-5 sm:py-4",
                         sel ? "bg-[#fff8f3]" : "bg-white hover:bg-[#fafafa]",
                       )}
                     >
@@ -421,7 +413,7 @@ function RoomTypeCard({
                           </div>
                           <p className="mt-0.5 text-[11px] text-[#757575]">{getMealDescription(plan)}</p>
                           {plan.benefits.length > 0 && (
-                            <ul className="mt-1.5 space-y-0.5">
+                          <ul className="mt-1.5 hidden space-y-0.5 sm:block">
                               {plan.benefits.slice(0, 4).map(b => (
                                 <li key={b} className="flex items-center gap-1.5 text-[11px] text-[#424242]">
                                   <Check className="h-3 w-3 shrink-0 text-[#2E7D32]" strokeWidth={2.5} />
@@ -434,7 +426,7 @@ function RoomTypeCard({
                       </div>
 
                       {/* Cancellation */}
-                      <div className="pl-7 sm:pl-0">
+                      <div className="hidden pl-7 sm:block sm:pl-0">
                         {plan.nonRefundable ? (
                           <>
                             <p className="text-[12px] font-semibold text-[#c62828]">Non-refundable</p>
@@ -463,7 +455,7 @@ function RoomTypeCard({
                       </div>
 
                       {/* Total */}
-                      <div className="pl-7 text-left sm:pl-0 sm:text-right">
+                      <div className="col-span-2 flex items-center justify-between border-t border-[#f5f5f5] pt-1.5 pl-7 text-left sm:col-span-1 sm:block sm:border-0 sm:pt-0 sm:pl-0 sm:text-right">
                         <p className="text-[18px] font-extrabold text-[#EF6614]">
                           ₹{formatInrAmount(planGrandTotal)}
                         </p>

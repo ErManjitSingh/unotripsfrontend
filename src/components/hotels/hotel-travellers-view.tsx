@@ -45,17 +45,19 @@ function getMealPlanLabel(packageName: string): string {
   return packageName.replace(/\s*\([A-Z]+\)\s*/g, "").trim();
 }
 
-const PLAN_SUFFIX_TO_MEALS: Record<string, string | null> = {
-  ep:  null,
-  cp:  "breakfast",
-  map: "breakfast,dinner",
-  ap:  "breakfast,lunch,dinner",
+// The booking API expects the rate-plan tier code, not the legacy
+// comma-separated meal list that was previously sent here.
+const PLAN_SUFFIX_TO_CODE: Record<string, "ep" | "cp" | "map" | "ap"> = {
+  ep: "ep",
+  cp: "cp",
+  map: "map",
+  ap: "ap",
 };
 
 function mealPlanPayloadFromRatePlan(ratePlan: HotelRoomRatePlan) {
   const suffix = ratePlan.id.split("-").pop() ?? "ep";
   return {
-    meal_plan: PLAN_SUFFIX_TO_MEALS[suffix] ?? null,
+    meal_plan: PLAN_SUFFIX_TO_CODE[suffix] ?? "ep",
     meal_plan_label: ratePlan.packageName,
     meal_plan_price: ratePlan.mealAddOn,
   };

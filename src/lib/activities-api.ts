@@ -14,6 +14,7 @@ export type Activity = {
   name:              string;
   slug:              string;
   short_description: string | null;
+  full_description?: string | null;
   featured_image:    string | null;
   gallery_images:    string[];
   category:          string | null;
@@ -27,6 +28,8 @@ export type Activity = {
   starting_price:    number | null;
   max_price:         number | null;
   price_type:        string;   // "per_person" | "per_group"
+  included?:         string | null;
+  excluded?:         string | null;
   is_featured:       boolean;
   package_count:     number;
 };
@@ -114,7 +117,7 @@ export async function fetchActivitiesServer(params: FetchActivitiesParams = {}):
 
   try {
     const res = await fetch(`${BACKEND}/v1/packages/activities?${qs}`, {
-      next: { revalidate: 300 },
+      cache: "no-store",
       headers: { Accept: "application/json" },
     });
     if (!res.ok) return { items: [], total: 0, page: 1, limit: 12, total_pages: 0 };

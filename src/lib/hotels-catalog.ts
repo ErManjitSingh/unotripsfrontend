@@ -60,6 +60,16 @@ export type HotelListing = {
   country?: string;
   distanceFromSearchKm?: number;
   searchLocationLabel?: string;
+  startingPriceSummary?: {
+    price: number;
+    nights: number;
+    rooms: number;
+    subtotal: number;
+    gst: number;
+    tcs: number;
+    taxes: number;
+    total: number;
+  };
 };
 
 export type HotelRoomOption = {
@@ -80,6 +90,7 @@ export type HotelRoomRatePlan = {
   mealAddOn: number;
   originalPrice: number;
   price: number;
+  total: number;
   taxes: number;
   discountAmount: number;
   nonRefundable: boolean;
