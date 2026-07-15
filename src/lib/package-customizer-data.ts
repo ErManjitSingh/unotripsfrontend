@@ -25,85 +25,93 @@
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type HotelOption = {
-  id:    string;
-  name:  string;
-  desc:  string;
+  id: string;
+  name: string;
+  desc: string;
   stars: number;
-  extra: number;   // INR delta for all nights at this destination
-  pop:   boolean;
-  img:   string;
+  extra: number; // INR delta for all nights at this destination
+  /** Whether `extra` is a package-specific price confirmed by the backend. */
+  priceStatus?: "confirmed" | "on_request";
+  /** Public catalog rate; informational only and never added to the package. */
+  catalogPrice?: number;
+  /** Hotel identity for loading the full room and meal-plan catalog. */
+  hotelId?: string;
+  hotelSlug?: string;
+  pop: boolean;
+  img?: string;
   /** Real fields from the backend's per-hotel config — undefined/empty when not configured. */
-  roomType?:      string;
-  maxGuests?:     number;
+  roomType?: string;
+  maxGuests?: number;
   extraBedPrice?: number;
   mealsIncluded?: string[];
 };
 
 export type DestinationHotels = {
-  dest:   string;
+  dest: string;
   nights: number;
-  opts:   HotelOption[];
+  stayId?: string;
+  opts: HotelOption[];
 };
 
 export type CabOption = {
-  id:    string;
-  name:  string;
-  desc:  string;
+  id: string;
+  name: string;
+  desc: string;
   seats: number;
-  extra: number;   // flat INR delta for the entire trip
-  pop:   boolean;
-  img?:  string;
+  extra: number; // flat INR delta for the entire trip
+  pop: boolean;
+  img?: string;
 };
 
 export type AddonOption = {
-  id:    string;
-  name:  string;
-  icon:  string;
-  note:  string;
-  price: number;   // per person per trip
-  on:    boolean;
+  id: string;
+  name: string;
+  icon: string;
+  note: string;
+  price: number; // per person per trip
+  on: boolean;
 };
 
 export type ItineraryActivity = {
-  kind:    "transfer" | "sightseeing" | "hotel" | "meal";
-  title:   string;
-  sub:     string;
-  meta:    string;
-  img:     "transfer" | "sight" | "hotel" | "meal";
-  stars?:  number;
-  score?:  string;
+  kind: "transfer" | "sightseeing" | "hotel" | "meal";
+  title: string;
+  sub: string;
+  meta: string;
+  img: "transfer" | "sight" | "hotel" | "meal";
+  stars?: number;
+  score?: string;
 };
 
 export type ItineraryDay = {
-  day:   number;
-  loc:   string;
+  day: number;
+  loc: string;
   title: string;
-  acts:  ItineraryActivity[];
+  acts: ItineraryActivity[];
 };
 
 export type PriceBreakdown = {
-  base:   number;
-  hotel:  number;
-  cab:    number;
+  base: number;
+  hotel: number;
+  cab: number;
   addons: number;
-  disc:   number;
-  total:  number;
+  disc: number;
+  total: number;
 };
 
 export type CustomizerState = {
-  adults:   number;
+  adults: number;
   children: number;
-  rooms:    number;
-  hotels:   number[];      // selected option index per destination
-  cab:      number;        // selected cab index
-  addons:   AddonOption[];
-  pay:      "token" | "full";
+  rooms: number;
+  hotels: number[]; // selected option index per destination
+  cab: number; // selected cab index
+  addons: AddonOption[];
+  pay: "token" | "full";
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-export const CHILD_PRICE_FACTOR    = 0.70;
-export const TOKEN_PERCENT         = 0.40;
+export const CHILD_PRICE_FACTOR = 0.7;
+export const TOKEN_PERCENT = 0.4;
 
 // ── Demo data (shown when no real customizer data is configured) ──────────────
 //
@@ -113,56 +121,423 @@ export const TOKEN_PERCENT         = 0.40;
 
 export const DEMO_HOTELS: DestinationHotels[] = [
   {
-    dest: "Shimla", nights: 2,
+    dest: "Shimla",
+    nights: 2,
     opts: [
-      { id: "demo-s1", name: "Budget 3★",   desc: "Clean central guesthouse",        stars: 3, extra: 0,    pop: false, img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70" },
-      { id: "demo-s2", name: "Standard 3★", desc: "Mall Road hotel · mountain views", stars: 3, extra: 1800, pop: true,  img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70" },
-      { id: "demo-s3", name: "Deluxe 4★",   desc: "Heritage property, scenic garden", stars: 4, extra: 4200, pop: false, img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70" },
+      {
+        id: "demo-s1",
+        name: "Budget 3★",
+        desc: "Clean central guesthouse",
+        stars: 3,
+        extra: 0,
+        pop: false,
+        img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
+      },
+      {
+        id: "demo-s2",
+        name: "Standard 3★",
+        desc: "Mall Road hotel · mountain views",
+        stars: 3,
+        extra: 1800,
+        pop: true,
+        img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
+      },
+      {
+        id: "demo-s3",
+        name: "Deluxe 4★",
+        desc: "Heritage property, scenic garden",
+        stars: 4,
+        extra: 4200,
+        pop: false,
+        img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
+      },
     ],
   },
   {
-    dest: "Manali", nights: 3,
+    dest: "Manali",
+    nights: 3,
     opts: [
-      { id: "demo-m1", name: "Budget 3★",   desc: "River-view guesthouse near bazaar", stars: 3, extra: 0,    pop: false, img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70" },
-      { id: "demo-m2", name: "Standard 4★", desc: "Snowline valley view resort",        stars: 4, extra: 2700, pop: true,  img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70" },
-      { id: "demo-m3", name: "Deluxe 4★",   desc: "Premium Himalayan retreat",          stars: 4, extra: 6300, pop: false, img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70" },
+      {
+        id: "demo-m1",
+        name: "Budget 3★",
+        desc: "River-view guesthouse near bazaar",
+        stars: 3,
+        extra: 0,
+        pop: false,
+        img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
+      },
+      {
+        id: "demo-m2",
+        name: "Standard 4★",
+        desc: "Snowline valley view resort",
+        stars: 4,
+        extra: 2700,
+        pop: true,
+        img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
+      },
+      {
+        id: "demo-m3",
+        name: "Deluxe 4★",
+        desc: "Premium Himalayan retreat",
+        stars: 4,
+        extra: 6300,
+        pop: false,
+        img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
+      },
     ],
   },
   {
-    dest: "Dharamshala", nights: 1,
+    dest: "Dharamshala",
+    nights: 1,
     opts: [
-      { id: "demo-d1", name: "Budget 3★",   desc: "City centre stay, basic comfort",  stars: 3, extra: 0,    pop: false, img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70" },
-      { id: "demo-d2", name: "Standard 3★", desc: "McLeod Ganj view hotel",            stars: 3, extra: 900,  pop: true,  img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70" },
-      { id: "demo-d3", name: "Deluxe 4★",   desc: "Boutique retreat, Kangra valley",  stars: 4, extra: 2100, pop: false, img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70" },
+      {
+        id: "demo-d1",
+        name: "Budget 3★",
+        desc: "City centre stay, basic comfort",
+        stars: 3,
+        extra: 0,
+        pop: false,
+        img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
+      },
+      {
+        id: "demo-d2",
+        name: "Standard 3★",
+        desc: "McLeod Ganj view hotel",
+        stars: 3,
+        extra: 900,
+        pop: true,
+        img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
+      },
+      {
+        id: "demo-d3",
+        name: "Deluxe 4★",
+        desc: "Boutique retreat, Kangra valley",
+        stars: 4,
+        extra: 2100,
+        pop: false,
+        img: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=200&q=70",
+      },
     ],
   },
 ];
 
 export const DEMO_CABS: CabOption[] = [
-  { id: "demo-c1", name: "Swift Dzire",     desc: "Sedan · 4 pax · AC",    seats: 4,  extra: 0,    pop: false },
-  { id: "demo-c2", name: "Innova",          desc: "SUV · 6 pax · AC",      seats: 6,  extra: 3500, pop: true  },
-  { id: "demo-c3", name: "Innova Crysta",   desc: "Premium SUV · 6 pax",   seats: 6,  extra: 6000, pop: false },
-  { id: "demo-c4", name: "Tempo Traveller", desc: "12-seater · Groups",    seats: 12, extra: 9000, pop: false },
+  {
+    id: "demo-c1",
+    name: "Swift Dzire",
+    desc: "Sedan · 4 pax · AC",
+    seats: 4,
+    extra: 0,
+    pop: false,
+  },
+  {
+    id: "demo-c2",
+    name: "Innova",
+    desc: "SUV · 6 pax · AC",
+    seats: 6,
+    extra: 3500,
+    pop: true,
+  },
+  {
+    id: "demo-c3",
+    name: "Innova Crysta",
+    desc: "Premium SUV · 6 pax",
+    seats: 6,
+    extra: 6000,
+    pop: false,
+  },
+  {
+    id: "demo-c4",
+    name: "Tempo Traveller",
+    desc: "12-seater · Groups",
+    seats: 12,
+    extra: 9000,
+    pop: false,
+  },
 ];
 
 export const DEMO_ADDONS: AddonOption[] = [
-  { id: "demo-a1", name: "All meals (lunch + dinner)",    icon: "UtensilsCrossed", note: "Breakfast already included.",              price: 1800, on: false },
-  { id: "demo-a2", name: "Solang Valley snow activities", icon: "Snowflake",       note: "Cable car + snow shoes + guide.",          price: 1200, on: false },
-  { id: "demo-a3", name: "Rohtang Pass permit + jeep",    icon: "Mountain",        note: "NGT permit + shared jeep to Rohtang top.", price: 1600, on: false },
-  { id: "demo-a4", name: "Travel insurance",              icon: "ShieldCheck",     note: "Per-person coverage up to ₹5 lakh.",      price: 450,  on: false },
-  { id: "demo-a5", name: "Airport / railway transfers",   icon: "PlaneTakeoff",    note: "Pick-up & drop at Chandigarh.",           price: 1100, on: false },
+  {
+    id: "demo-a1",
+    name: "All meals (lunch + dinner)",
+    icon: "UtensilsCrossed",
+    note: "Breakfast already included.",
+    price: 1800,
+    on: false,
+  },
+  {
+    id: "demo-a2",
+    name: "Solang Valley snow activities",
+    icon: "Snowflake",
+    note: "Cable car + snow shoes + guide.",
+    price: 1200,
+    on: false,
+  },
+  {
+    id: "demo-a3",
+    name: "Rohtang Pass permit + jeep",
+    icon: "Mountain",
+    note: "NGT permit + shared jeep to Rohtang top.",
+    price: 1600,
+    on: false,
+  },
+  {
+    id: "demo-a4",
+    name: "Travel insurance",
+    icon: "ShieldCheck",
+    note: "Per-person coverage up to ₹5 lakh.",
+    price: 450,
+    on: false,
+  },
+  {
+    id: "demo-a5",
+    name: "Airport / railway transfers",
+    icon: "PlaneTakeoff",
+    note: "Pick-up & drop at Chandigarh.",
+    price: 1100,
+    on: false,
+  },
 ];
 
 // ── Demo itinerary (shown while real itinerary loads or as fallback) ──────────
 
 export const DEMO_ITINERARY: ItineraryDay[] = [
-  { day:1,  loc:"Shimla",      title:"Arrival in Shimla",           acts:[{kind:"transfer",title:"Private Transfer",sub:"Chandigarh → Shimla",meta:"Sedan AC · 4–5 hrs",img:"transfer"},{kind:"sightseeing",title:"Mall Road & Ridge",sub:"City orientation & evening walk",meta:"2 hrs · 2 places",img:"sight"},{kind:"hotel",title:"Goldenfern Resort, Shimla",sub:"3★ · Breakfast included",meta:"Check-in: Day 1",img:"hotel",stars:3,score:"4.1"},{kind:"meal",title:"Welcome dinner",sub:"At hotel restaurant",meta:"1 meal included",img:"meal"}] },
-  { day:2,  loc:"Shimla",      title:"Shimla Full-Day Sightseeing", acts:[{kind:"sightseeing",title:"Jakhu Temple & Kufri",sub:"Monkey hill + scenic valley lookout",meta:"5 hrs · 3 places",img:"sight"},{kind:"hotel",title:"Goldenfern Resort, Shimla",sub:"3★ · Breakfast included",meta:"Night 2 of 2",img:"hotel",stars:3,score:"4.1"},{kind:"meal",title:"Breakfast & dinner",sub:"At hotel",meta:"2 meals",img:"meal"}] },
-  { day:3,  loc:"Manali",      title:"Shimla → Manali Drive",       acts:[{kind:"transfer",title:"Private Transfer",sub:"Shimla → Manali via Kullu valley",meta:"Innova · 6–7 hrs",img:"transfer"},{kind:"hotel",title:"Snowline Grand Manali",sub:"4★ · Valley view rooms",meta:"Check-in: Day 3",img:"hotel",stars:4,score:"4.4"},{kind:"meal",title:"Dinner on arrival",sub:"At hotel",meta:"1 meal",img:"meal"}] },
-  { day:4,  loc:"Manali",      title:"Solang Valley & Rohtang",     acts:[{kind:"sightseeing",title:"Solang Valley Snow Activities",sub:"Cable car · snow shoes · zipline",meta:"4 hrs",img:"sight"},{kind:"sightseeing",title:"Rohtang Pass (seasonal)",sub:"Via NGT jeep · 13,050 ft",meta:"Full day",img:"sight"},{kind:"hotel",title:"Snowline Grand Manali",sub:"4★ · Breakfast",meta:"Night 2",img:"hotel",stars:4,score:"4.4"},{kind:"meal",title:"All meals today",sub:"B + L + D",meta:"3 meals",img:"meal"}] },
-  { day:5,  loc:"Manali",      title:"Manali Local Sightseeing",    acts:[{kind:"sightseeing",title:"Hadimba Devi Temple & Old Manali",sub:"Ancient temple + hippie market",meta:"3 hrs",img:"sight"},{kind:"sightseeing",title:"Naggar Castle & Jogini Falls",sub:"Medieval castle + forest trek",meta:"3 hrs",img:"sight"},{kind:"hotel",title:"Snowline Grand Manali",sub:"4★ · Breakfast",meta:"Night 3",img:"hotel",stars:4,score:"4.4"},{kind:"meal",title:"Breakfast & dinner",sub:"At hotel",meta:"2 meals",img:"meal"}] },
-  { day:6,  loc:"Dharamshala", title:"Manali → Dharamshala",        acts:[{kind:"transfer",title:"Private Transfer",sub:"Manali → Dharamshala via Mandi",meta:"Innova · 5–6 hrs",img:"transfer"},{kind:"sightseeing",title:"McLeod Ganj evening",sub:"Tibetan market & café culture",meta:"2 hrs",img:"sight"},{kind:"hotel",title:"Valley View Retreat",sub:"3★ · Kangra valley views",meta:"Check-in: Day 6",img:"hotel",stars:3,score:"4.2"},{kind:"meal",title:"Dinner",sub:"At hotel",meta:"1 meal",img:"meal"}] },
-  { day:7,  loc:"Departure",   title:"Departure Day",               acts:[{kind:"meal",title:"Breakfast",sub:"At hotel",meta:"1 meal",img:"meal"},{kind:"sightseeing",title:"Dharamkot & Triund base walk",sub:"Morning valley walk",meta:"2 hrs",img:"sight"},{kind:"transfer",title:"Private Drop Transfer",sub:"Dharamshala → Pathankot / Gaggal Airport",meta:"Sedan AC · 2–3 hrs",img:"transfer"}] },
+  {
+    day: 1,
+    loc: "Shimla",
+    title: "Arrival in Shimla",
+    acts: [
+      {
+        kind: "transfer",
+        title: "Private Transfer",
+        sub: "Chandigarh → Shimla",
+        meta: "Sedan AC · 4–5 hrs",
+        img: "transfer",
+      },
+      {
+        kind: "sightseeing",
+        title: "Mall Road & Ridge",
+        sub: "City orientation & evening walk",
+        meta: "2 hrs · 2 places",
+        img: "sight",
+      },
+      {
+        kind: "hotel",
+        title: "Goldenfern Resort, Shimla",
+        sub: "3★ · Breakfast included",
+        meta: "Check-in: Day 1",
+        img: "hotel",
+        stars: 3,
+        score: "4.1",
+      },
+      {
+        kind: "meal",
+        title: "Welcome dinner",
+        sub: "At hotel restaurant",
+        meta: "1 meal included",
+        img: "meal",
+      },
+    ],
+  },
+  {
+    day: 2,
+    loc: "Shimla",
+    title: "Shimla Full-Day Sightseeing",
+    acts: [
+      {
+        kind: "sightseeing",
+        title: "Jakhu Temple & Kufri",
+        sub: "Monkey hill + scenic valley lookout",
+        meta: "5 hrs · 3 places",
+        img: "sight",
+      },
+      {
+        kind: "hotel",
+        title: "Goldenfern Resort, Shimla",
+        sub: "3★ · Breakfast included",
+        meta: "Night 2 of 2",
+        img: "hotel",
+        stars: 3,
+        score: "4.1",
+      },
+      {
+        kind: "meal",
+        title: "Breakfast & dinner",
+        sub: "At hotel",
+        meta: "2 meals",
+        img: "meal",
+      },
+    ],
+  },
+  {
+    day: 3,
+    loc: "Manali",
+    title: "Shimla → Manali Drive",
+    acts: [
+      {
+        kind: "transfer",
+        title: "Private Transfer",
+        sub: "Shimla → Manali via Kullu valley",
+        meta: "Innova · 6–7 hrs",
+        img: "transfer",
+      },
+      {
+        kind: "hotel",
+        title: "Snowline Grand Manali",
+        sub: "4★ · Valley view rooms",
+        meta: "Check-in: Day 3",
+        img: "hotel",
+        stars: 4,
+        score: "4.4",
+      },
+      {
+        kind: "meal",
+        title: "Dinner on arrival",
+        sub: "At hotel",
+        meta: "1 meal",
+        img: "meal",
+      },
+    ],
+  },
+  {
+    day: 4,
+    loc: "Manali",
+    title: "Solang Valley & Rohtang",
+    acts: [
+      {
+        kind: "sightseeing",
+        title: "Solang Valley Snow Activities",
+        sub: "Cable car · snow shoes · zipline",
+        meta: "4 hrs",
+        img: "sight",
+      },
+      {
+        kind: "sightseeing",
+        title: "Rohtang Pass (seasonal)",
+        sub: "Via NGT jeep · 13,050 ft",
+        meta: "Full day",
+        img: "sight",
+      },
+      {
+        kind: "hotel",
+        title: "Snowline Grand Manali",
+        sub: "4★ · Breakfast",
+        meta: "Night 2",
+        img: "hotel",
+        stars: 4,
+        score: "4.4",
+      },
+      {
+        kind: "meal",
+        title: "All meals today",
+        sub: "B + L + D",
+        meta: "3 meals",
+        img: "meal",
+      },
+    ],
+  },
+  {
+    day: 5,
+    loc: "Manali",
+    title: "Manali Local Sightseeing",
+    acts: [
+      {
+        kind: "sightseeing",
+        title: "Hadimba Devi Temple & Old Manali",
+        sub: "Ancient temple + hippie market",
+        meta: "3 hrs",
+        img: "sight",
+      },
+      {
+        kind: "sightseeing",
+        title: "Naggar Castle & Jogini Falls",
+        sub: "Medieval castle + forest trek",
+        meta: "3 hrs",
+        img: "sight",
+      },
+      {
+        kind: "hotel",
+        title: "Snowline Grand Manali",
+        sub: "4★ · Breakfast",
+        meta: "Night 3",
+        img: "hotel",
+        stars: 4,
+        score: "4.4",
+      },
+      {
+        kind: "meal",
+        title: "Breakfast & dinner",
+        sub: "At hotel",
+        meta: "2 meals",
+        img: "meal",
+      },
+    ],
+  },
+  {
+    day: 6,
+    loc: "Dharamshala",
+    title: "Manali → Dharamshala",
+    acts: [
+      {
+        kind: "transfer",
+        title: "Private Transfer",
+        sub: "Manali → Dharamshala via Mandi",
+        meta: "Innova · 5–6 hrs",
+        img: "transfer",
+      },
+      {
+        kind: "sightseeing",
+        title: "McLeod Ganj evening",
+        sub: "Tibetan market & café culture",
+        meta: "2 hrs",
+        img: "sight",
+      },
+      {
+        kind: "hotel",
+        title: "Valley View Retreat",
+        sub: "3★ · Kangra valley views",
+        meta: "Check-in: Day 6",
+        img: "hotel",
+        stars: 3,
+        score: "4.2",
+      },
+      {
+        kind: "meal",
+        title: "Dinner",
+        sub: "At hotel",
+        meta: "1 meal",
+        img: "meal",
+      },
+    ],
+  },
+  {
+    day: 7,
+    loc: "Departure",
+    title: "Departure Day",
+    acts: [
+      {
+        kind: "meal",
+        title: "Breakfast",
+        sub: "At hotel",
+        meta: "1 meal",
+        img: "meal",
+      },
+      {
+        kind: "sightseeing",
+        title: "Dharamkot & Triund base walk",
+        sub: "Morning valley walk",
+        meta: "2 hrs",
+        img: "sight",
+      },
+      {
+        kind: "transfer",
+        title: "Private Drop Transfer",
+        sub: "Dharamshala → Pathankot / Gaggal Airport",
+        meta: "Sedan AC · 2–3 hrs",
+        img: "transfer",
+      },
+    ],
+  },
 ];
 
 // ── Inclusions / Exclusions ───────────────────────────────────────────────────
@@ -192,11 +567,26 @@ export const EXCLUSIONS: string[] = [
 // ── Terms & Conditions ────────────────────────────────────────────────────────
 
 export const TERMS_AND_CONDITIONS: Array<{ title: string; body: string }> = [
-  { title: "Booking Policy",                 body: "A minimum token deposit of 40% of the total package cost is required to confirm your booking. The seat is not guaranteed until the deposit clears. The balance is due 7 days before departure. UNO Trips reserves the right to release the seat if payment timelines are not met." },
-  { title: "Tour Prepone / Postpone Policy", body: "Date change requests must be submitted at least 15 days before departure. One free date change is permitted per booking, subject to availability. Subsequent changes attract an administration fee of ₹500 per booking. Changes within 7 days of travel are subject to supplier cancellation policies." },
-  { title: "Booking Confirmation",           body: "Booking is confirmed only upon receipt of the token payment and written confirmation from our team. A detailed voucher with hotel names, cab details, driver contact, and 24×7 emergency contacts is shared within 24 hours of full payment." },
-  { title: "Important Note",                 body: "The itinerary is subject to change due to weather, road conditions, or government restrictions. UNO Trips will notify affected travellers and offer an alternate itinerary of equal value. All GST invoices must be collected within 5 days post travel." },
-  { title: "Cancellation Policy",            body: "More than 30 days: 10% of package cost. 15–29 days: 25%. 7–14 days: 50%. Within 7 days or no-show: 100% forfeiture. Airline and hotel components may carry additional supplier cancellation fees." },
+  {
+    title: "Booking Policy",
+    body: "A minimum token deposit of 40% of the total package cost is required to confirm your booking. The seat is not guaranteed until the deposit clears. The balance is due 7 days before departure. UNO Trips reserves the right to release the seat if payment timelines are not met.",
+  },
+  {
+    title: "Tour Prepone / Postpone Policy",
+    body: "Date change requests must be submitted at least 15 days before departure. One free date change is permitted per booking, subject to availability. Subsequent changes attract an administration fee of ₹500 per booking. Changes within 7 days of travel are subject to supplier cancellation policies.",
+  },
+  {
+    title: "Booking Confirmation",
+    body: "Booking is confirmed only upon receipt of the token payment and written confirmation from our team. A detailed voucher with hotel names, cab details, driver contact, and 24×7 emergency contacts is shared within 24 hours of full payment.",
+  },
+  {
+    title: "Important Note",
+    body: "The itinerary is subject to change due to weather, road conditions, or government restrictions. UNO Trips will notify affected travellers and offer an alternate itinerary of equal value. All GST invoices must be collected within 5 days post travel.",
+  },
+  {
+    title: "Cancellation Policy",
+    body: "More than 30 days: 10% of package cost. 15–29 days: 25%. 7–14 days: 50%. Within 7 days or no-show: 100% forfeiture. Airline and hotel components may carry additional supplier cancellation fees.",
+  },
 ];
 
 // ── Price engine ──────────────────────────────────────────────────────────────
@@ -217,22 +607,28 @@ export const TERMS_AND_CONDITIONS: Array<{ title: string; body: string }> = [
  * since basePricePerPerson is already the net/current selling price.
  */
 export function calcTotalWithOptions(
-  state:                   Omit<CustomizerState, "pay">,
-  hotels:                  DestinationHotels[],
-  cabs:                    CabOption[],
-  basePricePerPerson:      number,
+  state: Omit<CustomizerState, "pay">,
+  hotels: DestinationHotels[],
+  cabs: CabOption[],
+  basePricePerPerson: number,
   originalPricePerPerson?: number,
 ): PriceBreakdown {
-  const persons     = state.adults + Math.round(state.children * CHILD_PRICE_FACTOR);
-  const base        = basePricePerPerson * Math.max(1, persons);
-  const hotelDelta  = state.hotels.reduce((sum, sel, i) => sum + (hotels[i]?.opts[sel]?.extra ?? 0) * state.rooms, 0);
-  const cabDelta    = cabs[state.cab]?.extra ?? 0;
-  const addons      = state.addons.filter((a) => a.on).reduce((s, a) => s + a.price * Math.max(1, persons), 0);
-  const disc        =
+  const persons =
+    state.adults + Math.round(state.children * CHILD_PRICE_FACTOR);
+  const base = basePricePerPerson * Math.max(1, persons);
+  const hotelDelta = state.hotels.reduce(
+    (sum, sel, i) => sum + (hotels[i]?.opts[sel]?.extra ?? 0) * state.rooms,
+    0,
+  );
+  const cabDelta = cabs[state.cab]?.extra ?? 0;
+  const addons = state.addons
+    .filter((a) => a.on)
+    .reduce((s, a) => s + a.price * Math.max(1, persons), 0);
+  const disc =
     originalPricePerPerson && originalPricePerPerson > basePricePerPerson
       ? (originalPricePerPerson - basePricePerPerson) * Math.max(1, persons)
       : 0;
-  const total       = Math.max(0, base + hotelDelta + cabDelta + addons);
+  const total = Math.max(0, base + hotelDelta + cabDelta + addons);
   return { base, hotel: hotelDelta, cab: cabDelta, addons, disc, total };
 }
 

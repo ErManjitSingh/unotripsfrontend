@@ -157,6 +157,7 @@ function RoomTypeCard({
   onToggle: () => void;
 }) {
   const [selectedPlanId, setSelectedPlanId] = useState(roomType.ratePlans[0]?.id ?? "");
+  const [showFullDescription, setShowFullDescription] = useState(false);
 
   const selectedPlan = useMemo(
     () => roomType.ratePlans.find((p) => p.id === selectedPlanId) ?? roomType.ratePlans[0],
@@ -215,16 +216,15 @@ function RoomTypeCard({
     )}>
 
       {/* ── ROOM HEADER ── */}
-      <div className="flex flex-col sm:flex-row">
+      <div className="flex flex-col gap-3 p-3 sm:flex-row">
         {/* Thumbnail */}
         <button
           type="button"
           onClick={() => onRoomPhotoClick?.(roomType.image)}
-          className="relative h-[112px] w-full shrink-0 overflow-hidden rounded-t-xl sm:h-auto sm:w-[180px] sm:rounded-tl-xl sm:rounded-tr-none"
-          style={{ minHeight: 130 }}
+          className="relative h-[152px] w-full shrink-0 overflow-hidden rounded-xl sm:h-[168px] sm:w-[252px]"
           tabIndex={-1}
         >
-          <Image src={roomType.image} alt={roomType.name} fill unoptimized className="object-cover object-center transition-transform duration-500 hover:scale-105" sizes="(max-width: 640px) 100vw, 180px" />
+          <Image src={roomType.image} alt={roomType.name} fill unoptimized className="object-cover object-center transition-transform duration-500 hover:scale-105" sizes="(max-width: 640px) 100vw, 252px" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
           {roomType.availableCount != null && roomType.availableCount <= 5 && roomType.availableCount > 0 && (
             <span className="absolute bottom-2 left-2 rounded bg-[#c62828] px-1.5 py-0.5 text-[10px] font-bold text-white">
@@ -234,11 +234,7 @@ function RoomTypeCard({
         </button>
 
         {/* Room info */}
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex min-w-0 flex-1 flex-col gap-2 px-3 py-2.5 text-left sm:flex-row sm:items-start sm:gap-4 sm:px-5 sm:py-4"
-        >
+        <div className="flex min-w-0 flex-1 flex-col gap-2 px-1 py-1.5 text-left sm:flex-row sm:items-start sm:gap-4 sm:px-2 sm:py-2">
           <div className="min-w-0 flex-1">
             {/* Top badges */}
             <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
@@ -289,7 +285,23 @@ function RoomTypeCard({
 
             {/* Description */}
             {roomType.description && (
-              <p className="mt-1.5 hidden line-clamp-2 text-[12px] leading-relaxed text-[#757575] sm:block">{roomType.description}</p>
+              <div className="mt-1.5 hidden sm:block">
+                <p className={cn(
+                  "text-[12px] leading-relaxed text-[#757575]",
+                  !showFullDescription && "line-clamp-3",
+                )}>
+                  {roomType.description}
+                </p>
+                {roomType.description.length > 220 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowFullDescription((value) => !value)}
+                    className="mt-1 text-[11px] font-bold text-[#EF6614] hover:underline"
+                  >
+                    {showFullDescription ? "Read less" : "Read more"}
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Amenity chips */}
@@ -335,16 +347,16 @@ function RoomTypeCard({
             <p className="text-[10px] text-[#9E9E9E]">
               {nights > 1 ? `incl. taxes · ${roomsCount} room${roomsCount > 1 ? "s" : ""}` : "per night + taxes"}
             </p>
-            <span className={cn(
+            <button type="button" onClick={onToggle} className={cn(
               "mt-0 inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-[12px] font-bold transition sm:mt-2.5",
               isExpanded
                 ? "border-[#EF6614] text-[#EF6614]"
                 : "border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]"
             )}>
               {isExpanded ? <>Close <ChevronUp className="h-3.5 w-3.5" /></> : <>See options <ChevronDown className="h-3.5 w-3.5" /></>}
-            </span>
+            </button>
           </div>
-        </button>
+        </div>
       </div>
 
       {/* ── EXPANDED ─────────────────────────────────────────────────── */}

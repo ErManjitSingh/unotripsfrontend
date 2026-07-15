@@ -5,7 +5,7 @@
  */
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Clock, MapPin, Search, Tag, Users, ChevronDown, Mountain, ShieldCheck, BadgeIndianRupee, CalendarCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatInrAmount } from "@/lib/utils";
@@ -34,7 +34,23 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   hard:     "bg-red-100 text-red-700",
 };
 
-const POPULAR_DESTINATIONS = ["Manali","Rishikesh","Goa","Jaipur","Leh","Coorg","Shimla","Mussoorie","Nainital","Spiti Valley"];
+const POPULAR_DESTINATIONS = ["Jaipur", "Udaipur", "Jodhpur", "Jaisalmer", "North Goa", "Srinagar", "Gulmarg", "Pahalgam", "Shimla", "Manali"];
+
+const DIFFICULTIES = [
+  { value: "", label: "Any difficulty" },
+  { value: "easy", label: "Easy" },
+  { value: "moderate", label: "Moderate" },
+  { value: "hard", label: "Hard" },
+];
+
+const PRICE_LIMITS = [
+  { value: "", label: "Any price" },
+  { value: "1000", label: "Up to ₹1,000" },
+  { value: "2500", label: "Up to ₹2,500" },
+  { value: "5000", label: "Up to ₹5,000" },
+];
+
+const PAGE_SIZE = 24;
 
 const WHY = [
   { icon: Mountain, title: "500+ Experiences",   desc: "Adventures, treks, water sports, cultural tours across India." },
@@ -114,18 +130,42 @@ function ActivityCard({ activity }: { activity: Activity }) {
 export function ActivitiesClient() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [destination, setDestination] = useState("");
   const [category,    setCategory]    = useState("");
+  const [difficulty, setDifficulty] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [total, setTotal] = useState(0);
+  const [nextPage, setNextPage] = useState(2);
+  const [hasMore, setHasMore] = useState(false);
   const [destOpen,    setDestOpen]    = useState(false);
   const destRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const heroImage = activities.find((activity) => activity.featured_image)?.featured_image ?? "/images/hotels/hero-banner.webp";
 
   useEffect(() => {
     let cancelled = false;
-    fetchActivities({ page: 1, limit: 50 })
+    setLoading(true);
+    setError(null);
+    setActivities([]);
+    fetchActivities({
+      page: 1,
+      limit: PAGE_SIZE,
+      destination: destination || undefined,
+      category: category || undefined,
+      difficulty: difficulty || undefined,
+      search: search || undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+    })
       .then((response) => {
-        if (!cancelled) setActivities(response.items);
+        if (cancelled) return;
+        setActivities(response.items);
+        setTotal(response.total);
+        setNextPage(2);
+        setHasMore(response.page < response.total_pages);
       })
       .catch(() => {
         if (!cancelled) setError("We couldn't load activities right now. Please try again.");
@@ -134,13 +174,44 @@ export function ActivitiesClient() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [category, destination, difficulty, maxPrice, search]);
 
-  const filtered = activities.filter((a) => {
-    const matchCat  = !category    || a.category === category;
-    const matchDest = !destination || (a.destination_name ?? "").toLowerCase().includes(destination.toLowerCase());
-    return matchCat && matchDest;
-  });
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    try {
+      const response = await fetchActivities({
+        page: nextPage,
+        limit: PAGE_SIZE,
+        destination: destination || undefined,
+        category: category || undefined,
+        difficulty: difficulty || undefined,
+        search: search || undefined,
+        maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      });
+      setActivities((current) => {
+        const known = new Set(current.map((activity) => activity.id));
+        return [...current, ...response.items.filter((activity) => !known.has(activity.id))];
+      });
+      setNextPage((page) => page + 1);
+      setHasMore(response.page < response.total_pages);
+    } catch {
+      setError("We couldn't load more activities right now. Please try again.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [category, destination, difficulty, hasMore, loading, loadingMore, maxPrice, nextPage, search]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || !hasMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) void loadMore(); },
+      { rootMargin: "280px" },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [hasMore, loadMore]);
 
   const filteredDests = destination.trim()
     ? POPULAR_DESTINATIONS.filter((d) => d.toLowerCase().includes(destination.toLowerCase()))
@@ -164,7 +235,7 @@ export function ActivitiesClient() {
                 <MapPin className="h-5 w-5 shrink-0 text-[#9E9E9E]" strokeWidth={1.5}/>
                 <input value={destination} onChange={(e)=>{setDestination(e.target.value);setDestOpen(true);}}
                   onFocus={()=>setDestOpen(true)} onBlur={()=>setTimeout(()=>setDestOpen(false),150)}
-                  placeholder="Where? (Manali, Rishikesh…)"
+                  placeholder="Filter by destination"
                   className="flex-1 border-0 bg-transparent text-[14px] font-medium text-[#212121] outline-none placeholder:text-[#BDBDBD]"/>
               </div>
               {destOpen && filteredDests.length > 0 && (
@@ -178,14 +249,29 @@ export function ActivitiesClient() {
                 </ul>
               )}
             </div>
-            <div className="relative">
+            <div className="flex h-[52px] items-center gap-2 rounded-xl bg-white px-4 shadow-sm sm:max-w-[220px]">
+              <Search className="h-4 w-4 shrink-0 text-[#9E9E9E]" strokeWidth={1.5}/>
+              <input value={searchInput} onChange={(e)=>setSearchInput(e.target.value)}
+                onKeyDown={(e)=>{if(e.key==="Enter") setSearch(searchInput.trim());}}
+                placeholder="Search activities"
+                className="min-w-0 flex-1 border-0 bg-transparent text-[14px] font-medium text-[#212121] outline-none placeholder:text-[#BDBDBD]"/>
+            </div>
+            <div className="relative flex gap-2">
               <select value={category} onChange={(e)=>setCategory(e.target.value)}
                 className="h-[52px] appearance-none rounded-xl bg-white px-4 pr-10 text-[14px] font-medium text-[#212121] shadow-sm outline-none">
                 {CATEGORIES.map(({value,label})=><option key={value} value={value}>{label}</option>)}
               </select>
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9E9E9E]" strokeWidth={2}/>
+              <select value={difficulty} onChange={(e)=>setDifficulty(e.target.value)}
+                className="h-[52px] rounded-xl bg-white px-3 text-[13px] font-medium text-[#212121] shadow-sm outline-none">
+                {DIFFICULTIES.map(({value,label})=><option key={value} value={value}>{label}</option>)}
+              </select>
+              <select value={maxPrice} onChange={(e)=>setMaxPrice(e.target.value)}
+                className="h-[52px] rounded-xl bg-white px-3 text-[13px] font-medium text-[#212121] shadow-sm outline-none">
+                {PRICE_LIMITS.map(({value,label})=><option key={value} value={value}>{label}</option>)}
+              </select>
             </div>
-            <button type="button" className="flex h-[52px] items-center justify-center gap-2 rounded-xl bg-[#EF6614] px-7 text-[14px] font-bold text-white hover:bg-[#E65100]">
+            <button type="button" onClick={()=>setSearch(searchInput.trim())} className="flex h-[52px] items-center justify-center gap-2 rounded-xl bg-[#EF6614] px-7 text-[14px] font-bold text-white hover:bg-[#E65100]">
               <Search className="h-4 w-4" strokeWidth={2.5}/> Search
             </button>
           </div>
@@ -205,7 +291,7 @@ export function ActivitiesClient() {
       <section className="bg-[#FAF8F6] py-7 sm:py-9">
         <div className="mx-auto w-full max-w-[1120px] px-3 sm:px-4">
           <div className="mb-5 flex items-end justify-between border-b border-[#EDE5DE] pb-3">
-            <p className="text-[15px] font-semibold text-[#5F5751]">{filtered.length} {filtered.length===1?"activity":"activities"} found</p>
+            <p className="text-[15px] font-semibold text-[#5F5751]">{total} {total===1?"activity":"activities"} found</p>
             <span className="hidden text-[12px] text-[#9A918A] sm:inline">Curated for your next escape</span>
           </div>
           {loading ? (
@@ -218,16 +304,21 @@ export function ActivitiesClient() {
               <button type="button" onClick={() => window.location.reload()}
                 className="mt-4 rounded-full bg-[#EF6614] px-6 py-2 text-[13px] font-bold text-white hover:bg-[#E65100]">Try Again</button>
             </div>
-          ) : filtered.length===0 ? (
+          ) : activities.length===0 ? (
             <div className="rounded-xl border border-[#E0E0E0] bg-white px-5 py-16 text-center">
               <div className="mb-3 text-5xl">🏔️</div>
               <p className="text-[15px] font-semibold text-[#212121]">No activities found</p>
-              <button type="button" onClick={()=>{setCategory("");setDestination("");}}
+              <button type="button" onClick={()=>{setCategory("");setDestination("");setDifficulty("");setMaxPrice("");setSearch("");setSearchInput("");}}
                 className="mt-4 rounded-full bg-[#EF6614] px-6 py-2 text-[13px] font-bold text-white hover:bg-[#E65100]">Clear Filters</button>
             </div>
           ) : (
             <div className="mx-auto grid max-w-[1120px] grid-cols-1 gap-5 md:grid-cols-2">
-              {filtered.map((activity)=><ActivityCard key={activity.slug} activity={activity}/>)}
+              {activities.map((activity)=><ActivityCard key={activity.id} activity={activity}/>) }
+            </div>
+          )}
+          {!loading && !error && activities.length > 0 && (
+            <div ref={loadMoreRef} className="py-8 text-center text-sm text-[#766D67]" aria-live="polite">
+              {loadingMore ? "Loading more activities…" : hasMore ? "Scroll to load more activities" : "You’ve reached the end of the activities."}
             </div>
           )}
         </div>

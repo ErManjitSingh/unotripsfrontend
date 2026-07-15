@@ -3,10 +3,29 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
-import { BedDouble, Check, Search, Sparkles, Star, Users, UtensilsCrossed, X } from "lucide-react";
-import type { DestinationHotels, HotelOption } from "@/lib/package-customizer-data";
+import {
+  BedDouble,
+  Building2,
+  Check,
+  ChevronDown,
+  ImageIcon,
+  MapPin,
+  ParkingSquare,
+  Search,
+  Sparkles,
+  Star,
+  UtensilsCrossed,
+  Wifi,
+  X,
+} from "lucide-react";
+import type {
+  DestinationHotels,
+  HotelOption,
+} from "@/lib/package-customizer-data";
 import { fmtINR } from "@/lib/package-customizer-data";
+import { getHotelDetailBundle } from "@/lib/hotels-api";
 import { cn } from "@/lib/utils";
 
 export type ChangeHotelModalProps = {
@@ -14,59 +33,63 @@ export type ChangeHotelModalProps = {
   onClose: () => void;
   destination: DestinationHotels | undefined;
   selectedIndex: number;
-  /** Real check-in date for this destination leg, only when the visitor picked a travel date upstream. */
   checkIn: Date | null;
   onSelect: (index: number) => void;
   mode?: "hotel" | "room";
 };
 
-const STAR_FILTERS = [3, 4, 5] as const;
-const SORT_OPTIONS = [
-  { value: "popularity", label: "Popularity" },
-  { value: "price_asc", label: "Price: Low to High" },
-  { value: "price_desc", label: "Price: High to Low" },
-] as const;
-type SortValue = (typeof SORT_OPTIONS)[number]["value"];
-
-/** One physical hotel, with its real room-type options grouped under it —
- *  the backend can (and sometimes does) offer the same hotel with more than
- *  one room_type/price_delta as separate entries; we group by name so
- *  switching rooms within a hotel is a distinct action from switching hotels. */
+type SortValue = "popularity" | "price_asc" | "price_desc";
 type HotelGroup = {
   name: string;
-  img: string;
-  desc: string;
+  image?: string;
+  description: string;
   stars: number;
-  pop: boolean;
-  rooms: Array<{ opt: HotelOption; index: number }>;
+  popular: boolean;
+  rooms: Array<{ option: HotelOption; index: number }>;
 };
 
-function groupByHotel(opts: HotelOption[]): HotelGroup[] {
-  const order: string[] = [];
-  const map = new Map<string, HotelGroup>();
-  opts.forEach((opt, index) => {
-    if (!map.has(opt.name)) {
-      map.set(opt.name, { name: opt.name, img: opt.img, desc: opt.desc, stars: opt.stars, pop: opt.pop, rooms: [] });
-      order.push(opt.name);
+const STARS = [3, 4, 5] as const;
+
+function groupHotels(options: HotelOption[]): HotelGroup[] {
+  const groups = new Map<string, HotelGroup>();
+  for (const [index, option] of options.entries()) {
+    const existing = groups.get(option.name);
+    if (existing) {
+      existing.rooms.push({ option, index });
+      existing.popular ||= option.pop;
+      continue;
     }
-    const g = map.get(opt.name)!;
-    g.rooms.push({ opt, index });
-    if (opt.pop) g.pop = true;
-  });
-  return order.map((name) => map.get(name)!);
+    groups.set(option.name, {
+      name: option.name,
+      image: option.img,
+      description: option.desc,
+      stars: option.stars,
+      popular: option.pop,
+      rooms: [{ option, index }],
+    });
+  }
+  return [...groups.values()];
 }
 
-/** Real per-room price delta vs. the currently selected option — not vs. the cheapest room. */
-function priceDeltaVsCurrent(extra: number, currentExtra: number): number {
-  return extra - currentExtra;
-}
-
-function formatDateRange(checkIn: Date | null, nights: number): string | null {
-  if (!checkIn) return null;
-  const checkOut = new Date(checkIn);
-  checkOut.setDate(checkOut.getDate() + nights);
-  const fmt = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
-  return `${fmt(checkIn)} – ${fmt(checkOut)}`;
+function StarRating({ value }: { value: number }) {
+  return (
+    <span
+      className="flex items-center gap-0.5"
+      aria-label={`${value} star hotel`}
+    >
+      {Array.from({ length: 5 }, (_, index) => (
+        <Star
+          key={index}
+          className={cn(
+            "h-[18px] w-[18px]",
+            index < value
+              ? "fill-[#ffad00] text-[#ffad00]"
+              : "fill-slate-100 text-slate-200",
+          )}
+        />
+      ))}
+    </span>
+  );
 }
 
 function useMounted() {
@@ -76,252 +99,695 @@ function useMounted() {
 }
 
 export function ChangeHotelModal({
-  open, onClose, destination, selectedIndex, checkIn, onSelect, mode = "hotel",
+  open,
+  onClose,
+  destination,
+  selectedIndex,
+  onSelect,
+  mode = "hotel",
 }: ChangeHotelModalProps) {
-  const [query, setQuery] = useState("");
-  const [minStars, setMinStars] = useState<number | null>(null);
-  const [sort, setSort] = useState<SortValue>("popularity");
   const mounted = useMounted();
+  const [query, setQuery] = useState("");
+  const [starFilter, setStarFilter] = useState<number | null>(null);
+  const [sort, setSort] = useState<SortValue>("popularity");
+  const [pendingIndex, setPendingIndex] = useState(selectedIndex);
+  const [roomTab, setRoomTab] = useState<
+    "about" | "rooms" | "facilities" | "location"
+  >("rooms");
+  const [pendingRoomPlan, setPendingRoomPlan] = useState<{
+    roomId: string;
+    planId: string;
+    roomName: string;
+    planName: string;
+    price: number;
+  } | null>(null);
 
-  const currentExtra = destination?.opts[selectedIndex]?.extra ?? 0;
-
-  const groups = useMemo(() => {
-    if (!destination) return [];
-    const q = query.trim().toLowerCase();
-    const all = groupByHotel(destination.opts);
-    const matches = all.filter((g) => {
-      if (minStars && g.stars < minStars) return false;
-      if (q && !g.name.toLowerCase().includes(q)) return false;
-      return true;
-    });
-    const containsSelected = (g: HotelGroup) => g.rooms.some((r) => r.index === selectedIndex);
-    if (mode === "room") {
-      return matches.filter(containsSelected);
+  useEffect(() => {
+    if (open) {
+      setPendingIndex(selectedIndex);
+      setQuery("");
+      setStarFilter(null);
+      setSort("popularity");
+      setRoomTab("rooms");
+      setPendingRoomPlan(null);
     }
-    const selectedGroup = matches.find(containsSelected);
-    const rest = matches.filter((g) => g !== selectedGroup);
-    const cheapest = (g: HotelGroup) => Math.min(...g.rooms.map((r) => r.opt.extra));
-    if (sort === "price_asc") rest.sort((a, b) => cheapest(a) - cheapest(b));
-    else if (sort === "price_desc") rest.sort((a, b) => cheapest(b) - cheapest(a));
-    else rest.sort((a, b) => Number(b.pop) - Number(a.pop));
-    return selectedGroup ? [selectedGroup, ...rest] : rest;
-  }, [destination, minStars, query, sort, selectedIndex, mode]);
+  }, [open, selectedIndex]);
 
-  if (!mounted) return null;
+  // The drawer has its own scroll container. Lock the page underneath so it
+  // cannot move while a hotel/room selector is open.
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+    };
+  }, [open]);
 
-  const dateRangeLabel = destination ? formatDateRange(checkIn, destination.nights) : null;
-  const searchInputClass =
-    "h-9 w-full rounded-full border border-[#e0e0e0] bg-[#fafafa] pl-8 pr-3 text-[12px] text-[#1a1a1a] placeholder:text-[#9e9e9e] focus:border-primary focus:bg-white focus:outline-none";
+  const hotels = useMemo(() => {
+    if (!destination) return [];
+    const search = query.trim().toLowerCase();
+    const result = groupHotels(destination.opts).filter(
+      (hotel) =>
+        (!starFilter || hotel.stars >= starFilter) &&
+        (!search || hotel.name.toLowerCase().includes(search)),
+    );
+    const cheapest = (hotel: HotelGroup) =>
+      Math.min(...hotel.rooms.map((room) => room.option.extra));
+    result.sort((a, b) => {
+      if (sort === "price_asc") return cheapest(a) - cheapest(b);
+      if (sort === "price_desc") return cheapest(b) - cheapest(a);
+      return Number(b.popular) - Number(a.popular);
+    });
+    // Keep the result order stable when a card is selected. Moving the
+    // selected card to the top makes the drawer jump under the user's cursor.
+    return result;
+  }, [destination, pendingIndex, query, sort, starFilter]);
+
+  // Hooks must run for every render. Keep this query disabled until the
+  // drawer has a selected hotel, rather than returning before calling it.
+  const activeOption = destination?.opts[selectedIndex];
+  const roomCatalogQuery = useQuery({
+    queryKey: [
+      "package-room-catalog",
+      destination?.dest,
+      activeOption?.hotelSlug ?? activeOption?.hotelId,
+    ],
+    queryFn: async () => {
+      const bundle = await getHotelDetailBundle(
+        destination?.dest ?? "",
+        activeOption?.hotelSlug ?? activeOption?.hotelId ?? "",
+      );
+
+      // Do not cache a failed detail request as an empty catalogue. That
+      // previously exposed the package fallback card instead of actual rooms.
+      if (!bundle) throw new Error("Unable to load the hotel room catalogue");
+      return bundle;
+    },
+    enabled:
+      open &&
+      mode === "room" &&
+      Boolean(destination?.dest && (activeOption?.hotelSlug || activeOption?.hotelId)),
+    staleTime: 5 * 60 * 1000,
+    refetchOnMount: "always",
+  });
+  const roomCatalog = roomCatalogQuery.data?.roomTypes ?? [];
+
+  if (!mounted || !destination) return null;
+
+  const selectedExtra = destination.opts[selectedIndex]?.extra ?? 0;
+  const hasPricedChange = pendingIndex !== selectedIndex;
+  const hasRoomChange = mode === "room" && pendingRoomPlan !== null;
+  const canCommit = mode === "room" ? hasRoomChange : hasPricedChange;
+  const activeHotel =
+    groupHotels(destination.opts).find((hotel) =>
+      hotel.rooms.some((room) => room.index === selectedIndex),
+    ) ?? groupHotels(destination.opts)[0];
+  const commit = () => {
+    if (!canCommit) return;
+    onSelect(pendingIndex);
+    onClose();
+  };
 
   return createPortal(
     <AnimatePresence>
-      {open && destination ? (
+      {open && (
         <>
           <motion.button
             type="button"
-            key="change-hotel-backdrop"
-            aria-label="Close change hotel panel"
-            className="fixed inset-0 z-[220] bg-slate-900/45 backdrop-blur-[2px]"
+            aria-label="Close hotel selector"
+            className="fixed inset-0 z-[220] bg-slate-950/60 backdrop-blur-[3px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.28 }}
             onClick={onClose}
           />
-          <motion.aside
-            key="change-hotel-panel"
+          <motion.section
             role="dialog"
             aria-modal="true"
-            aria-label="Change hotel"
-            className="fixed right-0 top-0 z-[230] flex h-[100dvh] w-full max-w-[680px] flex-col bg-white shadow-[-12px_0_48px_-12px_rgba(15,23,42,0.35)]"
+            aria-label={mode === "room" ? "Change room" : "Change hotel"}
+            className="fixed bottom-0 right-0 top-0 z-[230] flex w-full min-h-0 flex-col overflow-hidden rounded-l-[14px] bg-white shadow-2xl lg:w-[54vw] lg:max-w-[980px]"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
-            transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
-            {/* Header */}
-            <div className="flex shrink-0 items-center justify-between gap-4 border-b border-[#f0f0f0] px-5 py-4">
-              <div className="min-w-0">
-                <h2 className="text-lg font-bold text-[#1a1a1a]">{mode === "room" ? "Change Room" : "Change Hotel"}</h2>
-                <p className="truncate text-[11px] text-[#9e9e9e]">{destination.dest} · {destination.nights} night{destination.nights === 1 ? "" : "s"}</p>
+            <header
+              className={cn(
+                "flex shrink-0 items-center justify-between border-b border-[#e9edf3] px-5 py-3.5",
+                mode === "room" && "border-0 bg-primary text-white",
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <span
+                  className={cn(
+                    "grid h-10 w-10 place-items-center rounded-xl bg-[#fff0e8] text-primary",
+                    mode === "room" && "bg-white/15 text-white",
+                  )}
+                >
+                  <Building2 className="h-5 w-5" />
+                </span>
+                <div>
+                  <h2
+                    className={cn(
+                      "text-[21px] font-extrabold tracking-[-0.03em] text-[#172033]",
+                      mode === "room" && "text-white",
+                    )}
+                  >
+                    {mode === "room" ? "View Hotel" : "Change Hotel"}
+                  </h2>
+                  <p
+                    className={cn(
+                      "mt-0.5 text-xs font-medium text-[#667085]",
+                      mode === "room" && "text-white/75",
+                    )}
+                  >
+                    {destination.dest} · {destination.nights} night
+                    {destination.nights === 1 ? "" : "s"}
+                  </p>
+                </div>
               </div>
-              <button type="button" onClick={onClose}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#9e9e9e] transition hover:bg-[#f5f5f5] hover:text-[#1a1a1a]">
-                <X className="h-4 w-4" aria-hidden />
+              <button
+                type="button"
+                onClick={onClose}
+                className={cn(
+                  "grid h-10 w-10 place-items-center rounded-xl border border-[#edf0f4] text-[#344054] transition hover:bg-slate-50",
+                  mode === "room" &&
+                    "border-white/20 text-white hover:bg-white/15",
+                )}
+              >
+                <X className="h-5 w-5" />
               </button>
-            </div>
+            </header>
 
-            <div className={cn("shrink-0 border-b border-[#f0f0f0] px-5 py-3", mode === "room" && "hidden")}>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9e9e9e]" aria-hidden />
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={mode === "room" ? "Search room type" : "Search by hotel name"}
-                  aria-label="Search by hotel name" className={searchInputClass} />
-              </div>
-            </div>
-
-            {/* Filters */}
-            <div className={cn("flex shrink-0 flex-wrap items-end gap-4 border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-3", mode === "room" && "hidden")}>
-              <div>
-                <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#9e9e9e]">Star Rating</p>
-                <div className="flex gap-1.5">
-                  {STAR_FILTERS.map((n) => (
-                    <button key={n} type="button" onClick={() => setMinStars(minStars === n ? null : n)}
-                      aria-pressed={minStars === n}
-                      className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold transition",
-                        minStars === n ? "border-primary bg-primary text-white" : "border-[#e0e0e0] bg-white text-[#616161] hover:border-primary/40")}>
-                      {n}★
+            {mode === "room" && activeHotel ? (
+              <main className="min-h-0 flex-1 overflow-y-auto bg-white">
+                <section className="border-b border-orange-100 bg-[#fff9f5] px-5 pb-4 pt-5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-xl font-extrabold tracking-[-0.03em] text-[#172033]">
+                      {activeHotel.name}
+                    </h3>
+                    <StarRating value={activeHotel.stars} />
+                    <span className="ml-auto rounded-full bg-[#12b76a] px-2.5 py-1 text-[10px] font-bold text-white">
+                      ● SELECTED HOTEL
+                    </span>
+                  </div>
+                  <div className="relative mt-4 h-40 max-w-sm overflow-hidden rounded-xl bg-slate-100">
+                    {activeHotel.image ? (
+                      <Image
+                        src={activeHotel.image}
+                        alt={activeHotel.name}
+                        fill
+                        className="object-cover"
+                        sizes="380px"
+                      />
+                    ) : (
+                      <Building2 className="m-auto h-full w-10 text-slate-300" />
+                    )}
+                    <button
+                      type="button"
+                      className="absolute bottom-2 left-2 rounded-lg bg-black/65 px-2.5 py-1.5 text-[10px] font-bold text-white"
+                    >
+                      ▧ VIEW GALLERY&nbsp; →
+                    </button>
+                  </div>
+                </section>
+                <nav className="flex gap-1.5 border-b border-slate-200 px-5 py-2.5">
+                  {(
+                    [
+                      ["about", "About Hotel"],
+                      ["rooms", "Rooms"],
+                      ["facilities", "Facilities"],
+                      ["location", "Location"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setRoomTab(id)}
+                      className={cn(
+                        "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                        roomTab === id
+                          ? "bg-primary font-bold text-white shadow-sm"
+                          : "text-slate-500 hover:bg-orange-50 hover:text-primary",
+                      )}
+                    >
+                      {label}
                     </button>
                   ))}
-                </div>
-              </div>
-              <label className="ml-auto flex items-center gap-2 text-[11px] text-[#616161]">
-                <span className="font-medium">Sort by</span>
-                <select value={sort} onChange={(e) => setSort(e.target.value as SortValue)}
-                  className="rounded-md border border-[#e0e0e0] bg-white px-2 py-1.5 text-[11px] font-medium text-[#1a1a1a]">
-                  {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-              </label>
-            </div>
-
-            {mode === "room" && groups[0] && (
-              <div className="mx-5 mt-5 flex items-center gap-4 rounded-2xl bg-[#F8FAFC] p-3.5">
-                <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl bg-white">
-                  <Image src={groups[0].img} alt={groups[0].name} fill className="object-cover" sizes="80px" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-extrabold text-[#172033]">{groups[0].name}</p>
-                    <span className="rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-emerald-700">Selected hotel</span>
+                </nav>
+                {roomTab === "about" && (
+                  <section className="px-5 py-5">
+                    <h4 className="text-lg font-extrabold text-[#172033]">
+                      About {activeHotel.name}
+                    </h4>
+                    <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                      {activeHotel.description ||
+                        `${activeHotel.name} is a comfortable stay selected for your ${destination.dest} itinerary, with convenient access to local sightseeing and essential guest services.`}
+                    </p>
+                  </section>
+                )}
+                {roomTab === "facilities" && (
+                  <section className="px-5 py-5">
+                    <h4 className="text-lg font-extrabold text-[#172033]">
+                      Hotel Facilities
+                    </h4>
+                    <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                      {[
+                        [Wifi, "Free Wi-Fi"],
+                        [UtensilsCrossed, "Restaurant"],
+                        [ParkingSquare, "Parking"],
+                        [Building2, "Room Service"],
+                        [BedDouble, "Comfortable Rooms"],
+                        [MapPin, "Local Assistance"],
+                      ].map(([Icon, label]) => (
+                        <div
+                          key={label as string}
+                          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700"
+                        >
+                          {typeof Icon === "function" && (
+                            <Icon className="h-4 w-4 text-primary" />
+                          )}
+                          {label as string}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {roomTab === "location" && (
+                  <section className="px-5 py-5">
+                    <h4 className="text-lg font-extrabold text-[#172033]">
+                      Location
+                    </h4>
+                    <div className="mt-4 rounded-2xl border border-orange-100 bg-[#fffaf7] p-5">
+                      <MapPin className="h-6 w-6 text-primary" />
+                      <p className="mt-3 text-base font-bold text-slate-800">
+                        {destination.dest}
+                      </p>
+                      <p className="mt-1 text-sm text-slate-600">
+                        Your stay is arranged close to the planned sightseeing
+                        and transfers in your itinerary.
+                      </p>
+                    </div>
+                  </section>
+                )}
+                {roomTab === "rooms" && (
+                  <section className="px-5 py-4">
+                    <div className="flex gap-6 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-600">
+                      <span>
+                        Check In:{" "}
+                        <b className="ml-1 text-slate-800">12:00 PM</b>
+                      </span>
+                      <span>
+                        Check Out:{" "}
+                        <b className="ml-1 text-slate-800">11:00 AM</b>
+                      </span>
+                    </div>
+                    <h4 className="mt-5 text-lg font-extrabold text-[#172033]">
+                      Available Rooms
+                    </h4>
+                    {roomCatalogQuery.isLoading && (
+                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-500">
+                        Loading room types and meal plans…
+                      </div>
+                    )}
+                    {roomCatalog.length > 0 && (
+                      <div className="mt-3 space-y-3">
+                        {roomCatalog.map((room) => (
+                          <article
+                            key={room.id}
+                            className="overflow-hidden rounded-xl border border-slate-200 bg-white p-3"
+                          >
+                            <div className="flex gap-3">
+                              <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                                {room.image ? (
+                                  <Image
+                                    src={room.image}
+                                    alt={room.name}
+                                    fill
+                                    className="object-cover"
+                                    sizes="112px"
+                                  />
+                                ) : (
+                                  <BedDouble className="m-auto h-full w-7 text-slate-300" />
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <h5 className="text-base font-extrabold text-[#172033]">
+                                  {room.name}
+                                </h5>
+                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                  {room.tags.slice(0, 3).map((tag) => (
+                                    <span
+                                      key={tag}
+                                      className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600"
+                                    >
+                                      {tag}
+                                    </span>
+                                  ))}
+                                </div>
+                                {(room.amenities?.length ?? 0) > 0 && (
+                                  <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-slate-500">
+                                    {room.amenities?.slice(0, 5).join(" · ")}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3">
+                              {room.ratePlans.map((plan) => (
+                                <button
+                                  type="button"
+                                  key={plan.id}
+                                  onClick={() =>
+                                    setPendingRoomPlan({
+                                      roomId: room.id,
+                                      planId: plan.id,
+                                      roomName: room.name,
+                                      planName: plan.packageName,
+                                      price: plan.price,
+                                    })
+                                  }
+                                  className={cn(
+                                    "flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition",
+                                    pendingRoomPlan?.planId === plan.id
+                                      ? "border-primary bg-[#fff2ea] ring-1 ring-primary/15"
+                                      : "border-transparent bg-[#fffaf7] hover:border-orange-200 hover:bg-[#fff7f2]",
+                                  )}
+                                >
+                                  <div className="min-w-0">
+                                    <p className="flex items-center gap-1.5 text-xs font-extrabold text-[#344054]">
+                                      {pendingRoomPlan?.planId === plan.id && (
+                                        <Check className="h-3.5 w-3.5 text-primary" />
+                                      )}
+                                      {plan.packageName}
+                                    </p>
+                                    <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                                      {plan.benefits.join(" · ")}
+                                    </p>
+                                  </div>
+                                  <span className="shrink-0 text-xs font-extrabold text-primary">
+                                    ₹{fmtINR(plan.price)} / night
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                    {!roomCatalogQuery.isLoading && roomCatalog.length === 0 && (
+                      <div className="mt-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                        We could not load the current hotel&apos;s room types. Please try again.
+                      </div>
+                    )}
+                  </section>
+                )}
+              </main>
+            ) : (
+              <>
+                <div className="grid shrink-0 grid-cols-1 gap-2 border-b border-[#e9edf3] px-4 py-2 md:grid-cols-[230px_minmax(300px,1fr)_180px_180px] md:items-center md:gap-0">
+                  <label className="relative flex h-9 items-center md:pr-4">
+                    <Search className="absolute left-3.5 h-4.5 w-4.5 text-[#475467]" />
+                    <input
+                      value={query}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="Search by hotel name"
+                      className="h-full w-full rounded-xl border border-[#dce2ea] bg-white pl-11 pr-3.5 text-sm text-[#172033] outline-none placeholder:text-[#98a2b3] focus:border-primary"
+                    />
+                  </label>
+                  <div className="border-l-0 border-[#edf0f4] md:flex md:items-center md:gap-2 md:border-l md:px-4">
+                    <p className="mb-1 text-[11px] font-bold text-[#475467] md:mb-0 md:shrink-0">
+                      Star Rating
+                    </p>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setStarFilter(null)}
+                        className={cn(
+                          "h-9 min-w-10 rounded-full border px-3 text-xs font-semibold",
+                          !starFilter
+                            ? "border-primary bg-[#fff7f2] text-primary"
+                            : "border-[#dce2ea] text-[#344054]",
+                        )}
+                      >
+                        All
+                      </button>
+                      {STARS.map((value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() =>
+                            setStarFilter(starFilter === value ? null : value)
+                          }
+                          className={cn(
+                            "h-9 min-w-10 rounded-full border px-2 text-xs font-semibold",
+                            starFilter === value
+                              ? "border-primary bg-[#fff7f2] text-primary"
+                              : "border-[#dce2ea] text-[#344054]",
+                          )}
+                        >
+                          {value} ★
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="mt-1 flex items-center gap-1">
-                    {Array.from({ length: 5 }).map((_, i) => <Star key={i} className={cn("h-3 w-3", i < groups[0].stars ? "fill-amber-400 text-amber-400" : "fill-slate-200 text-slate-200")} />)}
-                    <span className="ml-1 text-[10px] text-slate-500">{groups[0].desc}</span>
-                  </div>
+                  <label className="border-l-0 border-[#edf0f4] md:flex md:items-center md:gap-2 md:border-l md:px-4">
+                    <p className="mb-1 text-[11px] font-bold text-[#475467] md:mb-0 md:shrink-0">
+                      Sort by
+                    </p>
+                    <span className="relative block md:min-w-0 md:flex-1">
+                      <select
+                        value={sort}
+                        onChange={(event) =>
+                          setSort(event.target.value as SortValue)
+                        }
+                        className="h-9 w-full appearance-none rounded-xl border border-[#dce2ea] bg-white px-3 text-sm font-medium text-[#344054] outline-none"
+                      >
+                        <option value="popularity">Popularity</option>
+                        <option value="price_asc">Price: Low to High</option>
+                        <option value="price_desc">Price: High to Low</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-2.5 h-4 w-4 text-[#344054]" />
+                    </span>
+                  </label>
+                  <label className="border-l-0 border-[#edf0f4] md:flex md:items-center md:gap-2 md:border-l md:pl-4">
+                    <p className="mb-1 text-[11px] font-bold text-[#475467] md:mb-0 md:shrink-0">
+                      Hotel Type
+                    </p>
+                    <span className="relative block md:min-w-0 md:flex-1">
+                      <select className="h-9 w-full appearance-none rounded-xl border border-[#dce2ea] bg-white px-3 text-sm font-medium text-[#344054] outline-none">
+                        <option>Hotel</option>
+                      </select>
+                      <ChevronDown className="pointer-events-none absolute right-3 top-2.5 h-4 w-4 text-[#344054]" />
+                    </span>
+                  </label>
                 </div>
-              </div>
-            )}
-            <p className="shrink-0 px-5 py-3 text-[12px] text-[#616161]">
-              {mode === "room" ? <>Available rooms in <b className="font-bold text-[#1a1a1a]">{destination.dest}</b></> : <>Showing <b className="font-bold text-[#1a1a1a]">{groups.length}</b> stay{groups.length === 1 ? "" : "s"} in {destination.dest}</>}
-            </p>
 
-            {/* List */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
-              {groups.length === 0 ? (
-                <p className="py-10 text-center text-[12px] text-[#9e9e9e]">No hotels match your filters. Try clearing them.</p>
-              ) : (
-                <div className="space-y-3">
-                  {groups.map((group) => {
-                    const groupIsSelected = group.rooms.some((r) => r.index === selectedIndex);
-                    return (
-                      <div key={group.name}
-                        className={cn("overflow-hidden rounded-xl border-[1.5px] transition",
-                          groupIsSelected ? "border-primary bg-orange-50/50" : "border-[#e8e8e8] bg-white")}>
-                        {/* Hotel header */}
-                        <div className={cn("flex gap-3 p-3 sm:gap-4 sm:p-4", mode === "room" && "hidden")}>
-                          <div className="relative h-24 w-28 shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-28 sm:w-32">
-                            <Image src={group.img} alt="" fill className="object-cover" sizes="128px" />
-                            {groupIsSelected && (
-                              <span className="absolute left-1 top-1 flex items-center gap-1 rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
-                                <Check className="h-2.5 w-2.5" aria-hidden />Selected
-                              </span>
-                            )}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <p className="text-sm font-bold text-[#1a1a1a]">{group.name}</p>
-                              {group.pop && (
-                                <span className="inline-flex items-center gap-0.5 rounded-full bg-[#C9A84C]/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#9A7B1F]">
-                                  <Sparkles className="h-2.5 w-2.5" aria-hidden />Popular
+                <main className="min-h-0 flex-1 overflow-y-auto bg-white px-6 pb-5 pt-4">
+                  <p className="mb-3 text-sm font-medium text-[#667085]">
+                    Showing{" "}
+                    <b className="font-extrabold text-primary">
+                      {hotels.length}
+                    </b>{" "}
+                    hotels in{" "}
+                    <b className="font-bold text-[#344054]">
+                      {destination.dest}
+                    </b>
+                  </p>
+                  <div className="space-y-3">
+                    {hotels.map((hotel) => {
+                      const activeRoom =
+                        hotel.rooms.find(
+                          (room) => room.index === pendingIndex,
+                        ) ?? hotel.rooms[0];
+                      const isSelectedHotel = hotel.rooms.some(
+                        (room) => room.index === pendingIndex,
+                      );
+                      const room = activeRoom.option;
+                      const delta = room.extra - selectedExtra;
+                      return (
+                        <article
+                          key={hotel.name}
+                          className={cn(
+                            "overflow-hidden rounded-2xl border bg-white shadow-[0_3px_14px_rgba(16,24,40,0.05)]",
+                            isSelectedHotel
+                              ? "border-primary ring-1 ring-primary/15"
+                              : "border-[#e5eaf0]",
+                          )}
+                        >
+                          <div className="grid min-h-[190px] grid-cols-1 gap-4 p-3 md:grid-cols-[280px_minmax(0,1fr)]">
+                            <div className="relative min-h-[175px] overflow-hidden rounded-xl bg-slate-100">
+                              {hotel.image ? (
+                                <Image
+                                  src={hotel.image}
+                                  alt={hotel.name}
+                                  fill
+                                  className="object-cover"
+                                  sizes="342px"
+                                />
+                              ) : (
+                                <Building2 className="m-auto h-full w-10 text-slate-300" />
+                              )}
+                              {isSelectedHotel && (
+                                <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-white">
+                                  <Check className="h-3.5 w-3.5" />
+                                  SELECTED
                                 </span>
                               )}
+                              <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-lg bg-black/75 px-2 py-1 text-xs font-bold text-white">
+                                <ImageIcon className="h-3.5 w-3.5" />1 / 24
+                              </span>
                             </div>
-                            <span className="mt-0.5 flex">{Array.from({ length: 5 }).map((_, i) => (
-                              <Star key={i} className={cn("h-3 w-3", i < group.stars ? "fill-amber-400 text-amber-400" : "fill-slate-200 text-slate-200")} aria-hidden />
-                            ))}</span>
-                            {dateRangeLabel && <p className="mt-1 text-[11px] text-[#9e9e9e]">{dateRangeLabel}</p>}
-                            {group.desc && <p className="mt-1.5 text-[11px] leading-relaxed text-[#757575]">{group.desc}</p>}
-                            {group.rooms.length > 1 && (
-                              <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#9e9e9e]">
-                                {group.rooms.length} room types available
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Room options within this hotel */}
-                        <div className="divide-y divide-[#f0f0f0] border-t border-[#f0f0f0]">
-                          {group.rooms.map(({ opt, index }) => {
-                            const isSelected = index === selectedIndex;
-                            const delta = priceDeltaVsCurrent(opt.extra, currentExtra);
-                            return (
-                              <div key={opt.id} className={cn("flex items-center gap-3 px-3 py-3 sm:px-4", isSelected && "bg-orange-50/70", mode === "room" && "min-h-[132px] bg-white")}>
-                                {mode === "room" && (
-                                  <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-xl bg-slate-100">
-                                    <Image src={opt.img} alt={opt.roomType ?? "Room"} fill className="object-cover" sizes="128px" />
+                            <div className="flex min-w-0 flex-col py-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-lg font-extrabold tracking-[-0.02em] text-[#172033]">
+                                  {hotel.name}
+                                </h3>
+                                {hotel.popular && (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-[#fff7df] px-2 py-0.5 text-[10px] font-bold text-[#9a7316]">
+                                    <Sparkles className="h-3 w-3" />
+                                    POPULAR
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-2 flex items-center gap-4">
+                                <StarRating value={hotel.stars} />
+                                <span className="text-xs font-medium text-[#667085]">
+                                  {room.roomType ?? "Deluxe"}
+                                </span>
+                              </div>
+                              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-[#667085]">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <Wifi className="h-3.5 w-3.5" />
+                                  Free Wi-Fi
+                                </span>
+                                <span className="inline-flex items-center gap-1.5">
+                                  <UtensilsCrossed className="h-3.5 w-3.5" />
+                                  Restaurant
+                                </span>
+                                <span className="inline-flex items-center gap-1.5">
+                                  <ParkingSquare className="h-3.5 w-3.5" />
+                                  Parking
+                                </span>
+                                <span className="inline-flex items-center gap-1.5">
+                                  <Building2 className="h-3.5 w-3.5" />
+                                  Room Service
+                                </span>
+                                <span className="rounded-full border border-[#e5eaf0] px-2 py-0.5 text-[10px] font-bold">
+                                  +6
+                                </span>
+                              </div>
+                              <div className="mt-auto flex min-h-[58px] items-center justify-between gap-4 rounded-xl bg-[#fffaf7] px-4 py-2.5">
+                                <div>
+                                  <p className="inline-flex items-center gap-2 text-xs font-bold text-[#344054]">
+                                    <BedDouble className="h-3.5 w-3.5" />
+                                    {room.roomType ?? "Deluxe"} Room
+                                  </p>
+                                  <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-[#1b9c5a]">
+                                    <MapPin className="h-3.5 w-3.5" />
+                                    MAP included
+                                  </p>
+                                </div>
+                                {isSelectedHotel ? (
+                                  <span className="text-xs font-bold text-primary">
+                                    Currently selected
+                                  </span>
+                                ) : (
+                                  <div className="flex items-center gap-4">
+                                    <span
+                                      className={cn(
+                                        "text-xs font-extrabold",
+                                        delta > 0
+                                          ? "text-primary"
+                                          : delta < 0
+                                            ? "text-[#1b9c5a]"
+                                            : "text-[#667085]",
+                                      )}
+                                    >
+                                      {delta === 0
+                                        ? "Included in package"
+                                        : `${delta > 0 ? "+" : "−"}₹${fmtINR(Math.abs(delta))} package total`}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setPendingIndex(activeRoom.index)
+                                      }
+                                      className="rounded-lg border border-primary px-4 py-2 text-xs font-extrabold text-primary transition hover:bg-primary hover:text-white"
+                                    >
+                                      Select this hotel
+                                    </button>
                                   </div>
                                 )}
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#616161]">
-                                    <span className="inline-flex items-center gap-1 font-semibold text-[#1a1a1a]">
-                                      <BedDouble className="h-3 w-3 shrink-0 text-[#9e9e9e]" aria-hidden />{opt.roomType ?? "Standard"} Room
-                                    </span>
-                                    {opt.maxGuests && (
-                                      <span className="inline-flex items-center gap-1">
-                                        <Users className="h-3 w-3 shrink-0 text-[#9e9e9e]" aria-hidden />Up to {opt.maxGuests} guests
-                                      </span>
-                                    )}
-                                  </div>
-                                  {opt.mealsIncluded && opt.mealsIncluded.length > 0 && (
-                                    <div className="mt-1 flex flex-wrap gap-1">
-                                      {opt.mealsIncluded.map((m) => (
-                                        <span key={m} className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                                          <UtensilsCrossed className="h-2.5 w-2.5" aria-hidden />{m} included
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {!!opt.extraBedPrice && opt.extraBedPrice > 0 && (
-                                    <p className="mt-1 text-[10px] text-[#9e9e9e]">+₹{fmtINR(opt.extraBedPrice)} for an extra bed</p>
-                                  )}
-                                </div>
-
-                                <div className="flex shrink-0 flex-col items-end gap-1.5">
-                                  {isSelected ? (
-                                    <span className="text-[11px] font-semibold text-primary">Currently selected</span>
-                                  ) : delta === 0 ? (
-                                    <span className="text-[11px] font-semibold text-[#616161]">Same price</span>
-                                  ) : (
-                                    <span className={cn("text-sm font-bold", delta > 0 ? "text-primary" : "text-emerald-700")}>
-                                      {delta > 0 ? "+" : "−"}₹{fmtINR(Math.abs(delta))}
-                                      <span className="ml-1 text-[10px] font-normal text-[#9e9e9e]">/ person</span>
-                                    </span>
-                                  )}
-                                  {!isSelected && (
-                                    <button type="button" onClick={() => { onSelect(index); onClose(); }}
-                                      className="shrink-0 rounded-lg bg-primary px-4 py-1.5 text-[12px] font-bold text-white transition hover:opacity-90">
-                                      {mode === "room" ? "Select room" : "Select"}
-                                    </button>
-                                  )}
-                                </div>
                               </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            {mode === "room" && (
-              <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-3.5">
-                <p className="text-[11px] text-slate-500">Room and meal plan changes update your package total.</p>
-                <button type="button" onClick={onClose} className="shrink-0 rounded-xl bg-primary px-5 py-2.5 text-xs font-bold text-white shadow-[0_8px_18px_rgba(255,107,0,0.2)] transition hover:-translate-y-0.5">Update room</button>
-              </div>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </main>
+              </>
             )}
-          </motion.aside>
+
+            <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-[#e9edf3] bg-white px-6 py-3.5">
+              <div className="flex items-center gap-3">
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#f2f0ff] text-[#7567ee]">
+                  <Building2 className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="text-sm font-extrabold text-[#475467]">
+                    Updated Package Subtotal{" "}
+                    <span className="ml-1 text-[10px] font-medium text-[#667085]">
+                      (Inclusive of GST)
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#667085]">
+                    {hasPricedChange
+                      ? "Your package total updates after you confirm"
+                      : hasRoomChange
+                        ? `${pendingRoomPlan?.roomName} · ${pendingRoomPlan?.planName}`
+                        : mode === "room"
+                          ? "Select a room and meal plan to continue"
+                          : "Select a hotel to preview its package-total difference"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-xl border border-[#dce2ea] px-6 py-2.5 text-sm font-bold text-[#344054]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={commit}
+                  disabled={!canCommit}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-extrabold",
+                    canCommit
+                      ? "bg-primary text-white shadow-[0_8px_18px_rgba(255,107,0,0.22)]"
+                      : "cursor-not-allowed bg-slate-100 text-slate-400",
+                  )}
+                >
+                  {canCommit
+                    ? `Update ${mode === "room" ? "Room" : "Hotel"}`
+                    : mode === "room"
+                      ? "Select room & meal plan"
+                      : "No priced change selected"}
+                  <span className="text-xl leading-none">›</span>
+                </button>
+              </div>
+            </footer>
+          </motion.section>
         </>
-      ) : null}
+      )}
     </AnimatePresence>,
     document.body,
   );

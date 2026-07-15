@@ -49,9 +49,11 @@ export type HeroGlassNavbarProps = {
   darkText?: boolean;
   /** Detail pages can hand off the viewport to their own sticky booking bar. */
   hideOnScroll?: boolean;
+  /** A flush top shell with only lower corners, used on booking detail pages. */
+  flushDetailShell?: boolean;
 };
 
-export function HeroGlassNavbar({ activeId = "holidays", solid = false, combinedAuth = false, showActiveUnderline = true, hideOnScroll = false, darkText = false }: HeroGlassNavbarProps) {
+export function HeroGlassNavbar({ activeId = "holidays", solid = false, combinedAuth = false, showActiveUnderline = true, hideOnScroll = false, darkText = false, flushDetailShell = false }: HeroGlassNavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [hiddenOnScroll, setHiddenOnScroll] = useState(false);
   const [open, setOpen] = useState(false);
@@ -73,12 +75,18 @@ export function HeroGlassNavbar({ activeId = "holidays", solid = false, combined
 
   return (
     <header className={cn(
-      "fixed top-0 left-0 right-0 z-50 w-full px-4 pt-4 transition-[transform,opacity] duration-150 ease-out sm:px-6 sm:pt-5 lg:px-8 max-[900px]:pt-3",
+      "fixed top-0 left-0 right-0 z-50 w-full transition-[transform,opacity] duration-150 ease-out",
+      flushDetailShell
+        ? "px-0 pt-0"
+        : "px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8 max-[900px]:pt-3",
       hiddenOnScroll && "pointer-events-none -translate-y-[calc(100%+1rem)] opacity-0",
     )}>
       <div
         className={cn(
-          "mx-auto flex w-full max-w-[1320px] items-center gap-2 rounded-2xl border px-3 py-2 transition-all duration-500 sm:gap-3 sm:px-4 max-[900px]:max-w-[1180px] max-[900px]:py-1.5",
+          "mx-auto flex w-full max-w-[1320px] items-center gap-2 border px-3 py-2 transition-all duration-500 sm:gap-3 sm:px-4 max-[900px]:max-w-[1180px] max-[900px]:py-1.5",
+          flushDetailShell
+            ? "min-h-[92px] rounded-b-[26px] rounded-t-none px-5 py-3 sm:px-6"
+            : "rounded-2xl",
           resolvedScrolled
             ? "border-slate-200/80 bg-white/95 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.25)] backdrop-blur-md"
             : "border-white/20 bg-white/[0.14] shadow-[0_8px_32px_-12px_rgba(0,0,0,0.4),inset_0_1px_0_0_rgba(255,255,255,0.25)] backdrop-blur-xl",

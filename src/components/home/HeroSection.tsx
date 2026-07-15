@@ -9,7 +9,6 @@ import {
   Building2,
   Bus,
   Car,
-  Grid3X3,
   Menu,
   Palmtree,
   Plane,
@@ -24,6 +23,7 @@ import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
 import { HolidayPackagesSearchBar, TrustBadgesBar } from "@/components/home/holiday-packages-search-bar";
 import { AuthNavActions } from "@/components/auth/auth-nav-actions";
 import type { HeroSearchCatalog } from "@/lib/hero-search-catalog";
+import { PARTNER_PORTAL_URL } from "@/lib/constants";
 import { TRAVEL_HOME_BRAND, TRAVEL_HOME_LOGO_SRC } from "@/lib/travel-home-brand";
 import { cn } from "@/lib/utils";
 
@@ -44,9 +44,11 @@ const fadeUp = {
 const mobileCategories = [
   { id: "holidays", label: "Holidays", href: "/packages", icon: Palmtree },
   { id: "hotels", label: "Hotels", href: "/hotels", icon: Building2 },
+  { id: "activities", label: "Activities", href: "/activities", icon: TicketCheck },
   { id: "flights", label: "Flights", href: "/flights", icon: Plane },
   { id: "trains", label: "Trains", href: "/trains", icon: TrainFront },
-  { id: "more", label: "More", href: "/activities", icon: Grid3X3 },
+  { id: "bus", label: "Bus", href: "/bus", icon: Bus },
+  { id: "cabs", label: "Cabs", href: "/cabs", icon: Car },
 ];
 
 const mobileMenuLinks = [
@@ -85,18 +87,24 @@ const mobileFallbackDestinations = [
 export function TravelMobileTopShell({
   activeId = "holidays",
   showGreeting = true,
+  compact = false,
 }: {
   activeId?: string;
   showGreeting?: boolean;
+  /** Detail and checkout pages need navigation, not the full discovery rail. */
+  compact?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <section className="relative z-20 overflow-hidden bg-[#fbfaf8] pb-3 md:hidden">
-      <div className="absolute inset-x-0 top-0 h-52 bg-[radial-gradient(circle_at_82%_18%,rgba(234,88,12,0.18),transparent_34%),radial-gradient(circle_at_10%_10%,rgba(245,158,11,0.1),transparent_28%),linear-gradient(180deg,#ffffff_0%,#fff7ed_62%,rgba(255,247,237,0)_100%)]" />
+    <section className={cn(
+      "relative z-20 overflow-hidden md:hidden",
+      compact ? "border-b border-slate-100 bg-white" : "bg-[#fbfaf8] pb-3",
+    )}>
+      {!compact ? <div className="absolute inset-x-0 top-0 h-52 bg-[radial-gradient(circle_at_82%_18%,rgba(234,88,12,0.18),transparent_34%),radial-gradient(circle_at_10%_10%,rgba(245,158,11,0.1),transparent_28%),linear-gradient(180deg,#ffffff_0%,#fff7ed_62%,rgba(255,247,237,0)_100%)]" /> : null}
 
-      <div className="relative mx-auto flex max-w-md flex-col px-4">
-        <header className="flex h-[64px] items-center justify-between">
+      <div className={cn("relative mx-auto flex max-w-md flex-col", compact ? "px-3" : "px-4")}>
+        <header className={cn("flex items-center justify-between", compact ? "h-[58px]" : "h-[64px]")}>
           <button
             type="button"
             aria-label={menuOpen ? "Close menu" : "Open menu"}
@@ -109,7 +117,10 @@ export function TravelMobileTopShell({
 
           <Link
             href="/"
-            className="relative flex h-11 w-[158px] items-center justify-center overflow-hidden rounded-2xl bg-white/65 px-3 shadow-[0_14px_34px_-26px_rgba(15,23,42,0.55)] backdrop-blur-md"
+            className={cn(
+              "relative flex items-center justify-center overflow-hidden bg-white/65 px-3 backdrop-blur-md",
+              compact ? "h-9 w-[130px] rounded-xl shadow-none" : "h-11 w-[158px] rounded-2xl shadow-[0_14px_34px_-26px_rgba(15,23,42,0.55)]",
+            )}
           >
             <Image
               src={TRAVEL_HOME_LOGO_SRC}
@@ -128,7 +139,7 @@ export function TravelMobileTopShell({
         </header>
 
         {menuOpen && (
-          <div className="absolute left-4 right-4 top-[66px] z-40 overflow-hidden rounded-[22px] border border-white bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.55)] backdrop-blur-xl">
+          <div className="fixed left-4 right-4 top-[66px] z-[60] overflow-hidden rounded-[22px] border border-white bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.55)] backdrop-blur-xl">
             <div className="grid grid-cols-2 gap-2 p-3">
               {mobileMenuLinks.map(({ label, href, icon: Icon }) => (
                 <Link
@@ -146,14 +157,24 @@ export function TravelMobileTopShell({
               <div className="mb-3 flex justify-center">
                 <AuthNavActions variant="ease" combined onNavigate={() => setMenuOpen(false)} />
               </div>
-              <Link
-                href="/packages"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-sm font-black text-white shadow-[0_12px_24px_-16px_rgba(234,88,12,0.9)]"
-              >
-                <Search className="h-4 w-4" />
-                Search Packages
-              </Link>
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href={PARTNER_PORTAL_URL}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center gap-1.5 rounded-full border border-primary/25 bg-orange-50 px-3 py-3 text-[12px] font-black text-primary"
+                >
+                  <Building2 className="h-4 w-4" />
+                  List Property
+                </Link>
+                <Link
+                  href="/packages"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center gap-1.5 rounded-full bg-primary px-3 py-3 text-[12px] font-black text-white shadow-[0_12px_24px_-16px_rgba(234,88,12,0.9)]"
+                >
+                  <Search className="h-4 w-4" />
+                  Packages
+                </Link>
+              </div>
             </div>
           </div>
         )}
@@ -177,7 +198,7 @@ export function TravelMobileTopShell({
           </div>
         )}
 
-        <nav className={cn("flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", showGreeting ? "mt-5" : "mt-2")} aria-label="Travel categories">
+        {!compact ? <nav className={cn("flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden", showGreeting ? "mt-5" : "mt-2")} aria-label="Travel categories">
           {mobileCategories.map(({ id, label, href, icon: Icon }) => {
             const active = id === activeId;
             return (
@@ -196,7 +217,7 @@ export function TravelMobileTopShell({
             </Link>
             );
           })}
-        </nav>
+        </nav> : null}
       </div>
     </section>
   );

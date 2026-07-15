@@ -16,10 +16,6 @@ type Props = {
   onSelect: (index: number) => void;
 };
 
-const fallbackImage = "/images/cabs/sedan-generated.png";
-const fallbackNames = ["Sedan", "SUV", "Innova Crysta", "Ertiga"];
-const fallbackFeatures = ["Comfortable", "Spacious", "Extra Comfort", "Value for Money"];
-
 export function ChangeVehicleModal({ open, options, selectedIndex, onClose, onSelect }: Props) {
   const [draftIndex, setDraftIndex] = useState(selectedIndex);
 
@@ -29,7 +25,11 @@ export function ChangeVehicleModal({ open, options, selectedIndex, onClose, onSe
 
   if (!open) return null;
 
-  const vehicleOptions: VehicleOption[] = options.length ? options : fallbackNames.map((name, index) => ({ id: name, name, extra: index * 7000, seats: index ? 6 : 4, luggage: 3 }));
+  // `options` is the backend package-cab list. Only use a generic fallback
+  // when the API genuinely returns no options at all.
+  const vehicleOptions: VehicleOption[] = options.length
+    ? options
+    : [{ id: "unavailable", name: "Private vehicle", extra: 0 }];
 
   return (
     <div className="fixed inset-0 z-[120] bg-slate-950/45" role="dialog" aria-modal="true" aria-label="Change vehicle">
@@ -44,14 +44,15 @@ export function ChangeVehicleModal({ open, options, selectedIndex, onClose, onSe
           <div className="space-y-4">
             {vehicleOptions.map((vehicle, index) => {
               const selected = draftIndex === index;
-              const extra = Number(vehicle.extra ?? index * 7000);
-              const name = vehicle.name ?? fallbackNames[index] ?? "Private vehicle";
-              const feature = vehicle.feature ?? fallbackFeatures[index] ?? "Comfortable";
+              const extra = Number(vehicle.extra ?? 0);
+              const name = vehicle.name ?? "Private vehicle";
+              const hasImage = typeof vehicle.img === "string" && vehicle.img.length > 0;
+              const details = typeof vehicle.desc === "string" && vehicle.desc.trim() ? vehicle.desc.trim() : null;
               return (
                 <button key={vehicle.id ?? `${name}-${index}`} type="button" onClick={() => setDraftIndex(index)} className={cn("block w-full rounded-2xl border bg-white p-4 text-left shadow-[0_3px_14px_rgba(16,24,40,0.07)] transition", selected ? "border-2 border-primary bg-[#FFFDFC]" : "border-slate-100 hover:border-[#FFB27A]")}>
                   <div className="flex items-center gap-4">
-                    <div className="relative h-24 w-32 shrink-0 overflow-hidden rounded-xl bg-[#F1F3F6] sm:h-28 sm:w-40"><Image src={vehicle.img ?? fallbackImage} alt={name} fill className="object-contain" sizes="160px" /></div>
-                    <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><h3 className="text-base font-extrabold text-[#172033] sm:text-lg">{name}</h3><p className="mt-2 flex items-center gap-2 text-xs text-slate-500"><UsersRound className="h-4 w-4" />{vehicle.seats ?? (index ? 6 : 4)} Seater <span className="text-slate-300">·</span> <UsersRound className="h-4 w-4" />{vehicle.luggage ?? 3} Luggage</p></div><span className="shrink-0 text-sm font-bold text-slate-600">{extra ? `+₹${extra.toLocaleString("en-IN")}` : "Included"}</span></div><div className="mt-3 flex flex-wrap gap-2"><span className="rounded-full bg-[#F1F3F6] px-3 py-1 text-[11px] font-semibold text-slate-600">AC</span><span className="rounded-full bg-[#F1F3F6] px-3 py-1 text-[11px] font-semibold text-slate-600">{feature}</span></div></div><div className={cn("grid h-6 w-6 shrink-0 place-items-center rounded-full border-2", selected ? "border-primary bg-primary text-white" : "border-slate-200 bg-white")}>{selected && <Check className="h-4 w-4" />}</div>
+                    <div className="relative grid h-24 w-32 shrink-0 place-items-center overflow-hidden rounded-xl bg-[#F7F8FA] text-primary sm:h-28 sm:w-40">{hasImage ? <Image src={vehicle.img} alt={name} fill className="object-contain" sizes="160px" /> : <Car className="h-10 w-10" aria-label="Vehicle image unavailable" />}</div>
+                    <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><h3 className="text-base font-extrabold text-[#172033] sm:text-lg">{name}</h3>{vehicle.seats ? <p className="mt-2 flex items-center gap-2 text-xs text-slate-500"><UsersRound className="h-4 w-4" />{vehicle.seats} Seater{vehicle.luggage ? <><span className="text-slate-300">·</span><UsersRound className="h-4 w-4" />{vehicle.luggage} Luggage</> : null}</p> : null}</div><span className="shrink-0 text-sm font-bold text-slate-600">{extra ? `+₹${extra.toLocaleString("en-IN")}` : "Included"}</span></div>{details ? <p className="mt-3 text-xs text-slate-500">{details}</p> : null}</div><div className={cn("grid h-6 w-6 shrink-0 place-items-center rounded-full border-2", selected ? "border-primary bg-primary text-white" : "border-slate-200 bg-white")}>{selected && <Check className="h-4 w-4" />}</div>
                   </div>
                 </button>
               );

@@ -3,7 +3,7 @@
  * @see https://unohotels-backend.onrender.com/docs
  */
 
-import { apiDataWithAuth } from "@/lib/api";
+import { apiData, apiDataWithAuth } from "@/lib/api";
 import type { UserBooking } from "@/lib/hotels-account-api";
 
 export type GuestInfoPayload = {
@@ -34,6 +34,8 @@ export type CreateBookingPayload = {
 export type BookingWithOrder = UserBooking & {
   razorpay_order_id?: string | null;
   razorpay_key_id?: string | null;
+  /** Short-lived credential issued for passwordless guest checkout. */
+  guest_checkout_token?: string | null;
   guest?: GuestInfoPayload;
   amount_breakdown?: {
     room_total?: number;
@@ -78,11 +80,11 @@ export async function fetchHotelBookingById(
 }
 
 export async function createHotelBooking(
-  accessToken: string,
+  accessToken: string | null | undefined,
   payload: CreateBookingPayload,
   extraHeaders?: Record<string, string>,
 ): Promise<BookingWithOrder> {
-  return apiDataWithAuth<BookingWithOrder>("/v1/bookings", accessToken, {
+  const init = {
     method: "POST",
     headers: extraHeaders,
     body: JSON.stringify({
@@ -90,11 +92,14 @@ export async function createHotelBooking(
       children: payload.children ?? 0,
       rooms: payload.rooms ?? 1,
     }),
-  });
+  };
+  return accessToken
+    ? apiDataWithAuth<BookingWithOrder>("/v1/bookings", accessToken, init)
+    : apiData<BookingWithOrder>("/v1/bookings", init);
 }
 
 export async function verifyHotelBookingPayment(
-  accessToken: string,
+  accessToken: string | null | undefined,
   bookingId: string,
   payload: {
     razorpay_order_id: string;
@@ -102,14 +107,11 @@ export async function verifyHotelBookingPayment(
     razorpay_signature: string;
   },
 ): Promise<Record<string, unknown>> {
-  return apiDataWithAuth<Record<string, unknown>>(
-    `/v1/bookings/${encodeURIComponent(bookingId)}/verify-payment`,
-    accessToken,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
-  );
+  const path = `/v1/bookings/${encodeURIComponent(bookingId)}/verify-payment`;
+  const init = { method: "POST", body: JSON.stringify(payload) };
+  return accessToken
+    ? apiDataWithAuth<Record<string, unknown>>(path, accessToken, init)
+    : apiData<Record<string, unknown>>(path, init);
 }
 
 export async function cancelHotelBooking(

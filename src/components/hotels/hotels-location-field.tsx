@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, LocateFixed, MapPin, Search, Sparkles } from "lucide-react";
+import { Building2, LoaderCircle, LocateFixed, MapPin, Sparkles } from "lucide-react";
 import {
   HOTEL_LOCALITY_OPTIONS,
   HOTEL_MAJOR_CITY_OPTIONS,
@@ -102,7 +102,7 @@ export function HotelLocationField({
   const wrapRef = useRef<HTMLDivElement>(null);
   const internalInputRef = useRef<HTMLInputElement>(null);
   const hotelQuery = city.trim();
-  const { data: hotelSuggestions = [] } = useQuery({
+  const { data: hotelSuggestions = [], isFetching: isHotelSearchLoading } = useQuery({
     queryKey: ["hotels", "name-suggestions", hotelQuery],
     queryFn: async () => (await searchHotels({ q: hotelQuery, limit: 6, sort: "popular" })).hotels,
     enabled: hotelQuery.length >= 2,
@@ -178,7 +178,7 @@ export function HotelLocationField({
     >
       <div className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
         <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#757575]" strokeWidth={1.5} aria-hidden />
-        <span className="min-w-0 flex-1">
+        <span className="relative min-w-0 flex-1 pr-6">
           <label className="block text-[11px] font-normal leading-tight text-[#9E9E9E]">
             Enter City Name, Location, or Specific hotel
           </label>
@@ -205,6 +205,15 @@ export function HotelLocationField({
             autoComplete="off"
             className="mt-1 w-full truncate border-0 bg-transparent p-0 text-[17px] font-bold leading-tight text-[#212121] outline-none placeholder:font-normal placeholder:text-[#BDBDBD]"
           />
+          {isHotelSearchLoading ? (
+            <span
+              className="absolute right-0 top-[22px] inline-flex h-5 w-5 items-center justify-center text-primary"
+              role="status"
+              aria-label="Searching hotels"
+            >
+              <LoaderCircle className="h-4 w-4 animate-spin" strokeWidth={2} aria-hidden />
+            </span>
+          ) : null}
           {country ? (
             <span className="mt-0.5 block truncate text-xs font-normal text-[#757575]">{country}</span>
           ) : null}

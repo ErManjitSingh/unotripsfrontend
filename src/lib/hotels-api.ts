@@ -13,17 +13,17 @@
  *   5. fetchRelatedHotels()       → waits for step 4
  *   Total: 5 DB connections, fully serial, ~1-2s waterfall
  *
- * AFTER (2 parallel API calls):
- *   Step A: fetchHotelDetail() + fetchRelatedHotels() → Promise.all (parallel)
- *   Step B: city extracted from detail response       → zero extra API call
- *   Total: 2 DB connections, parallel, ~200-400ms
+ * AFTER (one critical API call):
+ *   Step A: fetchHotelDetail() → city extracted from response
+ *   Step B: related hotels load client-side only after the visitor scrolls
+ *   Total: one DB connection before the hotel detail page can render
  *
  * WHY THIS WORKS:
  *   The hotel detail response (ApiHotelDetail) already contains:
  *     - city, state, country    → build HotelCity directly, no destination fetch
  *     - rooms, reviews          → no separate endpoints needed
  *     - policies, attractions   → all in one response
- *     - hotel.id                → pass to fetchRelatedHotels() in parallel
+ *     - hotel.id                → used later for the deferred related-hotels request
  *
  *   fetchHotelSlugs() was used only to look up the city for a slug, then pass
  *   it to fetchHotelDetail(city, slug). But our URL already contains the slug,
@@ -39,7 +39,8 @@
  *   Next.js deduplicates fetch() calls with the same URL within a single
  *   request lifecycle via its built-in request memoisation. This works because
  *   apiFetch() uses native fetch() under the hood via apiJson().
- *   Net result: 2 calls to getHotelDetailBundle() = 2 API calls total (not 4).
+ *   Net result: metadata/page rendering share the same detail request where
+ *   the URL parameters match.
  *
  * OTHER FUNCTIONS UNCHANGED:
  *   fetchHotelSlugs, fetchPopularDestinations, fetchHotelDestinations,
@@ -263,7 +264,6 @@ export type HotelDetailBundle = {
   reviews: ApiReview[];
   nearbyAttractions: string[];
   photoCategories: HotelPhotoCategory[];
-  similarHotels: HotelListing[];
 };
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -957,8 +957,8 @@ async function _fetchDetailWithCityFallback(
 /**
  * getHotelDetailBundle
  *
- * Returns everything the hotel detail page and booking page need in one call.
- * Internally fires exactly 2 parallel API requests for 99.9% of traffic.
+ * Returns the data required for the initial hotel detail page in one request.
+ * Similar hotels are intentionally fetched client-side after the first fold.
  *
  * @param cityParam   - City slug from the URL (e.g. "shimla", "dharamshala")
  * @param hotelSlugOrId - Hotel slug from the URL (e.g. "hotel-willow-banks")
@@ -973,25 +973,9 @@ export async function getHotelDetailBundle(
 ): Promise<HotelDetailBundle | null> {
   const hotelSlug = decodeURIComponent(hotelSlugOrId).trim();
 
-  // ── STEP 1: Fire both API calls in parallel ───────────────────────────────
-  //
-  // detail: the main hotel data — rooms, reviews, policies, attractions, photos
-  // related: similar hotels in the same city (small list, quick query)
-  //
-  // We don't need to wait for `detail` to start `related` because we know
-  // the hotel ID from the slug — the related endpoint accepts hotel_id, but
-  // we need the ID from the detail response. So we actually need to run
-  // detail first, then related.
-  //
-  // HOWEVER: We can still save 3 calls vs the old code (slug lookup,
-  // destination lookup, popular destinations lookup) by eliminating them all.
-  // Those 3 were the real bottleneck. detail → related is only 2 calls total.
-  //
-  // To truly parallelise detail + related we would need the hotel ID in the URL,
-  // which it is — `hotelId` param in the page is the hotel slug, not UUID.
-  // The related endpoint takes hotel_id (UUID), which we only get from detail.
-  // So: detail runs first, related runs immediately after using detail.id.
-  // This is still 2x faster than the old 5-call waterfall.
+  // The primary detail payload contains everything needed above the fold.
+  // Keep the server render to this request so ad landings do not wait for
+  // content that is only visible after the visitor scrolls.
 
   const detail = await _fetchDetailWithCityFallback(
     cityParam,
@@ -1001,16 +985,7 @@ export async function getHotelDetailBundle(
   );
   if (!detail) return null;
 
-  // ── STEP 2: Fire related hotels in parallel with data mapping ────────────
-  //
-  // While we map the detail response (pure CPU, no I/O), the related hotels
-  // query is already in flight. By the time mapping finishes, related is ready.
-
-  const [similarHotels] = await Promise.all([
-    fetchRelatedHotels(detail.id, 4),
-  ]);
-
-  // ── STEP 3: Build the bundle from the detail response — no extra calls ────
+  // Build the bundle from the detail response — no extra network calls.
 
   let hotel        = mapApiHotelToListing(detail);
   const city       = buildCityFromDetail(detail);   // ← extracted from detail, zero API call
@@ -1055,7 +1030,6 @@ export async function getHotelDetailBundle(
     reviews:          detail.reviews           ?? [],
     nearbyAttractions: detail.nearby_attractions ?? [],
     photoCategories,
-    similarHotels,
   };
 }
 

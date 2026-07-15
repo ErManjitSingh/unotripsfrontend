@@ -51,12 +51,13 @@ import { getTourSlugs }                   from "@/lib/packages";
 import { decodeRooms }                    from "@/lib/rooms-utils";
 import { TRAVEL_HOME_BRAND }             from "@/lib/travel-home-brand";
 import { SITE }                           from "@/lib/constants";
+import { NEW_DATA_PREVIEW }                from "@/lib/new-data-preview";
 
 export const revalidate = 300; // 5 min ISR
 
 type Props = {
   params:       Promise<{ slug: string }>;
-  searchParams: Promise<{ rooms?: string; date?: string }>;
+  searchParams: Promise<{ rooms?: string; date?: string; preview?: string }>;
 };
 
 // ── Request-level memoization ─────────────────────────────────────────────────
@@ -133,10 +134,16 @@ export default async function PackageDetailPage({ params, searchParams }: Props)
 
   const initialRooms = decodeRooms(sp.rooms ?? null);
   const initialDate  = sp.date ?? null;
+  const isNewDataPreview = slug === "test-packages" && sp.preview === "new-data";
+  // The preview must display the payload's base price too. This object is
+  // request-local; nothing is saved or changed in the real package record.
+  const pageTour = isNewDataPreview
+    ? { ...tour, priceINR: NEW_DATA_PREVIEW.base_price, oldPriceINR: undefined }
+    : tour;
 
   return (
     <PackageDetailView
-      tour={tour}
+      tour={pageTour}
       similar={similar}
       initialRooms={initialRooms}
       initialDate={initialDate}

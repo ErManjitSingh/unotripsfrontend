@@ -173,6 +173,8 @@ type HotelDateRangePickerProps = {
   numberOfMonths?: 1 | 2;
   compact?: boolean;
   className?: string;
+  /** Travel-package controls select one departure date, not a stay range. */
+  singleDate?: boolean;
 };
 
 export function HotelDateRangePicker({
@@ -182,6 +184,7 @@ export function HotelDateRangePicker({
   numberOfMonths = 2,
   compact = false,
   className,
+  singleDate = false,
 }: HotelDateRangePickerProps) {
   const today = new Date();
   today.setHours(12, 0, 0, 0);
@@ -201,6 +204,11 @@ export function HotelDateRangePicker({
 
   const handleDayClick = useCallback(
     (day: Date) => {
+      if (singleDate) {
+        onChange(dateToIso(day), "");
+        setHoverDate(null);
+        return;
+      }
       if (!checkInDate || !pickingEnd) {
         // First click → set start, wait for end
         onChange(dateToIso(day), "");
@@ -217,7 +225,7 @@ export function HotelDateRangePicker({
         }
       }
     },
-    [checkIn, checkInDate, pickingEnd, onChange],
+    [checkIn, checkInDate, pickingEnd, onChange, singleDate],
   );
 
   // Night count badge
@@ -328,9 +336,17 @@ type DatePickerPopoverProps = {
   onClose: () => void;
   compact?: boolean;
   placement?: "top" | "bottom";
+  singleDate?: boolean;
 };
 
-export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClose, compact = false, placement = "bottom" }: DatePickerPopoverProps) {
+export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClose, compact = false, placement = "bottom", singleDate = false }: DatePickerPopoverProps) {
+  const handleChange = (nextCheckIn: string, nextCheckOut: string) => {
+    onChange(nextCheckIn, nextCheckOut);
+    if (singleDate) {
+      onApply();
+      onClose();
+    }
+  };
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -357,18 +373,20 @@ export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClos
         <HotelDateRangePicker
           checkIn={checkIn}
           checkOut={checkOut}
-          onChange={onChange}
+          onChange={handleChange}
           numberOfMonths={1}
           compact={compact}
+          singleDate={singleDate}
         />
       </div>
       <div className="block sm:hidden">
         <HotelDateRangePicker
           checkIn={checkIn}
           checkOut={checkOut}
-          onChange={onChange}
+          onChange={handleChange}
           numberOfMonths={1}
           compact={compact}
+          singleDate={singleDate}
         />
       </div>
 

@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowUp,
   BedDouble,
-  Car,
   Check,
   ChevronDown,
   ChevronRight,
@@ -20,18 +20,12 @@ import {
   ShieldCheck,
   Star,
   Users,
-  Utensils,
 } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import type { RoomSelection } from "@/components/hotels/hotel-detail-rooms-table";
 import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
 import { TravelMobileTopShell } from "@/components/home/HeroSection";
-import { HotelTagBadgeList } from "@/components/hotels/hotel-tag-badge";
-import { HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booking-policy";
-import { HotelDetailReviews } from "@/components/hotels/hotel-detail-reviews";
-import { HotelDetailSimilarHotels } from "@/components/hotels/hotel-detail-similar-hotels";
 import { HotelDetailTabs, type HotelDetailTabId } from "@/components/hotels/hotel-detail-tabs";
-import { HotelPhotoGalleryModal } from "@/components/hotels/hotel-photo-gallery-modal";
 import type { ApiReview } from "@/lib/hotels-api";
 import {
   addDaysToIso,
@@ -51,13 +45,25 @@ import {
 } from "@/lib/hotels-catalog";
 import { cn, formatInrAmount } from "@/lib/utils";
 
+const HotelDetailReviews = dynamic(() =>
+  import("@/components/hotels/hotel-detail-reviews").then((mod) => mod.HotelDetailReviews),
+);
+const HotelDetailBookingPolicy = dynamic(() =>
+  import("@/components/hotels/hotel-detail-booking-policy").then((mod) => mod.HotelDetailBookingPolicy),
+);
+const HotelDetailDeferredSimilarHotels = dynamic(() =>
+  import("@/components/hotels/hotel-detail-deferred-similar-hotels").then((mod) => mod.HotelDetailDeferredSimilarHotels),
+);
+const HotelPhotoGalleryModal = dynamic(() =>
+  import("@/components/hotels/hotel-photo-gallery-modal").then((mod) => mod.HotelPhotoGalleryModal),
+);
+
 type HotelDetailViewProps = {
   city: HotelCity;
   hotel: HotelListing;
   roomTypes?: HotelRoomType[];
   policies?: string[];
   apiReviews?: ApiReview[];
-  similarHotels?: HotelListing[];
   nearbyAttractions?: string[];
   photoCategories?: HotelPhotoCategory[];
 };
@@ -99,20 +105,43 @@ function nightCount(checkIn?: string, checkOut?: string): number {
   return Math.max(1, n);
 }
 
-function getGstRate(pricePerNight: number): number {
-  if (pricePerNight <= 999) return 0;
-  if (pricePerNight <= 7499) return 0.12;
-  return 0.18;
+/**
+ * Hotel photos hosted in Supabase can be resized at the CDN. Keep third-party
+ * image URLs untouched so a missing transformation service never breaks a
+ * landing page.
+ */
+function hotelImageAtWidth(source: string, width: number): string {
+  try {
+    const url = new URL(source);
+    if (
+      !url.hostname.endsWith(".supabase.co") ||
+      !url.pathname.includes("/storage/v1/object/public/")
+    ) {
+      return source;
+    }
+
+    url.pathname = url.pathname.replace(
+      "/storage/v1/object/public/",
+      "/storage/v1/render/image/public/",
+    );
+    url.searchParams.set("width", String(width));
+    url.searchParams.set("quality", "78");
+    return url.toString();
+  } catch {
+    return source;
+  }
 }
 
 function DetailSearchStrip({
   hotelName,
   bookingContext,
   onApply,
+  footer,
 }: {
   hotelName: string;
   bookingContext: HotelBookingQueryParams;
   onApply: (ctx: HotelBookingQueryParams) => void;
+  footer?: ReactNode;
 }) {
   // Draft dates only live while the picker is open — strip fields always show bookingContext
   const [draftCheckIn,  setDraftCheckIn]  = useState("");
@@ -161,11 +190,11 @@ function DetailSearchStrip({
   const checkOutFmt      = formatHotelDateFromIso(bookingContext.check_out ?? "");
   const roomsGuestsLabel = `${guests} Guest${guests !== 1 ? "s" : ""}, ${rooms} Room${rooms !== 1 ? "s" : ""}`;
 
-  const fieldDivider = "border-[#EEEEEE] border-b sm:border-b-0 sm:border-r";
+  const fieldDivider = "border-[#ECEEF2] border-b sm:border-b-0 sm:border-r";
   const [mobileExpanded, setMobileExpanded] = useState(false);
 
   return (
-    <section className="border-b border-slate-200 bg-white shadow-sm">
+    <section className="border-b border-[#e8ebf0] bg-[#f5f5f5]">
 
       {/* ── Mobile: compact 1-row summary, expands on tap ── */}
       <div className="sm:hidden px-3 py-2.5">
@@ -248,33 +277,35 @@ function DetailSearchStrip({
       </div>
 
       {/* ── Desktop: full form (hidden on mobile) ── */}
-      <div className="hidden sm:block py-3">
+      <div className="hidden sm:block pb-2.5 pt-0">
       <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
-        <div className="overflow-visible rounded-2xl border border-slate-200 bg-white shadow-[0_4px_24px_-6px_rgba(0,0,0,0.12),0_1px_4px_rgba(0,0,0,0.06)] sm:flex sm:items-stretch">
+        <div className="overflow-visible rounded-b-2xl rounded-t-none border border-[#e4e8ee] bg-white shadow-[0_10px_30px_-22px_rgba(15,23,42,0.35)] sm:flex sm:flex-wrap sm:items-stretch">
           <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-stretch">
 
             {/* Destination — always readonly */}
-            <div className={cn("flex min-w-0 items-start gap-3 px-4 py-3.5 sm:flex-[1.5] sm:px-5 sm:py-4", fieldDivider)}>
-              <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-[#757575]" strokeWidth={1.5} aria-hidden />
+            <div className={cn("flex min-w-0 items-center gap-3 px-4 py-3 sm:flex-[1.55] sm:px-5", fieldDivider)}>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-[#EF6614]">
+                <MapPin className="h-4 w-4" strokeWidth={2} aria-hidden />
+              </span>
               <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9E9E9E]">Destination</p>
-                <p className="mt-0.5 truncate text-[15px] font-bold leading-tight text-[#212121]">{hotelName}</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#9aa1ad]">Your stay</p>
+                <p className="mt-0.5 truncate text-[14px] font-bold leading-tight text-[#20242c]">{hotelName}</p>
               </div>
             </div>
 
             {/* Date fields — clicking opens picker */}
-            <div className={cn("relative sm:flex-[2] flex", fieldDivider)}>
+            <div className={cn("relative sm:flex-[2.15] flex", fieldDivider)}>
               {/* Check-In */}
               <button
                 type="button"
                 onClick={openPicker}
-                className={cn("flex min-w-0 flex-1 items-start gap-3 px-4 py-3.5 text-left transition hover:bg-[#fff8f5] sm:px-5 sm:py-4", fieldDivider)}
+                className={cn("flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition hover:bg-orange-50/45 sm:px-5", fieldDivider)}
               >
-                <BedDouble className="mt-0.5 h-5 w-5 shrink-0 text-[#757575]" strokeWidth={1.5} aria-hidden />
+                <BedDouble className="h-4.5 w-4.5 shrink-0 text-[#737b88]" strokeWidth={1.75} aria-hidden />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9E9E9E]">Check-In</p>
-                  <p className="mt-0.5 truncate text-[15px] font-bold leading-tight text-[#212121]">{checkInFmt.main}</p>
-                  {checkInFmt.sub && <p className="mt-0.5 truncate text-xs text-[#757575]">{checkInFmt.sub}</p>}
+                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#9aa1ad]">Check-in</p>
+                  <p className="mt-0.5 truncate text-[14px] font-bold leading-tight text-[#20242c]">{checkInFmt.main}</p>
+                  {checkInFmt.sub && <p className="mt-0.5 truncate text-[11px] text-[#7b8491]">{checkInFmt.sub}</p>}
                 </div>
               </button>
 
@@ -282,13 +313,13 @@ function DetailSearchStrip({
               <button
                 type="button"
                 onClick={openPicker}
-                className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3.5 text-left transition hover:bg-[#fff8f5] sm:px-5 sm:py-4"
+                className="flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left transition hover:bg-orange-50/45 sm:px-5"
               >
-                <BedDouble className="mt-0.5 h-5 w-5 shrink-0 text-[#757575]" strokeWidth={1.5} aria-hidden />
+                <BedDouble className="h-4.5 w-4.5 shrink-0 text-[#737b88]" strokeWidth={1.75} aria-hidden />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9E9E9E]">Check-Out</p>
-                  <p className="mt-0.5 truncate text-[15px] font-bold leading-tight text-[#212121]">{checkOutFmt.main}</p>
-                  {checkOutFmt.sub && <p className="mt-0.5 truncate text-xs text-[#757575]">{checkOutFmt.sub}</p>}
+                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#9aa1ad]">Check-out</p>
+                  <p className="mt-0.5 truncate text-[14px] font-bold leading-tight text-[#20242c]">{checkOutFmt.main}</p>
+                  {checkOutFmt.sub && <p className="mt-0.5 truncate text-[11px] text-[#7b8491]">{checkOutFmt.sub}</p>}
                 </div>
               </button>
 
@@ -309,12 +340,12 @@ function DetailSearchStrip({
               <button
                 type="button"
                 onClick={() => { setGuestsOpen((v) => !v); setPickerOpen(false); }}
-                className="flex w-full min-w-0 items-start gap-3 px-4 py-3.5 text-left transition hover:bg-[#fff8f5] sm:px-5 sm:py-4"
+                className="flex w-full min-w-0 items-center gap-3 px-4 py-3 text-left transition hover:bg-orange-50/45 sm:px-5"
               >
-                <Users className="mt-0.5 h-5 w-5 shrink-0 text-[#757575]" strokeWidth={1.5} aria-hidden />
+                <Users className="h-4.5 w-4.5 shrink-0 text-[#737b88]" strokeWidth={1.75} aria-hidden />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#9E9E9E]">Rooms &amp; Guests</p>
-                  <p className="mt-0.5 truncate text-[15px] font-bold leading-tight text-[#212121]">{roomsGuestsLabel}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#9aa1ad]">Guests &amp; rooms</p>
+                  <p className="mt-0.5 truncate text-[14px] font-bold leading-tight text-[#20242c]">{roomsGuestsLabel}</p>
                 </div>
               </button>
 
@@ -349,16 +380,21 @@ function DetailSearchStrip({
           </div>
 
           {/* Search CTA */}
-          <div className="flex items-center border-t border-slate-100 p-3 sm:border-l sm:border-t-0 sm:p-4">
+          <div className="flex items-center border-t border-slate-100 p-3 sm:border-l sm:border-t-0 sm:p-3">
             <button
               type="button"
               onClick={() => onApply({ check_in: bookingContext.check_in ?? "", check_out: bookingContext.check_out ?? "", rooms, guests })}
-              className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white shadow-[0_4px_14px_-4px_rgba(234,88,12,0.5)] transition hover:bg-primary/90 sm:w-auto sm:px-6"
+              className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#ef5a0a] px-5 text-[13px] font-bold text-white shadow-[0_8px_16px_-8px_rgba(239,90,10,0.72)] transition hover:bg-[#d94d04] sm:w-auto sm:px-5"
             >
               <Search className="h-4 w-4" strokeWidth={2.5} aria-hidden />
               Search
             </button>
           </div>
+          {footer ? (
+            <div className="basis-full rounded-b-2xl border-t border-[#edf0f3] bg-[#fbfcfd] px-4 py-2 sm:px-5">
+              {footer}
+            </div>
+          ) : null}
         </div>
       </div>
       </div>{/* end hidden sm:block desktop wrapper */}
@@ -377,8 +413,6 @@ function DetailGallery({
 }) {
   const main = photos[0] ?? hotel.images[0] ?? hotel.images[hotel.images.length - 1];
   const roomImg = photos[1] ?? hotel.images[1] ?? main;
-  const videoThumb = photos[2] ?? hotel.images[2] ?? main;
-
   const photoCount = photos.length || hotel.propertyPhotoCount;
   const [activeSlide, setActiveSlide] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
@@ -388,7 +422,7 @@ function DetailGallery({
     <div id="photos">
 
       {/* ── Mobile: swipeable carousel ── */}
-      <div className="sm:hidden relative overflow-hidden rounded-xl" style={{ height: "min(72vw, 320px)" }}>
+      <div className="sm:hidden relative overflow-hidden rounded-xl" style={{ height: "min(62vw, 280px)" }}>
         <div
           ref={carouselRef}
           className="flex h-full overflow-x-auto snap-x snap-mandatory"
@@ -405,7 +439,7 @@ function DetailGallery({
               onClick={() => onOpenPhoto()}
               className="relative h-full w-full shrink-0 snap-center overflow-hidden"
             >
-              <Image src={src} alt={i === 0 ? hotel.name : ""} fill unoptimized className="object-cover" sizes="100vw" priority={i === 0} />
+              <Image src={hotelImageAtWidth(src, 1080)} alt={i === 0 ? hotel.name : ""} fill unoptimized className="object-cover" sizes="100vw" priority={i === 0} />
               {i === 0 && <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />}
               {i === 0 && (
                 <div className="absolute bottom-3 left-3 text-white">
@@ -440,7 +474,7 @@ function DetailGallery({
           onClick={() => onOpenPhoto()}
           className="group relative row-span-2 cursor-zoom-in overflow-hidden rounded-l-xl text-left"
         >
-          <Image src={main} alt={hotel.name} fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="50vw" priority />
+          <Image src={hotelImageAtWidth(main, 1440)} alt={hotel.name} fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="50vw" priority />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between text-white">
             <span className="text-[13px] font-semibold drop-shadow">
@@ -454,12 +488,12 @@ function DetailGallery({
 
         {/* Top-center */}
         <button type="button" onClick={() => onOpenPhoto()} className="group relative cursor-zoom-in overflow-hidden text-left">
-          <Image src={photos[1] ?? hotel.images[1] ?? main} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
+          <Image src={hotelImageAtWidth(photos[1] ?? hotel.images[1] ?? main, 640)} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
         </button>
 
         {/* Top-right */}
         <button type="button" onClick={() => onOpenPhoto()} className="group relative cursor-zoom-in overflow-hidden rounded-tr-xl text-left">
-          <Image src={photos[2] ?? hotel.images[2] ?? main} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
+          <Image src={hotelImageAtWidth(photos[2] ?? hotel.images[2] ?? main, 640)} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
           {hotel.videoCount > 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-white">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-[#212121] shadow-md">
@@ -472,12 +506,12 @@ function DetailGallery({
 
         {/* Bottom-center */}
         <button type="button" onClick={() => onOpenPhoto()} className="group relative cursor-zoom-in overflow-hidden text-left">
-          <Image src={photos[3] ?? hotel.images[3] ?? roomImg} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
+          <Image src={hotelImageAtWidth(photos[3] ?? hotel.images[3] ?? roomImg, 640)} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
         </button>
 
         {/* Bottom-right — +N overlay */}
         <button type="button" onClick={() => onOpenPhoto()} className="group relative cursor-zoom-in overflow-hidden rounded-br-xl text-left">
-          <Image src={photos[4] ?? hotel.images[4] ?? roomImg} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
+          <Image src={hotelImageAtWidth(photos[4] ?? hotel.images[4] ?? roomImg, 640)} alt="" fill unoptimized className="object-cover transition-transform duration-500 group-hover:scale-105" sizes="20vw" />
           {photoCount > 5 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white transition group-hover:bg-black/60">
               <span className="text-[22px] font-black">+{photoCount - 5}</span>
@@ -509,12 +543,14 @@ function BookingSummary({
   bookingContext,
   onViewRooms,
   onApply,
+  bookNowHref,
 }: {
   hotel: HotelListing;
   selection: RoomSelection | null;
   bookingContext: HotelBookingQueryParams;
   onViewRooms: () => void;
   onApply?: (ctx: HotelBookingQueryParams) => void;
+  bookNowHref?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [checkIn, setCheckIn]   = useState(bookingContext.check_in ?? "");
@@ -655,15 +691,38 @@ function BookingSummary({
             </button>
           )}
 
-          {/* CTA */}
-          <button
-            type="button"
-            onClick={onViewRooms}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#e8651c] to-[#c94e0a] py-3 text-[13px] font-extrabold text-white shadow-[0_3px_10px_rgba(201,78,10,0.38)] transition hover:brightness-105 active:scale-[0.98]"
-          >
-            View Room Options
-            <ChevronsDown className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-          </button>
+          {/* Booking shortcuts */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onViewRooms}
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-[#e1e4e8] bg-white py-3 text-[12px] font-bold text-[#4b5563] transition hover:border-[#ef5a0a]/40 hover:text-[#ef5a0a]"
+            >
+              View rooms
+              <ChevronsDown className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+            </button>
+            {bookNowHref ? (
+              <Link
+                href={bookNowHref}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-b from-[#f06a1c] to-[#d94d04] py-3 text-[12px] font-extrabold text-white shadow-[0_3px_10px_rgba(201,78,10,0.38)] transition hover:brightness-105 active:scale-[0.98]"
+              >
+                Book now
+                <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={onViewRooms}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-b from-[#e8651c] to-[#c94e0a] py-3 text-[12px] font-extrabold text-white shadow-[0_3px_10px_rgba(201,78,10,0.38)] transition hover:brightness-105 active:scale-[0.98]"
+              >
+                View options
+                <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
+              </button>
+            )}
+          </div>
+          {bookNowHref ? (
+            <p className="-mt-1 text-center text-[10px] font-medium text-[#77808d]">Book now selects the lowest-priced room and meal plan.</p>
+          ) : null}
           {/* Check-in / Check-out times */}
           <div className="flex items-center justify-between text-[11px] text-[#9E9E9E]">
             <span>Check-in: <span className="font-semibold text-[#424242]">2:00 PM</span></span>
@@ -680,14 +739,14 @@ function BookingSummary({
 function MobileBookingBar({
   hotel,
   onViewRooms,
-  visible,
   bookingHref,
+  bookNowHref,
   selectedRoomName,
 }: {
   hotel: HotelListing;
   onViewRooms: () => void;
-  visible: boolean;
   bookingHref?: string;
+  bookNowHref?: string;
   selectedRoomName?: string;
 }) {
   const hasSelection = !!bookingHref && bookingHref !== "#";
@@ -696,7 +755,7 @@ function MobileBookingBar({
     <div
       className={cn(
         "fixed bottom-0 left-0 right-0 z-50 border-t border-[#e8e8e8] bg-white px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] transition-transform duration-300 lg:hidden",
-        visible ? "translate-y-0" : "translate-y-full",
+        "translate-y-0",
       )}
     >
       <div className="flex items-center justify-between gap-3">
@@ -727,6 +786,22 @@ function MobileBookingBar({
           >
             Proceed →
           </Link>
+        ) : bookNowHref ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={onViewRooms}
+              className="rounded-xl border border-[#e1e4e8] bg-white px-3 py-3 text-[12px] font-bold text-[#4b5563]"
+            >
+              Rooms
+            </button>
+            <Link
+              href={bookNowHref}
+              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-[#f06a1c] to-[#d94d04] px-4 py-3 text-[13px] font-extrabold text-white shadow-[0_3px_10px_rgba(201,78,10,0.38)] active:scale-[0.98]"
+            >
+              Book now <ChevronRight className="h-4 w-4" aria-hidden />
+            </Link>
+          </div>
         ) : (
           <button
             type="button"
@@ -748,7 +823,6 @@ export function HotelDetailView({
   roomTypes,
   policies,
   apiReviews,
-  similarHotels = [],
   nearbyAttractions = [],
   photoCategories = [],
 }: HotelDetailViewProps) {
@@ -757,9 +831,7 @@ export function HotelDetailView({
   const [activeTab, setActiveTab] = useState<HotelDetailTabId>("rooms");
   const [gallery, setGallery] = useState<{ open: boolean; initialPhotoIndex?: number }>({ open: false });
   const [roomSelection, setRoomSelection] = useState<RoomSelection | null>(null);
-  const [stickyVisible, setStickyVisible] = useState(false);
   const [belowFoldReady, setBelowFoldReady] = useState(false);
-  const gallerySentinelRef = useRef<HTMLDivElement>(null);
   const belowFoldSentinelRef = useRef<HTMLDivElement>(null);
 
   const paramsContext = useMemo(
@@ -771,17 +843,6 @@ export function HotelDetailView({
   useEffect(() => {
     setBookingContext(paramsContext);
   }, [paramsContext]);
-
-  useEffect(() => {
-    const sentinel = gallerySentinelRef.current;
-    if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setStickyVisible(!entry.isIntersecting),
-      { threshold: 0 },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     const sentinel = belowFoldSentinelRef.current;
@@ -810,6 +871,33 @@ export function HotelDetailView({
     });
     return list;
   }, [hotel.images, roomTypes]);
+
+  // Fast booking defaults to the lowest-priced room and lowest-priced meal
+  // plan, so the reservation page opens with the best available entry price.
+  const bookNowHref = useMemo(() => {
+    const roomWithPlan = (roomTypes ?? [])
+      .filter((room) => room.ratePlans.length > 0)
+      .map((room) => ({
+        room,
+        plan: room.ratePlans.reduce((cheapest, plan) =>
+          plan.price < cheapest.price ? plan : cheapest,
+        ),
+      }))
+      .reduce<{ room: HotelRoomType; plan: HotelRoomType["ratePlans"][number] } | null>(
+        (cheapest, candidate) => !cheapest || candidate.plan.price < cheapest.plan.price ? candidate : cheapest,
+        null,
+      );
+
+    if (!roomWithPlan) return undefined;
+
+    return hotelBookingHref(
+      city.slug,
+      hotelListingKey(hotel),
+      roomWithPlan.room.id,
+      roomWithPlan.plan.id,
+      bookingContext,
+    );
+  }, [bookingContext, city.slug, hotel, roomTypes]);
 
   const openPhoto = useCallback(() => {
     if (allPhotos.length === 0) return;
@@ -849,129 +937,132 @@ export function HotelDetailView({
     scrollToSection("guest-reviews");
   }, [scrollToSection]);
 
+  const mapsUrl = hotel.latitude && hotel.longitude
+    ? `https://www.google.com/maps?q=${hotel.latitude},${hotel.longitude}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hotel.name}, ${city.name}`)}`;
+
+  const bookingMeta = (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px]">
+        <span className="flex items-center gap-0.5" aria-label={`${hotel.stars} stars`}>
+          {Array.from({ length: hotel.stars }).map((_, i) => (
+            <Star key={i} className="h-3 w-3 fill-[#FFC107] text-[#FFC107]" aria-hidden />
+          ))}
+        </span>
+        {hotel.rating > 0 ? (
+          <button type="button" onClick={scrollToReviews} className="inline-flex items-center gap-1 font-semibold text-[#1d7a38] hover:underline">
+            <span className="rounded bg-[#eaf8ee] px-1.5 py-0.5 text-[10px] font-bold">{hotel.rating.toFixed(1)}</span>
+            {hotel.reviewCount > 0 ? `${hotel.reviewCount} reviews` : "Guest rating"}
+          </button>
+        ) : null}
+        <span className="hidden h-3.5 w-px bg-[#dfe4e9] sm:block" aria-hidden />
+        <span className="flex min-w-0 items-center gap-1 text-[#687180]">
+          <MapPin className="h-3.5 w-3.5 shrink-0 text-[#ef5a0a]" strokeWidth={2.2} aria-hidden />
+          <span className="truncate">{hotel.area}, {city.name}</span>
+          {hotel.nearbyLandmark ? <span className="hidden text-[#9aa1ad] lg:inline">· {hotel.nearbyLandmark}</span> : null}
+        </span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {hotel.freeCancellation ? (
+            <span className="rounded-full bg-[#ecfdf3] px-2 py-0.5 text-[10px] font-semibold text-[#18723a]">Free cancellation</span>
+          ) : null}
+          {hotel.freeBreakfast ? (
+            <span className="rounded-full bg-[#fff8df] px-2 py-0.5 text-[10px] font-semibold text-[#8a5a00]">Breakfast included</span>
+          ) : null}
+          {hotel.freeParking ? (
+            <span className="rounded-full bg-[#eef2ff] px-2 py-0.5 text-[10px] font-semibold text-[#3f46a7]">Free parking</span>
+          ) : null}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 rounded-md px-1 text-[11px] font-semibold text-[#4b5563] transition hover:text-[#ef5a0a]"
+        >
+          View on map <ExternalLink className="h-3 w-3" aria-hidden />
+        </a>
+        <span className="h-3.5 w-px bg-[#dfe4e9]" aria-hidden />
+        <button
+          type="button"
+          onClick={() => {
+            if (navigator.share) void navigator.share({ title: hotel.name, url: window.location.href });
+            else void navigator.clipboard.writeText(window.location.href);
+          }}
+          className="inline-flex items-center gap-1 rounded-md px-1 text-[11px] font-semibold text-[#4b5563] transition hover:text-[#ef5a0a]"
+        >
+          <Share2 className="h-3.5 w-3.5" aria-hidden /> Share
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
         <div className="hidden md:block">
-          <HeroGlassNavbar activeId="hotels" solid />
+          <HeroGlassNavbar activeId="hotels" solid flushDetailShell />
         </div>
-        <TravelMobileTopShell activeId="hotels" showGreeting={false} />
-        <div className="md:pt-24 lg:pt-28">
+        <TravelMobileTopShell activeId="hotels" showGreeting={false} compact />
+        <div className="md:pt-[92px] lg:pt-[92px]">
           <DetailSearchStrip
             hotelName={hotel.name}
             bookingContext={bookingContext}
             onApply={handleApplySearch}
+            footer={bookingMeta}
           />
         </div>
 
-        <div className="mx-auto w-full max-w-[1320px] px-3 py-4 pb-24 sm:px-4 sm:py-5 lg:px-6 lg:pb-0">
+        <div className="mx-auto w-full max-w-[1320px] px-3 py-2.5 pb-24 sm:px-4 sm:py-3 lg:px-6 lg:pb-0">
           <nav
-            className="mb-3 flex flex-wrap items-center gap-1 text-[12px] text-[#EF6614]"
+            className="mb-2 hidden flex-wrap items-center gap-1 text-[10px] text-[#8d95a1] sm:flex sm:text-[11px]"
             aria-label="Breadcrumb"
           >
-            <Link href="/" className="hover:underline">Home</Link>
+            <Link href="/" className="text-[#EF6614] hover:underline">Home</Link>
             <ChevronRight className="h-3.5 w-3.5 text-[#9E9E9E]" aria-hidden />
-            <Link href="/hotels" className="hover:underline">Hotels</Link>
+            <Link href="/hotels" className="text-[#EF6614] hover:underline">Hotels</Link>
             <ChevronRight className="h-3.5 w-3.5 text-[#9E9E9E]" aria-hidden />
-            <Link href={listingHref} className="hover:underline">Hotels in {city.name}</Link>
+            <Link href={listingHref} className="text-[#EF6614] hover:underline">Hotels in {city.name}</Link>
             <ChevronRight className="h-3.5 w-3.5 text-[#9E9E9E]" aria-hidden />
-            <span className="font-medium text-[#212121]">{hotel.name}</span>
+            <span className="truncate font-medium text-[#3b414b]">{hotel.name}</span>
           </nav>
 
-          {/* ── Hotel identity ── */}
-          <div className="mb-4 sm:mb-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex-1 min-w-0">
-                {/* Brand + rating row */}
-                <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                  <span className="rounded-full bg-[#fff3eb] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#EF6614]">UNO Stays</span>
+          <section className="mb-2 rounded-xl border border-[#e8e8e8] bg-white px-3.5 py-3 shadow-sm sm:hidden">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="text-[18px] font-extrabold leading-tight tracking-[-0.02em] text-[#1a1a1a]">{hotel.name}</h1>
+                <div className="mt-1.5 flex items-center gap-2 text-[11px]">
                   <span className="flex items-center gap-0.5" aria-label={`${hotel.stars} stars`}>
                     {Array.from({ length: hotel.stars }).map((_, i) => (
                       <Star key={i} className="h-3.5 w-3.5 fill-[#FFC107] text-[#FFC107]" aria-hidden />
                     ))}
                   </span>
-                  {hotel.rating > 0 && (
-                    <span className="rounded-md bg-[#008009] px-2 py-0.5 text-[11px] font-bold text-white">{hotel.rating.toFixed(1)}</span>
-                  )}
-                  {hotel.reviewCount > 0 && (
-                    <button type="button" onClick={scrollToReviews} className="text-[12px] font-semibold text-[#EF6614] hover:underline">
-                      {hotel.reviewCount} reviews
-                    </button>
-                  )}
-                  {hotel.amenities.length > 0 && (
-                    <span className="text-[11px] text-[#9E9E9E]">· {hotel.amenities.length} amenities</span>
-                  )}
-                </div>
-
-                {/* Hotel name */}
-                <h1 className="text-[22px] font-black leading-tight text-[#212121] sm:text-[26px]">{hotel.name}</h1>
-
-                {/* Location */}
-                <p className="mt-1.5 flex flex-wrap items-center gap-1 text-[13px] text-[#757575]">
-                  <MapPin className="h-3.5 w-3.5 shrink-0 text-[#EF6614]" aria-hidden />
-                  {hotel.area}, {city.name}
-                  {hotel.nearbyLandmark && (
-                    <><span className="mx-1 text-[#d5d5d5]">·</span><span>{hotel.nearbyLandmark}</span></>
-                  )}
-                </p>
-
-                {/* Highlight badges */}
-                <div className="mt-2.5 flex flex-wrap gap-1.5">
-                  {hotel.freeCancellation && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-[#d1fae5] bg-[#f0fdf4] px-2.5 py-1 text-[11px] font-semibold text-[#166534]">
-                      <Check className="h-3 w-3" aria-hidden />Free cancellation
-                    </span>
-                  )}
-                  {hotel.freeBreakfast && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-[#fef9c3] bg-[#fefce8] px-2.5 py-1 text-[11px] font-semibold text-[#854d0e]">
-                      <Utensils className="h-3 w-3" aria-hidden />Breakfast included
-                    </span>
-                  )}
-                  {hotel.freeParking && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-[#e0e7ff] bg-[#eef2ff] px-2.5 py-1 text-[11px] font-semibold text-[#3730a3]">
-                      <Car className="h-3 w-3" aria-hidden />Free parking
-                    </span>
-                  )}
-                  <HotelTagBadgeList tags={hotel.tags.slice(0, 2)} />
+                  {hotel.rating > 0 ? <span className="rounded-md bg-[#eaf8ee] px-1.5 py-0.5 text-[10px] font-bold text-[#18723a]">{hotel.rating.toFixed(1)}</span> : null}
+                  {hotel.reviewCount > 0 ? <span className="text-[#7b8491]">{hotel.reviewCount} reviews</span> : null}
                 </div>
               </div>
-
-              {/* Map + Share actions */}
-              <div className="flex shrink-0 items-center gap-2">
-                {(() => {
-                  const mapsUrl = hotel.latitude && hotel.longitude
-                    ? `https://www.google.com/maps?q=${hotel.latitude},${hotel.longitude}`
-                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hotel.name}, ${city.name}`)}`;
-                  return (
-                    <a
-                      href={mapsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 rounded-xl border border-[#e0e0e0] bg-white px-3 py-2 text-[12px] font-semibold text-[#424242] shadow-sm transition hover:border-[#EF6614]/40 hover:text-[#EF6614]"
-                    >
-                      <MapPin className="h-3.5 w-3.5 text-[#EF6614]" aria-hidden />
-                      View on Map
-                      <ExternalLink className="h-3 w-3 opacity-50" aria-hidden />
-                    </a>
-                  );
-                })()}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (navigator.share) {
-                      void navigator.share({ title: hotel.name, url: window.location.href });
-                    } else {
-                      void navigator.clipboard.writeText(window.location.href);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 rounded-xl border border-[#e0e0e0] bg-white px-3 py-2 text-[12px] font-semibold text-[#424242] shadow-sm transition hover:border-[#EF6614]/40 hover:text-[#EF6614]"
-                >
-                  <Share2 className="h-3.5 w-3.5" aria-hidden />
-                  Share
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.share) void navigator.share({ title: hotel.name, url: window.location.href });
+                  else void navigator.clipboard.writeText(window.location.href);
+                }}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6e9ed] text-[#5d6673] active:bg-[#fff7f2]"
+                aria-label="Share hotel"
+              >
+                <Share2 className="h-4 w-4" aria-hidden />
+              </button>
             </div>
-          </div>
+            <p className="mt-2 flex items-center gap-1 truncate text-[11px] text-[#6b7280]">
+              <MapPin className="h-3.5 w-3.5 shrink-0 text-[#ef5a0a]" aria-hidden />
+              {hotel.area}, {city.name}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {hotel.freeCancellation ? <span className="rounded-full bg-[#ecfdf3] px-2 py-0.5 text-[10px] font-semibold text-[#18723a]">Free cancellation</span> : null}
+              {hotel.freeBreakfast ? <span className="rounded-full bg-[#fff8df] px-2 py-0.5 text-[10px] font-semibold text-[#8a5a00]">Breakfast included</span> : null}
+              {hotel.freeParking ? <span className="rounded-full bg-[#eef2ff] px-2 py-0.5 text-[10px] font-semibold text-[#3f46a7]">Free parking</span> : null}
+            </div>
+          </section>
 
           <GallerySidebarLayout
             gallery={<DetailGallery hotel={hotel} photos={allPhotos} onOpenPhoto={openPhoto} />}
@@ -982,26 +1073,25 @@ export function HotelDetailView({
                 bookingContext={bookingContext}
                 onViewRooms={scrollToRooms}
                 onApply={handleApplySearch}
+                bookNowHref={bookNowHref}
               />
             }
           />
-          <div ref={gallerySentinelRef} className="h-px" aria-hidden />
-
           <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
             {/* Trust badges */}
-            <div className="flex flex-wrap items-center gap-4 rounded-xl border border-[#e8e8e8] bg-white px-4 py-3">
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-[#e8e8e8] bg-white px-3 py-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-4 sm:px-4 sm:py-3">
               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#424242]">
                 <ShieldCheck className="h-4 w-4 text-[#008009]" aria-hidden />
                 Secure booking
               </div>
-              <span className="text-[#e0e0e0]">|</span>
+              <span className="hidden text-[#e0e0e0] sm:inline">|</span>
               <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#424242]">
                 <Check className="h-4 w-4 text-[#2196F3]" aria-hidden />
                 Instant confirmation
               </div>
               {hotel.reviewCount > 0 && (
                 <>
-                  <span className="text-[#e0e0e0]">|</span>
+                  <span className="hidden text-[#e0e0e0] sm:inline">|</span>
                   <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#424242]">
                     <Users className="h-4 w-4 text-[#EF6614]" aria-hidden />
                     {hotel.reviewCount}+ guests reviewed
@@ -1010,7 +1100,7 @@ export function HotelDetailView({
               )}
               {hotel.freeCancellation && (
                 <>
-                  <span className="text-[#e0e0e0]">|</span>
+                  <span className="hidden text-[#e0e0e0] sm:inline">|</span>
                   <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#166534]">
                     <Check className="h-4 w-4" aria-hidden />
                     Free cancellation
@@ -1036,7 +1126,7 @@ export function HotelDetailView({
               <>
                 <HotelDetailReviews hotel={hotel} cityName={city.name} apiReviews={apiReviews} />
                 <HotelDetailBookingPolicy hotel={hotel} policies={policies} />
-                <HotelDetailSimilarHotels hotels={similarHotels} city={city} />
+                <HotelDetailDeferredSimilarHotels hotelId={hotel.id} city={city} />
               </>
             ) : (
               <div className="space-y-4 rounded-xl border border-[#e8e8e8] bg-white p-4">
@@ -1054,7 +1144,7 @@ export function HotelDetailView({
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className={cn("fixed right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-[#EF6614] text-white shadow-lg transition hover:bg-[#c94e0a] sm:right-6 sm:bottom-6", stickyVisible ? "bottom-[76px] lg:bottom-6" : "bottom-6")}
+          className="fixed bottom-[76px] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-[#EF6614] text-white shadow-lg transition hover:bg-[#c94e0a] sm:right-6 lg:bottom-6"
           aria-label="Scroll to top"
         >
           <ArrowUp className="h-5 w-5" strokeWidth={2.5} aria-hidden />
@@ -1062,20 +1152,21 @@ export function HotelDetailView({
         <MobileBookingBar
           hotel={hotel}
           onViewRooms={scrollToRooms}
-          visible={stickyVisible}
           bookingHref={roomSelection?.bookingHref}
+          bookNowHref={bookNowHref}
           selectedRoomName={roomSelection ? `${roomSelection.roomName} · ${roomSelection.planCode}` : undefined}
         />
       </main>
 
-      <HotelPhotoGalleryModal
-        open={gallery.open}
-        onClose={() => setGallery({ open: false })}
-        hotelName={hotel.name}
-        photoCategories={photoCategories}
-        allPhotos={allPhotos}
-      />
-
+      {gallery.open ? (
+        <HotelPhotoGalleryModal
+          open={gallery.open}
+          onClose={() => setGallery({ open: false })}
+          hotelName={hotel.name}
+          photoCategories={photoCategories}
+          allPhotos={allPhotos}
+        />
+      ) : null}
       <Footer />
     </>
   );

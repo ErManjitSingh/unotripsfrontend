@@ -32,6 +32,7 @@ import { motion } from "framer-motion";
 import {
   useCallback, useEffect, useMemo, useRef, useState, type FormEvent,
 } from "react";
+import { useRouter } from "next/navigation";
 import {
   BedDouble, Building2, Calendar, Car, Check, ChevronDown,
   ChevronRight, CircleCheck, CircleX, Lock, MapPin,
@@ -96,6 +97,9 @@ export type PackageDetailViewProps = {
   similar:       TourPackage[];
   initialRooms?: RoomConfig[];
   initialDate?:  string | null;
+  initialCab?: number;
+  initialHotels?: number[];
+  checkoutOnly?: boolean;
 };
 
 // ── Stepper ───────────────────────────────────────────────────────────────────
@@ -161,28 +165,86 @@ function CabCardSkeleton() {
   );
 }
 
+/**
+ * Shown while the live itinerary contract is loading. We deliberately do not
+ * render the demo hotels/cabs during this state: seeing a temporary fallback
+ * itinerary makes the eventual package selection look like it changed.
+ */
+function ItinerarySetupLoader({ tour }: { tour: TourPackage }) {
+  const stops = ["Mapping your route", "Reserving stays", "Preparing transfers"];
+
+  return (
+    <main className="min-h-screen bg-[#f5f7fb] px-4 pb-16 pt-24 sm:px-6 lg:px-8">
+      <section className="mx-auto overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_24px_70px_rgba(28,39,61,0.12)]">
+        <div className="relative min-h-[530px] overflow-hidden bg-[#10233f] px-6 py-10 sm:px-10 lg:px-16 lg:py-14">
+          {tour.image ? (
+            <Image src={tour.image} alt="" fill className="object-cover opacity-20 blur-sm scale-110" sizes="100vw" aria-hidden />
+          ) : null}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(255,122,0,0.38),transparent_33%),radial-gradient(circle_at_86%_85%,rgba(40,110,255,0.36),transparent_38%),linear-gradient(135deg,rgba(11,27,51,0.98),rgba(20,45,79,0.94))]" />
+          <div className="relative mx-auto flex max-w-4xl flex-col items-center text-center text-white">
+            <div className="relative mb-7 grid h-20 w-20 place-items-center rounded-[26px] bg-white/12 ring-1 ring-white/25 backdrop-blur-md">
+              <PlaneTakeoff className="h-9 w-9 animate-[bounce_1.8s_ease-in-out_infinite] text-[#ffb36c]" />
+              <span className="absolute -bottom-3 h-2 w-10 rounded-full bg-black/25 blur-sm" />
+            </div>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#ffb36c]">UNO Trips is planning your escape</p>
+            <h1 className="mt-4 max-w-2xl text-3xl font-extrabold tracking-[-0.04em] sm:text-5xl">Loading your itinerary</h1>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-white/75 sm:text-lg">We&apos;re bringing together your verified hotels, private transfers, and day-by-day experiences for {tour.title}.</p>
+
+            <div className="mt-10 grid w-full max-w-3xl gap-3 sm:grid-cols-3">
+              {stops.map((stop, index) => (
+                <div key={stop} className="relative overflow-hidden rounded-2xl border border-white/15 bg-white/[0.08] px-4 py-5 text-left backdrop-blur-sm">
+                  <div className="absolute inset-x-0 bottom-0 h-1 bg-white/10"><span className="block h-full bg-[#ff8a32] animate-[loader_1.9s_ease-in-out_infinite]" style={{ animationDelay: `${index * 180}ms` }} /></div>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ff8a32] text-xs font-extrabold text-white">0{index + 1}</span>
+                  <p className="mt-3 text-sm font-bold">{stop}</p>
+                  <p className="mt-1 text-xs text-white/60">Please hold on a moment</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-10 w-full max-w-xl">
+              <div className="h-2 overflow-hidden rounded-full bg-white/15"><span className="block h-full w-2/3 rounded-full bg-gradient-to-r from-[#ff7a00] via-[#ffb36c] to-[#ff7a00] animate-[pulse_1.5s_ease-in-out_infinite]" /></div>
+              <p className="mt-3 text-xs font-medium text-white/60">Building a seamless trip, just for you</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <style jsx>{`@keyframes loader { 0% { width: 12%; transform: translateX(-30%); } 50% { width: 72%; } 100% { width: 12%; transform: translateX(760%); } }`}</style>
+    </main>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PackageDetailView({
-  tour, similar, initialRooms, initialDate,
+  tour, similar, initialRooms, initialDate, initialCab = 0, initialHotels = [], checkoutOnly = false,
 }: PackageDetailViewProps) {
+  const router = useRouter();
   const slug      = tour.slug ?? tour.id;
   const packageId = tour.packageId ?? tour.id;
 
   // ── Day options from backend ──────────────────────────────────────────────
   const {
     isLoading: optLoading,
-    hotelGroups, cabOptions, addonOptions, days,
+    hotelGroups, cabOptions, addonOptions, days, basePrice,
     usingDemo,
     tokenType, tokenAmount: pkgTokenConfig, balanceDays,
   } = useDayOptions(slug);
 
+  // New package payloads carry the authoritative selling price in
+  // day-options.base_price. The package list/detail summary can still be
+  // cached from the legacy shape, so never let that stale value drive totals
+  // when the new payload has supplied a price.
+  const effectiveBasePrice = basePrice ?? tour.priceINR;
+
   // ── Customiser state ──────────────────────────────────────────────────────
   const [rooms, setRooms] = useState<RoomConfig[]>(
-    initialRooms ?? [{ adults: 2, children: 0 }],
+    initialRooms ?? [{ adults: 1, children: 0 }],
   );
-  const [selectedHotels, setSelectedHotels] = useState<number[]>([]);
-  const [selectedCab,    setSelectedCab]    = useState<number>(0);
+  const [travelDate, setTravelDate] = useState(
+    initialDate ?? new Date().toISOString().slice(0, 10),
+  );
+  const [selectedHotels, setSelectedHotels] = useState<number[]>(initialHotels);
+  const [selectedCab,    setSelectedCab]    = useState<number>(initialCab);
   const [addons,         setAddons]         = useState<AddonOption[]>([]);
   const [payType,        setPayType]        = useState<"token" | "full">("token");
 
@@ -283,6 +345,17 @@ export function PackageDetailView({
     setSelectedHotels((prev) => prev); // hotel selections stay per-destination not per-room
   }, []);
 
+  const updateTravellers = useCallback((adults: number) => {
+    let remaining = Math.max(1, Math.min(12, adults));
+    const nextRooms: RoomConfig[] = [];
+    while (remaining > 0) {
+      const roomAdults = Math.min(4, remaining);
+      nextRooms.push({ adults: roomAdults, children: 0 });
+      remaining -= roomAdults;
+    }
+    setRooms(nextRooms);
+  }, []);
+
   const toggleAddon = useCallback((id: string) => {
     setAddons((prev) => prev.map((a) => a.id === id ? { ...a, on: !a.on } : a));
   }, []);
@@ -320,7 +393,7 @@ export function PackageDetailView({
       custState,
       hotelGroups,
       cabOptions,
-      tour.priceINR,
+      effectiveBasePrice,
       tour.oldPriceINR,
     );
     return {
@@ -329,7 +402,7 @@ export function PackageDetailView({
       activities:  actTotal,
       total:       base.total + sightTotal + actTotal,
     };
-  }, [custState, hotelGroups, cabOptions, tour.priceINR, tour.oldPriceINR, sightTotal, actTotal]);
+  }, [custState, hotelGroups, cabOptions, effectiveBasePrice, tour.oldPriceINR, sightTotal, actTotal]);
 
   const token = tokenAmount(breakdown.total, tokenType, pkgTokenConfig);
   // A "fixed" token package with no real token_amount configured computes
@@ -411,13 +484,13 @@ export function PackageDetailView({
 
   /** Real calendar date per day, only when the visitor picked a travel date upstream (?date=). */
   const dateForDay = useCallback((dayNum: number): Date | null => {
-    if (!initialDate) return null;
-    const parsed = new Date(initialDate);
+    if (!travelDate) return null;
+    const parsed = new Date(travelDate);
     if (Number.isNaN(parsed.getTime())) return null;
     const d = new Date(parsed);
     d.setDate(d.getDate() + (dayNum - 1));
     return d;
-  }, [initialDate]);
+  }, [travelDate]);
 
   const dayDateLabel = useCallback((dayNum: number): string | null => {
     const d = dateForDay(dayNum);
@@ -496,34 +569,80 @@ export function PackageDetailView({
     </div>
   );
 
+  const goToPackageCheckout = useCallback(() => {
+    const params = new URLSearchParams({
+      rooms: encodeRooms(rooms),
+      date: travelDate,
+      cab: String(selectedCab),
+      hotels: selectedHotels.join(","),
+    });
+    router.push(`/packages/${encodeURIComponent(slug)}/checkout?${params.toString()}`);
+  }, [router, slug, rooms, travelDate, selectedCab, selectedHotels]);
+
+  // ── Dedicated checkout summary page ───────────────────────────────────────
+  if (checkoutOnly) {
+    return (
+      <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
+        <HeroGlassNavbar activeId="holidays" solid flushDetailShell />
+        <div className="border-b border-[#e0e0e0] bg-white pt-[112px] sm:pt-[104px]">
+          <div className="mx-auto flex w-full max-w-[1320px] items-center gap-6 px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-2 text-[13px] font-bold text-[#212121]"><span className="grid h-6 w-6 place-items-center rounded-full bg-[#212121] text-[11px] text-white">1</span>Review &amp; Travellers</div>
+            <div className="h-px w-12 bg-[#d7dce2]" />
+            <div className="flex items-center gap-2 text-[13px] text-[#9E9E9E]"><span className="grid h-6 w-6 place-items-center rounded-full border border-[#d7dce2] text-[11px]">2</span>Payment</div>
+          </div>
+        </div>
+        <div className="mx-auto grid w-full max-w-[1320px] gap-4 px-4 py-5 pb-16 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:px-8">
+          {bookState.phase === "success" && bookState.result ? <div className="lg:col-span-2"><PackageBookingSuccess result={bookState.result} tourTitle={tour.title} onPayBalance={bookState.result.status === "token_paid" ? () => payBalance(bookState.result!.booking_id, { name: "", email: "", phone: "" }) : undefined} /></div> : <>
+            <section className="space-y-4">
+              <div className="rounded-xl border border-[#e8e8e8] bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-widest text-[#EF6614]">Package booking</p><h1 className="mt-1 text-xl font-extrabold text-[#172033]">Review your trip</h1><p className="mt-1 text-[13px] text-[#757575]">Check the details below before continuing to payment.</p></div><button type="button" onClick={() => router.back()} className="text-[12px] font-bold text-[#EF6614] hover:underline">← Change trip</button></div>
+                <div className="mt-5 grid gap-4 border-t border-[#f0f0f0] pt-5 sm:grid-cols-[88px_1fr]">
+                  <div className="relative h-16 w-[88px] overflow-hidden rounded-lg bg-slate-100"><Image src={tour.image ?? ""} alt={tour.title} fill unoptimized className="object-cover" sizes="88px" /></div>
+                  <div><h2 className="text-[15px] font-extrabold text-[#1a1a1a]">{tour.title}</h2><p className="mt-1 text-[12px] text-[#757575]">{tour.location || "India"} · {tour.durationNights} nights / {tour.durationDays} days</p><div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-[#424242]"><span className="rounded-full bg-[#fafafa] px-2.5 py-1">{roomsLabel(rooms)}</span><span className="rounded-full bg-[#fafafa] px-2.5 py-1">Travel date: {travelDate}</span></div></div>
+                </div>
+              </div>
+              <form id="package-checkout-form" onSubmit={handleConfirmAndPay} noValidate className="rounded-xl border border-[#e8e8e8] bg-white shadow-sm">
+                <div className="border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-4"><div className="flex items-center gap-2"><span className="grid h-6 w-6 place-items-center rounded-full border-2 border-[#EF6614] text-[11px] font-extrabold text-[#EF6614]">2</span><div><h2 className="text-[14px] font-bold">Traveller details</h2><p className="text-[11px] text-[#9E9E9E]">Name and contact details for booking confirmation</p></div></div></div>
+                <div className="p-5 sm:p-6"><div className="grid gap-4 sm:grid-cols-2">{[{ name: "guestName", label: "Full name", type: "text", value: user?.name ?? "" }, { name: "guestEmail", label: "Email address", type: "email", value: user?.email ?? "" }, { name: "guestPhone", label: "Mobile number", type: "tel", value: user?.phone ?? "" }, { name: "travelDate", label: "Travel date", type: "date", value: travelDate }].map((field) => <label key={field.name} className="block text-[12px] font-semibold text-[#424242]">{field.label} <span className="text-[#EF6614]">*</span><input name={field.name} required type={field.type} defaultValue={field.value} className="mt-1.5 h-11 w-full rounded-lg border border-[#e0e0e0] px-3 text-[13px] outline-none focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10" /></label>)}</div><label className="mt-4 block text-[12px] font-semibold text-[#424242]">Special requests <span className="font-normal text-[#9E9E9E]">(optional)</span><textarea name="specialReq" rows={3} className="mt-1.5 w-full resize-none rounded-lg border border-[#e0e0e0] px-3 py-2.5 text-[13px] outline-none focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10" placeholder="Any dietary needs or special requests" /></label>{bookState.phase === "error" && <p className="mt-4 rounded-lg bg-[#fff5f5] p-3 text-[12px] font-medium text-[#c62828]">{bookState.message}</p>}</div>
+              </form>
+            </section>
+            <aside className="lg:sticky lg:top-24 lg:self-start"><div className="overflow-hidden rounded-xl border border-[#e8e8e8] bg-white shadow-sm"><div className="border-b border-[#f0f0f0] px-5 py-4"><h2 className="text-[16px] font-extrabold text-[#1a1a1a]">Price Summary</h2><p className="mt-1 text-[11px] text-[#9E9E9E]">Final price for your selected trip</p></div><div className="space-y-3 p-5 text-[13px]"><div className="flex justify-between text-[#616161]"><span>Package price</span><span>₹{fmtINR(breakdown.base)}</span></div>{breakdown.hotel > 0 && <div className="flex justify-between text-[#616161]"><span>Hotel upgrades</span><span>+₹{fmtINR(breakdown.hotel)}</span></div>}{breakdown.cab > 0 && <div className="flex justify-between text-[#616161]"><span>Vehicle upgrade</span><span>+₹{fmtINR(breakdown.cab)}</span></div>}<div className="flex justify-between border-t border-[#f0f0f0] pt-3 text-[15px] font-extrabold text-[#1a1a1a]"><span>Total trip price</span><span>₹{fmtINR(breakdown.total)}</span></div><p className="text-right text-[11px] text-[#757575]">₹{fmtINR(Math.round(breakdown.total / Math.max(1, rooms.reduce((s, r) => s + r.adults, 0))))} per person</p>{tokenPaymentAvailable && <div className="rounded-lg border border-[#ffe0cc] bg-[#fff8f3] p-3"><p className="text-[11px] font-bold text-[#E65100]">Pay only today</p><p className="mt-1 text-xl font-extrabold text-[#EF6614]">₹{fmtINR(token)}</p><p className="mt-1 text-[10px] text-[#757575]">Remaining balance can be paid later.</p></div>}<button type="submit" form="package-checkout-form" disabled={isBooking} className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-[#EF6614] text-[14px] font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(239,102,20,.65)] disabled:opacity-60">{isBooking ? "Preparing booking…" : `Continue to payment · ₹${fmtINR(payAmt)}`}</button><p className="text-center text-[10px] text-[#9E9E9E]">Secure payment · Instant confirmation</p></div></div></aside>
+          </>}
+        </div>
+      </main>
+    );
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   // The package-detail route intentionally uses its own transactional layout.
   // It is separate from the glossy marketing navbar used on the home/packages pages.
   return (
     <>
       <div className="hidden md:block">
-        <HeroGlassNavbar activeId="holidays" solid combinedAuth hideOnScroll />
+        <HeroGlassNavbar activeId="holidays" solid combinedAuth flushDetailShell />
       </div>
       <TravelMobileTopShell activeId="holidays" showGreeting={false} />
       <GlacialStylePackageDetail
-        tour={tour}
-        images={galleryImages}
-        roomsLabel={roomsLabel(rooms)}
-        total={breakdown.total}
-        initialDate={initialDate}
-        hotelGroups={hotelGroups as any[]}
-        cabOptions={cabOptions as any[]}
-        selectedHotels={selectedHotels}
-        selectedCab={selectedCab}
-        onBook={() => {
-          if (!isAuthenticated) setShowLoginModal(true);
-          else switchTab("book");
-        }}
-        onEnquire={() => setShowLoginModal(true)}
-        onChangeHotel={(index) => { setChangeHotelMode("hotel"); setChangeHotelDestIdx(index); }}
-        onChangeRoom={(index) => { setChangeHotelMode("room"); setChangeHotelDestIdx(index); }}
-        onChangeCab={() => setChangeVehicleOpen(true)}
-      />
+          tour={tour}
+          images={galleryImages}
+          roomsLabel={roomsLabel(rooms)}
+          total={breakdown.total}
+          tokenType={tokenType}
+          tokenAmount={pkgTokenConfig}
+          loadingJourney={optLoading}
+          initialDate={travelDate}
+          hotelGroups={hotelGroups as any[]}
+          cabOptions={cabOptions as any[]}
+          selectedHotels={selectedHotels}
+          selectedCab={selectedCab}
+          onBook={goToPackageCheckout}
+          onEnquire={() => setShowLoginModal(true)}
+          onChangeHotel={(index) => { setChangeHotelMode("hotel"); setChangeHotelDestIdx(index); }}
+          onChangeRoom={(index) => { setChangeHotelMode("room"); setChangeHotelDestIdx(index); }}
+          onChangeCab={() => setChangeVehicleOpen(true)}
+          onChangeTravellers={updateTravellers}
+          onChangeDate={setTravelDate}
+        />
       <BookingAuthModal
         open={showLoginModal}
         onClose={() => setShowLoginModal(false)}

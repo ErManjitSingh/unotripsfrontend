@@ -77,6 +77,10 @@ export type FetchActivitiesParams = {
   limit?:      number;
   category?:   string;
   destination?: string;
+  difficulty?: string;
+  search?:     string;
+  minPrice?:   number;
+  maxPrice?:   number;
   featured?:   boolean;
 };
 
@@ -86,6 +90,10 @@ export async function fetchActivities(params: FetchActivitiesParams = {}): Promi
   if (params.limit)       qs.set("limit",       String(params.limit));
   if (params.category)    qs.set("category",    params.category);
   if (params.destination) qs.set("destination", params.destination);
+  if (params.difficulty)  qs.set("difficulty",  params.difficulty);
+  if (params.search)      qs.set("search",      params.search);
+  if (params.minPrice !== undefined) qs.set("min_price", String(params.minPrice));
+  if (params.maxPrice !== undefined) qs.set("max_price", String(params.maxPrice));
   if (params.featured)    qs.set("featured",    "true");
 
   const res = await fetch(`/api/packages/activities?${qs}`, {
@@ -113,6 +121,10 @@ export async function fetchActivitiesServer(params: FetchActivitiesParams = {}):
   if (params.limit)       qs.set("limit",       String(params.limit));
   if (params.category)    qs.set("category",    params.category);
   if (params.destination) qs.set("destination", params.destination);
+  if (params.difficulty)  qs.set("difficulty",  params.difficulty);
+  if (params.search)      qs.set("search",      params.search);
+  if (params.minPrice !== undefined) qs.set("min_price", String(params.minPrice));
+  if (params.maxPrice !== undefined) qs.set("max_price", String(params.maxPrice));
   if (params.featured)    qs.set("featured",    "true");
 
   try {
