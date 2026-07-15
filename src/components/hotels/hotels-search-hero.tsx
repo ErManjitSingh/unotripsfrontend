@@ -226,13 +226,24 @@ export function HotelsSearchHero({
     if (!checkOutIso || checkOutIso <= checkInIso) { setSearchError("Check-out must be after check-in");  return; }
 
     const localQuery = trimmedCity.toLowerCase();
+    // A city can also be part of a locality name (for example, "Manali" is
+    // contained in "Old Manali"). Resolve an exact city before attempting a
+    // fuzzy locality match so selecting or searching a city never adds an
+    // unrelated area filter to the results URL.
+    const isExactDestination =
+      selectedSlug === slugifyCityName(trimmedCity) ||
+      effectiveDestinations.some(
+        (item) =>
+          item.city.toLowerCase() === localQuery ||
+          item.slug === slugifyCityName(trimmedCity),
+      );
     const locality =
       effectiveLocalities.find(
         (item) =>
           item.slug === slugifyCityName(trimmedCity) ||
           item.name.toLowerCase() === localQuery ||
           `${item.name} ${item.city}`.toLowerCase() === localQuery,
-      ) ?? findHotelLocality(trimmedCity);
+      ) ?? (isExactDestination ? null : findHotelLocality(trimmedCity));
     const matched = matchHotelDestinationFromList(locality?.city ?? trimmedCity, effectiveDestinations);
     const slug    = selectedSlug || locality?.citySlug || matched?.slug || searchCitySlug || slugifyCityName(trimmedCity);
     const q       = searchLocation.trim() || locality?.name || (!matched && selectedSlug ? trimmedCity : undefined);
