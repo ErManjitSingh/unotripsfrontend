@@ -26,6 +26,9 @@ import type { RoomSelection } from "@/components/hotels/hotel-detail-rooms-table
 import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
 import { TravelMobileTopShell } from "@/components/home/HeroSection";
 import { HotelDetailTabs, type HotelDetailTabId } from "@/components/hotels/hotel-detail-tabs";
+import { HotelDetailReviews } from "@/components/hotels/hotel-detail-reviews";
+import { HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booking-policy";
+import { HotelDetailDeferredSimilarHotels } from "@/components/hotels/hotel-detail-deferred-similar-hotels";
 import type { ApiReview } from "@/lib/hotels-api";
 import {
   addDaysToIso,
@@ -45,15 +48,6 @@ import {
 } from "@/lib/hotels-catalog";
 import { cn, formatInrAmount } from "@/lib/utils";
 
-const HotelDetailReviews = dynamic(() =>
-  import("@/components/hotels/hotel-detail-reviews").then((mod) => mod.HotelDetailReviews),
-);
-const HotelDetailBookingPolicy = dynamic(() =>
-  import("@/components/hotels/hotel-detail-booking-policy").then((mod) => mod.HotelDetailBookingPolicy),
-);
-const HotelDetailDeferredSimilarHotels = dynamic(() =>
-  import("@/components/hotels/hotel-detail-deferred-similar-hotels").then((mod) => mod.HotelDetailDeferredSimilarHotels),
-);
 const HotelPhotoGalleryModal = dynamic(() =>
   import("@/components/hotels/hotel-photo-gallery-modal").then((mod) => mod.HotelPhotoGalleryModal),
 );

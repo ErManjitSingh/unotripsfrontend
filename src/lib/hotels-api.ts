@@ -292,6 +292,24 @@ function roomTaxes(pricePerNight: number): number {
 
 function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
   const web = room.rates?.website;
+  // The backend's `rate_plan_prices` amounts are for the complete selected
+  // stay (one room). The room UI and checkout multiply its plan figures by
+  // nights/rooms, so normalize those authoritative amounts back to one night
+  // here. This also makes the displayed pre-tax price match PricingEngine
+  // instead of the raw admin rate card.
+  const stayNights = Math.max(1, room.nightly_breakdown?.length ?? 1);
+  const livePlanPrice = (suffix: string, fallback: number) => {
+    const live = room.rate_plan_prices?.[suffix];
+    return live ? live.price / stayNights : fallback;
+  };
+  const livePlanTaxes = (suffix: string, fallbackPrice: number) => {
+    const live = room.rate_plan_prices?.[suffix];
+    return live ? live.taxes / stayNights : roomTaxes(fallbackPrice);
+  };
+  const livePlanTotal = (suffix: string, fallbackPrice: number) => {
+    const live = room.rate_plan_prices?.[suffix];
+    return live ? live.total / stayNights : fallbackPrice + roomTaxes(fallbackPrice);
+  };
 
   // ── New per-plan pricing (rates.website) ─────────────────────────────────
   if (web?.room?.ep) {
@@ -301,6 +319,13 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
     const ap  = web.room.ap  ? Math.round(web.room.ap)  : null;
 
     const originalBase = room.original_price != null ? Math.round(room.original_price) : null;
+    // When dates are not in the URL, the API returns the configured website
+    // rates but no per-plan tax breakdown. `price_per_night` already includes
+    // the applicable weekday/weekend adjustment for EP, so apply that same
+    // multiplier to every meal plan before calculating its tax-inclusive total.
+    const rateMultiplier = ep > 0 && room.price_per_night > 0
+      ? room.price_per_night / ep
+      : 1;
 
     const makePlan = (
       suffix:       string,
@@ -309,18 +334,20 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
       planPrice:    number,
       showBestValueBadge?: boolean,
     ): HotelRoomRatePlan => {
-      const originalPrice = originalBase != null ? originalBase + (planPrice - ep) : planPrice;
+      const adjustedPlanPrice = Math.round(planPrice * rateMultiplier);
+      const livePrice = livePlanPrice(suffix, adjustedPlanPrice);
+      const originalPrice = originalBase != null ? originalBase + (livePrice - ep) : livePrice;
       return {
         id: `${room.id}-${suffix}`,
         packageName,
         benefits,
         roomBasePrice: ep,
-        mealAddOn: planPrice - ep,
+        mealAddOn: livePrice - ep,
         originalPrice,
-        price: planPrice,
-        taxes: room.rate_plan_prices?.[suffix]?.taxes ?? 0,
-        total: room.rate_plan_prices?.[suffix]?.total ?? planPrice,
-        discountAmount: originalBase != null ? Math.max(0, originalPrice - planPrice) : 0,
+        price: livePrice,
+        taxes: livePlanTaxes(suffix, livePrice),
+        total: livePlanTotal(suffix, livePrice),
+        discountAmount: originalBase != null ? Math.max(0, originalPrice - livePrice) : 0,
         nonRefundable: false,
         couponCode: "",
         showBestValueBadge,
@@ -347,7 +374,7 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
     mealCost:         number,
     showBestValueBadge?: boolean,
   ): HotelRoomRatePlan => {
-    const price         = basePrice + mealCost;
+    const price         = livePlanPrice(suffix, basePrice + mealCost);
     const originalPrice = originalBase != null ? originalBase + mealCost : price;
     return {
       id: `${room.id}-${suffix}`,
@@ -357,8 +384,8 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
       mealAddOn: mealCost,
       originalPrice,
       price,
-      taxes: room.rate_plan_prices?.[suffix]?.taxes ?? 0,
-      total: room.rate_plan_prices?.[suffix]?.total ?? price,
+      taxes: livePlanTaxes(suffix, price),
+      total: livePlanTotal(suffix, price),
       discountAmount: originalBase != null ? Math.max(0, originalPrice - price) : 0,
       nonRefundable: false,
       couponCode: "",

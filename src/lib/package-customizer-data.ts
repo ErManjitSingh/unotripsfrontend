@@ -591,7 +591,7 @@ export const TERMS_AND_CONDITIONS: Array<{ title: string; body: string }> = [
 
 // ── Price engine ──────────────────────────────────────────────────────────────
 //
-// basePricePerPerson is ALWAYS the real package.priceINR (base_price from the
+// basePackagePrice is ALWAYS the real package.priceINR (base_price from the
 // backend) — never omit it. It used to default to a hardcoded ₹9,500 demo
 // constant, which meant the optimistic price shown while customizing never
 // matched the authoritative POST /calculate-price total charged at checkout
@@ -599,23 +599,27 @@ export const TERMS_AND_CONDITIONS: Array<{ title: string; body: string }> = [
 // "Confirm & Pay"). There is no fallback anymore — callers must pass it.
 
 /**
- * Full price breakdown using the package's real per-person price plus
- * real hotel/cab option deltas. `basePricePerPerson` and `originalPricePerPerson`
+ * Full price breakdown using the package's configured pricing basis plus
+ * real hotel/cab option deltas. `basePackagePrice` and `originalPackagePrice`
  * come straight from the package record (TourPackage.priceINR / oldPriceINR) —
  * never a hardcoded rate. `disc` is informational only (what the traveller is
  * already saving vs. the listed price) — it is NOT subtracted from `total`,
- * since basePricePerPerson is already the net/current selling price.
+ * since basePackagePrice is already the net/current selling price.
  */
 export function calcTotalWithOptions(
   state: Omit<CustomizerState, "pay">,
   hotels: DestinationHotels[],
   cabs: CabOption[],
-  basePricePerPerson: number,
-  originalPricePerPerson?: number,
+  basePackagePrice: number,
+  originalPackagePrice?: number,
+  pricePer: "per_person" | "per_couple" | "per_group" = "per_person",
 ): PriceBreakdown {
   const persons =
     state.adults + Math.round(state.children * CHILD_PRICE_FACTOR);
-  const base = basePricePerPerson * Math.max(1, persons);
+  const isFlatPackagePrice = pricePer === "per_couple" || pricePer === "per_group";
+  const base = isFlatPackagePrice
+    ? basePackagePrice
+    : basePackagePrice * Math.max(1, persons);
   const hotelDelta = state.hotels.reduce(
     (sum, sel, i) => sum + (hotels[i]?.opts[sel]?.extra ?? 0) * state.rooms,
     0,
@@ -625,8 +629,8 @@ export function calcTotalWithOptions(
     .filter((a) => a.on)
     .reduce((s, a) => s + a.price * Math.max(1, persons), 0);
   const disc =
-    originalPricePerPerson && originalPricePerPerson > basePricePerPerson
-      ? (originalPricePerPerson - basePricePerPerson) * Math.max(1, persons)
+    originalPackagePrice && originalPackagePrice > basePackagePrice
+      ? (originalPackagePrice - basePackagePrice) * (isFlatPackagePrice ? 1 : Math.max(1, persons))
       : 0;
   const total = Math.max(0, base + hotelDelta + cabDelta + addons);
   return { base, hotel: hotelDelta, cab: cabDelta, addons, disc, total };

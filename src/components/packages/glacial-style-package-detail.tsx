@@ -113,9 +113,6 @@ export function GlacialStylePackageDetail({
   const [selectedTravelDate, setSelectedTravelDate] = useState(
     initialDate ?? "",
   );
-  const [travellerCount, setTravellerCount] = useState(
-    Number(roomsLabel.match(/(\d+)\s+Adult/i)?.[1] ?? 1),
-  );
   const [travellersOpen, setTravellersOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [topDateOpen, setTopDateOpen] = useState(false);
@@ -123,6 +120,12 @@ export function GlacialStylePackageDetail({
   const [journeyImagesReady, setJourneyImagesReady] = useState(false);
   const itinerary = tour.itinerary ?? [];
   const packageTitle = displayPackageTitle(tour.title);
+  // Room configuration is owned by PackageDetailView. Deriving the count
+  // here avoids keeping a second, temporarily stale traveller state.
+  const travellerCount = Number(roomsLabel.match(/(\d+)\s+Adult/i)?.[1] ?? 1);
+  const changeTravellerCount = (next: number) => {
+    onChangeTravellers(Math.max(1, Math.min(12, next)));
+  };
   const heroImages = images.length ? images : [tour.image].filter(Boolean);
   const heroImage = heroImages[imageIndex] ?? tour.image;
   const nights = tour.durationNights || Math.max(1, itinerary.length - 1);
@@ -155,10 +158,10 @@ export function GlacialStylePackageDetail({
   );
   const itineraryImageKey = itineraryImageSources.join("|");
   const showJourneyLoader = loadingJourney || !journeyImagesReady;
-  const perPerson = Math.max(
-    0,
-    Math.round(total / Math.max(1, travellerCount)),
-  );
+  // `total` is the live package amount after traveller, room, hotel and cab
+  // selections. Do not divide it back into a per-person number when rendering:
+  // that hid every traveller-count price change from the customer.
+  const totalPrice = Math.max(0, Math.round(total));
   const travellerLabel = `${travellerCount} Adult${travellerCount === 1 ? "" : "s"}`;
   const notices = [
     "Lowest price today",
@@ -178,11 +181,6 @@ export function GlacialStylePackageDetail({
     if (!initialDate)
       setSelectedTravelDate((current) => current || todayDateValue());
   }, [initialDate]);
-
-  useEffect(() => {
-    const adults = Number(roomsLabel.match(/(\d+)\s+Adult/i)?.[1] ?? 1);
-    setTravellerCount(adults);
-  }, [roomsLabel]);
 
   const updateTravelDate = (date: string) => {
     setSelectedTravelDate(date);
@@ -329,13 +327,7 @@ export function GlacialStylePackageDetail({
                         <button
                           type="button"
                           aria-label="Remove adult"
-                          onClick={() =>
-                            setTravellerCount((count) => {
-                              const next = Math.max(1, count - 1);
-                              onChangeTravellers(next);
-                              return next;
-                            })
-                          }
+                          onClick={() => changeTravellerCount(travellerCount - 1)}
                           className="grid h-8 w-8 place-items-center rounded-full border border-slate-300 text-lg"
                         >
                           −
@@ -346,13 +338,7 @@ export function GlacialStylePackageDetail({
                         <button
                           type="button"
                           aria-label="Add adult"
-                          onClick={() =>
-                            setTravellerCount((count) => {
-                              const next = Math.min(12, count + 1);
-                              onChangeTravellers(next);
-                              return next;
-                            })
-                          }
+                          onClick={() => changeTravellerCount(travellerCount + 1)}
                           className="grid h-8 w-8 place-items-center rounded-full border border-primary text-lg text-primary"
                         >
                           +
@@ -373,12 +359,12 @@ export function GlacialStylePackageDetail({
             <div className="flex min-w-[185px] items-center border-l border-[#ECEEF2] px-5 py-3">
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#9aa1ad]">
-                  Price
+                  Total price
                 </p>
                 <p className="mt-0.5 text-[14px] font-bold leading-tight text-[#20242c]">
-                  ₹{formatMoney(perPerson)}{" "}
+                  ₹{formatMoney(totalPrice)}{" "}
                   <span className="text-xs font-medium text-slate-500">
-                    per person
+                    for {travellerCount} adult{travellerCount === 1 ? "" : "s"}
                   </span>
                 </p>
               </div>
@@ -527,9 +513,9 @@ export function GlacialStylePackageDetail({
                   <h2 className="mt-1 text-base font-extrabold text-[#172033]">Pick a date and you&apos;re ready</h2>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-[10px] font-semibold text-slate-500">from</p>
-                  <p className="text-lg font-extrabold leading-none text-primary">₹{formatMoney(perPerson)}</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">per person</p>
+                  <p className="text-[10px] font-semibold text-slate-500">total</p>
+                  <p className="text-lg font-extrabold leading-none text-primary">₹{formatMoney(totalPrice)}</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">for {travellerCount} adult{travellerCount === 1 ? "" : "s"}</p>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
@@ -574,9 +560,9 @@ export function GlacialStylePackageDetail({
                       <div className="flex items-center justify-between gap-4">
                         <div><p className="text-sm font-bold text-slate-800">Adults</p><p className="text-xs text-slate-500">Age 12+</p></div>
                         <div className="flex items-center gap-3">
-                          <button type="button" aria-label="Remove adult" onClick={() => setTravellerCount((count) => { const next = Math.max(1, count - 1); onChangeTravellers(next); return next; })} className="grid h-9 w-9 place-items-center rounded-full border border-slate-300 text-lg">−</button>
+                          <button type="button" aria-label="Remove adult" onClick={() => changeTravellerCount(travellerCount - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-300 text-lg">−</button>
                           <span className="w-5 text-center font-bold">{travellerCount}</span>
-                          <button type="button" aria-label="Add adult" onClick={() => setTravellerCount((count) => { const next = Math.min(12, count + 1); onChangeTravellers(next); return next; })} className="grid h-9 w-9 place-items-center rounded-full border border-primary text-lg text-primary">+</button>
+                          <button type="button" aria-label="Add adult" onClick={() => changeTravellerCount(travellerCount + 1)} className="grid h-9 w-9 place-items-center rounded-full border border-primary text-lg text-primary">+</button>
                         </div>
                       </div>
                       <button type="button" onClick={() => setTravellersOpen(false)} className="mt-4 h-10 w-full rounded-lg bg-primary text-sm font-bold text-white">Done</button>
@@ -960,12 +946,12 @@ export function GlacialStylePackageDetail({
                 <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 via-[38%] to-transparent" />
                 <div className="relative z-10 max-w-[52%] px-5 pt-4 xl:max-w-[88%]">
                   <p className="text-sm font-semibold text-[#667085]">
-                    Starting from
+                    Total price
                   </p>
                   <p className="mt-1 whitespace-nowrap text-[3rem] font-extrabold leading-none tracking-[-.05em] text-[#FF5A00] xl:text-[2.45rem]">
-                    ₹{formatMoney(perPerson)}{" "}
+                    ₹{formatMoney(totalPrice)}{" "}
                     <span className="text-base font-semibold tracking-normal text-[#667085]">
-                      / person
+                      / {travellerCount} adult{travellerCount === 1 ? "" : "s"}
                     </span>
                   </p>
                   <div className="mt-2 inline-flex items-center gap-2 rounded-[12px] bg-[#FFF0E6] px-3 py-2 text-sm font-semibold text-[#344054]">
@@ -1050,7 +1036,7 @@ export function GlacialStylePackageDetail({
                   Book with just ₹
                   {formatMoney(
                     tokenType === "percent"
-                      ? (perPerson * tokenAmount) / 100
+                      ? (totalPrice * tokenAmount) / 100
                       : tokenAmount,
                   )}{" "}
                   <span className="text-xl">›</span>
@@ -1095,8 +1081,8 @@ export function GlacialStylePackageDetail({
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-orange-100 bg-white/95 px-3 py-2.5 shadow-[0_-10px_30px_rgba(15,23,42,0.10)] backdrop-blur xl:hidden" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
         <div className="mx-auto flex max-w-[640px] items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold text-slate-500">Reserve today from</p>
-            <p className="truncate text-base font-extrabold leading-tight text-[#172033]">₹{formatMoney(tokenType === "percent" ? (perPerson * tokenAmount) / 100 : tokenAmount)} <span className="text-[10px] font-medium text-slate-500">booking amount</span></p>
+            <p className="text-[10px] font-semibold text-slate-500">Reserve today</p>
+            <p className="truncate text-base font-extrabold leading-tight text-[#172033]">₹{formatMoney(tokenType === "percent" ? (totalPrice * tokenAmount) / 100 : tokenAmount)} <span className="text-[10px] font-medium text-slate-500">booking amount</span></p>
           </div>
           <button
             type="button"

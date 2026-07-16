@@ -238,7 +238,8 @@ export function PackageDetailView({
 
   // ── Customiser state ──────────────────────────────────────────────────────
   const [rooms, setRooms] = useState<RoomConfig[]>(
-    initialRooms ?? [{ adults: 1, children: 0 }],
+    // A package's quoted price is built for its standard two-adult booking.
+    initialRooms ?? [{ adults: 2, children: 0 }],
   );
   const [travelDate, setTravelDate] = useState(
     initialDate ?? new Date().toISOString().slice(0, 10),
@@ -395,6 +396,7 @@ export function PackageDetailView({
       cabOptions,
       effectiveBasePrice,
       tour.oldPriceINR,
+      tour.pricePer,
     );
     return {
       ...base,
@@ -402,7 +404,7 @@ export function PackageDetailView({
       activities:  actTotal,
       total:       base.total + sightTotal + actTotal,
     };
-  }, [custState, hotelGroups, cabOptions, effectiveBasePrice, tour.oldPriceINR, sightTotal, actTotal]);
+  }, [custState, hotelGroups, cabOptions, effectiveBasePrice, tour.oldPriceINR, tour.pricePer, sightTotal, actTotal]);
 
   const token = tokenAmount(breakdown.total, tokenType, pkgTokenConfig);
   // A "fixed" token package with no real token_amount configured computes

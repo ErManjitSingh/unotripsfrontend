@@ -132,6 +132,7 @@ type RawPackageSummary = {
   tour_type:        string;
   base_price:       number;
   discounted_price: number | null;
+  price_per?:       "per_person" | "per_couple" | "per_group";
   destination_name: string | null;
   destination_city: string | null;
   state:            string | null;
@@ -269,6 +270,7 @@ export function mapApiPackageSummary(row: RawPackageSummary): TourPackage {
     reviewCount:     row.booking_count ?? 0,
     priceINR:        price,
     oldPriceINR:     oldPrice,
+    pricePer:        row.price_per ?? "per_person",
     discountPct,
     packageType:     row.tour_type || "Holiday package",
     location:        location || undefined,

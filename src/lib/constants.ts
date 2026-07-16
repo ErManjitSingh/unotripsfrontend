@@ -75,6 +75,8 @@ export type TourPackage = {
   reviewCount: number;
   priceINR: number;
   oldPriceINR?: number;
+  /** Whether the stored package price is per traveller or for the whole trip. */
+  pricePer?: "per_person" | "per_couple" | "per_group";
   discountPct?: number;
   description?: string;
   countries?: number;
