@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PackageListingView } from "@/components/packages/package-listing-view";
 import { listPackages }       from "@/services/packages";
-import { Footer }             from "@/components/layout/Footer";
 import { TRAVEL_HOME_BRAND }  from "@/lib/travel-home-brand";
 export const revalidate = 300;
 
@@ -80,7 +79,7 @@ export default async function PackagesPage({ searchParams }: Props) {
 
   return (
     <>
-      {/* PackageListingView renders its own Navbar — do NOT add another one here */}
+      {/* PackageListingView owns its navigation and footer. */}
       <Suspense fallback={null}>
         {packages.length === 0 ? (
           <PackageListingView
@@ -105,7 +104,6 @@ export default async function PackagesPage({ searchParams }: Props) {
           />
         )}
       </Suspense>
-      <Footer />
     </>
   );
 }
