@@ -1004,12 +1004,21 @@ export async function getHotelDetailBundle(
   // Keep the server render to this request so ad landings do not wait for
   // content that is only visible after the visitor scrolls.
 
-  const detail = await _fetchDetailWithCityFallback(
+  let detail = await _fetchDetailWithCityFallback(
     cityParam,
     hotelSlug,
     checkIn,
     checkOut,
   );
+
+  // A date-aware detail request includes availability and all board-rate
+  // calculations. If that optional enrichment fails upstream, do not turn a
+  // real hotel into a fake Next.js 404. Fall back to its normal detail payload;
+  // the booking submission still performs the authoritative live availability
+  // check before payment.
+  if (!detail && (checkIn || checkOut)) {
+    detail = await _fetchDetailWithCityFallback(cityParam, hotelSlug);
+  }
   if (!detail) return null;
 
   // Build the bundle from the detail response — no extra network calls.
