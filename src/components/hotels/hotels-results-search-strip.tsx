@@ -157,8 +157,29 @@ export function HotelsResultsSearchStrip({
     return addDaysToIso(ci, 1);
   });
   const searchParamQ = searchParams.get("q") || "";
-  const [rooms,  setRooms]  = useState(() => { const n = parseInt(searchParams.get("rooms")  ?? "1", 10); return Number.isFinite(n) && n > 0 ? n : 1; });
-  const [guests, setGuests] = useState(() => { const n = parseInt(searchParams.get("guests") ?? "2", 10); return Number.isFinite(n) && n > 0 ? n : 2; });
+  const initialGuests = (() => {
+    const n = parseInt(searchParams.get("guests") ?? "2", 10);
+    return Number.isFinite(n) && n > 0 ? n : 2;
+  })();
+  const initialRooms = (() => {
+    const n = parseInt(searchParams.get("rooms") ?? "1", 10);
+    const requestedRooms = Number.isFinite(n) && n > 0 ? n : 1;
+    return Math.max(requestedRooms, Math.ceil(initialGuests / 2));
+  })();
+  const [rooms, setRooms] = useState(initialRooms);
+  const [guests, setGuests] = useState(initialGuests);
+
+  const updateGuests = (nextGuests: number) => {
+    const guestsCount = Math.max(1, Math.min(20, nextGuests));
+    setGuests(guestsCount);
+    setRooms((currentRooms) => Math.max(currentRooms, Math.ceil(guestsCount / 2)));
+  };
+
+  const updateRooms = (nextRooms: number) => {
+    const roomsCount = Math.max(1, Math.min(8, nextRooms));
+    setRooms(roomsCount);
+    setGuests((currentGuests) => Math.min(currentGuests, roomsCount * 2));
+  };
 
   const { data: fetchedLocalities } = useQuery({
     queryKey: ["hotels", "search-localities"],
@@ -344,8 +365,8 @@ export function HotelsResultsSearchStrip({
                 className="sm:flex-[0.9]"
                 rooms={rooms}
                 guests={guests}
-                onRoomsChange={setRooms}
-                onGuestsChange={setGuests}
+                onRoomsChange={updateRooms}
+                onGuestsChange={updateGuests}
               />
             </div>
 

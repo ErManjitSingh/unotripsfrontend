@@ -74,12 +74,17 @@ function parseBookingContextFromParams(
   const checkOut = searchParams.get("check_out") || addDaysToIso(checkIn, 1);
   const rooms = Number.parseInt(searchParams.get("rooms") ?? "1", 10);
   const guests = Number.parseInt(searchParams.get("guests") ?? "2", 10);
+  const children = Number.parseInt(searchParams.get("children") ?? "0", 10);
+
+  const guestsCount = Number.isFinite(guests) && guests > 0 ? guests : 2;
+  const requestedRooms = Number.isFinite(rooms) && rooms > 0 ? rooms : 1;
 
   return {
     check_in: checkIn,
     check_out: checkOut,
-    rooms: Number.isFinite(rooms) && rooms > 0 ? rooms : 1,
-    guests: Number.isFinite(guests) && guests > 0 ? guests : 2,
+    rooms: Math.max(requestedRooms, Math.ceil(guestsCount / 2)),
+    guests: guestsCount,
+    children: Number.isFinite(children) && children > 0 ? Math.min(children, 4) : 0,
   };
 }
 
@@ -89,6 +94,7 @@ function bookingContextQueryString(ctx: HotelBookingQueryParams): string {
   if (ctx.check_out) q.set("check_out", ctx.check_out);
   if (ctx.rooms != null) q.set("rooms", String(ctx.rooms));
   if (ctx.guests != null) q.set("guests", String(ctx.guests));
+  if (ctx.children != null) q.set("children", String(ctx.children));
   return q.toString();
 }
 
@@ -137,19 +143,25 @@ function DetailSearchStrip({
   onApply: (ctx: HotelBookingQueryParams) => void;
   footer?: ReactNode;
 }) {
+  // Until a specific room is selected, search uses the standard two-adult
+  // occupancy. The checkout replaces this with the selected room's own limit.
+  const guestsPerRoom = 2;
   // Draft dates only live while the picker is open — strip fields always show bookingContext
   const [draftCheckIn,  setDraftCheckIn]  = useState("");
   const [draftCheckOut, setDraftCheckOut] = useState("");
   const [rooms, setRooms]   = useState(bookingContext.rooms ?? 1);
   const [guests, setGuests] = useState(bookingContext.guests ?? 2);
+  const [children, setChildren] = useState(bookingContext.children ?? 0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [guestsOpen, setGuestsOpen] = useState(false);
   const guestsRef   = useRef<HTMLDivElement>(null);
 
   // Keep rooms/guests in sync when bookingContext changes externally
   useEffect(() => {
-    setRooms(bookingContext.rooms ?? 1);
-    setGuests(bookingContext.guests ?? 2);
+    const guestsCount = bookingContext.guests ?? 2;
+    setGuests(guestsCount);
+    setRooms(Math.max(bookingContext.rooms ?? 1, Math.ceil(guestsCount / 2)));
+    setChildren(bookingContext.children ?? 0);
   }, [bookingContext]);
 
   // Close guests dropdown on outside click
@@ -169,6 +181,21 @@ function DetailSearchStrip({
     setGuestsOpen(false);
   };
 
+  const updateGuests = (nextGuests: number) => {
+    const guestsCount = Math.max(1, Math.min(10, nextGuests));
+    setGuests(guestsCount);
+    setRooms((currentRooms) =>
+      Math.max(currentRooms, Math.ceil(guestsCount / guestsPerRoom)),
+    );
+  };
+
+  const updateRooms = (nextRooms: number) => {
+    const roomsCount = Math.max(1, Math.min(10, nextRooms));
+    setRooms(roomsCount);
+    // A guest cannot remain assigned to more capacity than the rooms selected.
+    setGuests((currentGuests) => Math.min(currentGuests, roomsCount * guestsPerRoom));
+  };
+
   const handleDateChange = (ci: string, co: string) => {
     setDraftCheckIn(ci);
     setDraftCheckOut(co);
@@ -182,7 +209,7 @@ function DetailSearchStrip({
   // Strip fields always read from bookingContext — single source of truth
   const checkInFmt       = formatHotelDateFromIso(bookingContext.check_in ?? "");
   const checkOutFmt      = formatHotelDateFromIso(bookingContext.check_out ?? "");
-  const roomsGuestsLabel = `${guests} Guest${guests !== 1 ? "s" : ""}, ${rooms} Room${rooms !== 1 ? "s" : ""}`;
+  const roomsGuestsLabel = `${rooms} Room${rooms !== 1 ? "s" : ""}, ${guests} Adult${guests !== 1 ? "s" : ""}${children > 0 ? `, ${children} Child${children !== 1 ? "ren" : ""}` : ""}`;
 
   const fieldDivider = "border-[#ECEEF2] border-b sm:border-b-0 sm:border-r";
   const [mobileExpanded, setMobileExpanded] = useState(false);
@@ -239,8 +266,9 @@ function DetailSearchStrip({
             {/* Guests / Rooms counters */}
             <div className="grid grid-cols-2 divide-x divide-[#f0f0f0] border-b border-[#f0f0f0]">
               {[
-                { label: "Guests", value: guests, set: setGuests, min: 1, max: 10 },
-                { label: "Rooms",  value: rooms,  set: setRooms,  min: 1, max: 10 },
+                { label: "Adults", value: guests, set: updateGuests, min: 1, max: 10 },
+                { label: "Rooms",  value: rooms,  set: updateRooms,  min: 1, max: 10 },
+                { label: "Children", value: children, set: setChildren, min: 0, max: 4 },
               ].map(({ label, value, set, min, max }) => (
                 <div key={label} className="flex items-center justify-between px-3 py-2.5">
                   <span className="text-[12px] font-semibold text-[#424242]">{label}</span>
@@ -258,7 +286,7 @@ function DetailSearchStrip({
               <button
                 type="button"
                 onClick={() => {
-                  onApply({ check_in: bookingContext.check_in ?? "", check_out: bookingContext.check_out ?? "", rooms, guests });
+                  onApply({ check_in: bookingContext.check_in ?? "", check_out: bookingContext.check_out ?? "", rooms, guests, children });
                   setMobileExpanded(false);
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#EF6614] py-3 text-[13px] font-bold text-white shadow-[0_4px_12px_rgba(239,102,20,0.3)]"
@@ -346,8 +374,9 @@ function DetailSearchStrip({
               {guestsOpen && (
                 <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-2xl border border-[#e8e8e8] bg-white p-4 shadow-[0_8px_40px_-8px_rgba(0,0,0,0.18)]">
                   {[
-                    { label: "Guests", value: guests, set: setGuests, min: 1, max: 10 },
-                    { label: "Rooms",  value: rooms,  set: setRooms,  min: 1, max: 10 },
+                    { label: "Adults", value: guests, set: updateGuests, min: 1, max: 10 },
+                    { label: "Rooms",  value: rooms,  set: updateRooms,  min: 1, max: 10 },
+                    { label: "Children (0–17)", value: children, set: setChildren, min: 0, max: 4 },
                   ].map(({ label, value, set, min, max }) => (
                     <div key={label} className="flex items-center justify-between py-2.5">
                       <span className="text-[13px] font-semibold text-[#212121]">{label}</span>
@@ -361,7 +390,7 @@ function DetailSearchStrip({
                   <button
                     type="button"
                     onClick={() => {
-                      onApply({ check_in: bookingContext.check_in ?? "", check_out: bookingContext.check_out ?? "", rooms, guests });
+                      onApply({ check_in: bookingContext.check_in ?? "", check_out: bookingContext.check_out ?? "", rooms, guests, children });
                       setGuestsOpen(false);
                     }}
                     className="mt-2 w-full rounded-xl bg-[#EF6614] py-2 text-[13px] font-bold text-white hover:bg-[#d95d10]"
@@ -377,7 +406,7 @@ function DetailSearchStrip({
           <div className="flex items-center border-t border-slate-100 p-3 sm:border-l sm:border-t-0 sm:p-3">
             <button
               type="button"
-              onClick={() => onApply({ check_in: bookingContext.check_in ?? "", check_out: bookingContext.check_out ?? "", rooms, guests })}
+            onClick={() => onApply({ check_in: bookingContext.check_in ?? "", check_out: bookingContext.check_out ?? "", rooms, guests, children })}
               className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#ef5a0a] px-5 text-[13px] font-bold text-white shadow-[0_8px_16px_-8px_rgba(239,90,10,0.72)] transition hover:bg-[#d94d04] sm:w-auto sm:px-5"
             >
               <Search className="h-4 w-4" strokeWidth={2.5} aria-hidden />
@@ -556,27 +585,50 @@ function BookingSummary({
     if (!editing) {
       setCheckIn(bookingContext.check_in ?? "");
       setCheckOut(bookingContext.check_out ?? "");
-      setGuests(bookingContext.guests ?? 2);
-      setRooms(bookingContext.rooms ?? 1);
+      const guestsCount = bookingContext.guests ?? 2;
+      setGuests(guestsCount);
+      setRooms(Math.max(bookingContext.rooms ?? 1, Math.ceil(guestsCount / 2)));
     }
   }, [bookingContext, editing]);
 
   const checkInFmt  = formatHotelDateFromIso(editing ? checkIn : (bookingContext.check_in ?? ""));
   const checkOutFmt = formatHotelDateFromIso(editing ? checkOut : (bookingContext.check_out ?? ""));
   const guestsLabel = `${bookingContext.guests ?? 2} Guest${(bookingContext.guests ?? 2) !== 1 ? "s" : ""}`;
-  const roomsLabel  = `${bookingContext.rooms ?? 1} Room${(bookingContext.rooms ?? 1) !== 1 ? "s" : ""}`;
+  const normalizedRooms = Math.max(
+    bookingContext.rooms ?? 1,
+    Math.ceil((bookingContext.guests ?? 2) / 2),
+  );
+  const roomsLabel  = `${normalizedRooms} Room${normalizedRooms !== 1 ? "s" : ""}`;
 
   const handleApply = () => {
-    onApply?.({ check_in: checkIn, check_out: checkOut, guests, rooms });
+    onApply?.({
+      check_in: checkIn,
+      check_out: checkOut,
+      guests,
+      rooms,
+      children: bookingContext.children ?? 0,
+    });
     setEditing(false);
   };
 
+  const updateGuests = (nextGuests: number) => {
+    const guestsCount = Math.max(1, Math.min(10, nextGuests));
+    setGuests(guestsCount);
+    setRooms((currentRooms) => Math.max(currentRooms, Math.ceil(guestsCount / 2)));
+  };
+
+  const updateRooms = (nextRooms: number) => {
+    const roomsCount = Math.max(1, Math.min(10, nextRooms));
+    setRooms(roomsCount);
+    setGuests((currentGuests) => Math.min(currentGuests, roomsCount * 2));
+  };
+
   const nights      = nightCount(bookingContext.check_in, bookingContext.check_out);
-  const roomsCount  = bookingContext.rooms ?? 1;
+  const roomsCount  = normalizedRooms;
   const summary = hotel.startingPriceSummary;
-  const baseTotal = summary?.subtotal ?? hotel.price * nights * roomsCount;
-  const taxesTotal = summary?.taxes ?? 0;
-  const grandTotal = summary?.total ?? baseTotal;
+  const baseTotal = (summary?.subtotal ?? hotel.price * nights) * roomsCount;
+  const taxesTotal = (summary?.taxes ?? 0) * roomsCount;
+  const grandTotal = (summary?.total ?? hotel.price * nights) * roomsCount;
 
   return (
     <div>
@@ -630,7 +682,15 @@ function BookingSummary({
                   setCheckIn(ci);
                   setCheckOut(co);
                   // Auto-apply dates immediately when range is complete — keeps strip in sync
-                  if (ci && co) onApply?.({ check_in: ci, check_out: co, guests, rooms });
+                  if (ci && co) {
+                    onApply?.({
+                      check_in: ci,
+                      check_out: co,
+                      guests,
+                      rooms,
+                      children: bookingContext.children ?? 0,
+                    });
+                  }
                 }}
                 numberOfMonths={1}
                 className="text-sm"
@@ -639,8 +699,8 @@ function BookingSummary({
               {/* Guests & Rooms steppers */}
               <div className="mt-3 grid grid-cols-2 gap-3 border-t border-[#f0e8e0] pt-3">
                 {[
-                  { label: "Guests", value: guests, set: setGuests, min: 1, max: 10 },
-                  { label: "Rooms",  value: rooms,  set: setRooms,  min: 1, max: 10 },
+                  { label: "Guests", value: guests, set: updateGuests, min: 1, max: 10 },
+                  { label: "Rooms",  value: rooms,  set: updateRooms,  min: 1, max: 10 },
                 ].map(({ label, value, set, min, max }) => (
                   <div key={label} className="text-center">
                     <p className="text-[9px] font-bold uppercase tracking-wide text-[#9E9E9E]">{label}</p>
@@ -852,8 +912,14 @@ export function HotelDetailView({
   }, []);
 
   const handleApplySearch = useCallback((ctx: HotelBookingQueryParams) => {
-    setBookingContext(ctx);
-    const qs = bookingContextQueryString(ctx);
+    const guestsCount = Math.max(1, ctx.guests ?? 2);
+    const normalizedContext = {
+      ...ctx,
+      guests: guestsCount,
+      rooms: Math.max(ctx.rooms ?? 1, Math.ceil(guestsCount / 2)),
+    };
+    setBookingContext(normalizedContext);
+    const qs = bookingContextQueryString(normalizedContext);
     const nextUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", nextUrl);
   }, []);

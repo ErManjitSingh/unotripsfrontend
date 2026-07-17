@@ -160,6 +160,10 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     const n = Number.parseInt(searchParams.get("guests") ?? "2", 10);
     return Number.isFinite(n) && n > 0 ? n : 2;
   }, [searchParams]);
+  const requestedChildren = useMemo(() => {
+    const n = Number.parseInt(searchParams.get("children") ?? "0", 10);
+    return Number.isFinite(n) && n > 0 ? Math.min(n, 4) : 0;
+  }, [searchParams]);
 
   const selection = useMemo(
     () => resolveBookingSelectionFromBundle(bundle, roomTypeId, ratePlanId),
@@ -213,7 +217,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const [localRooms, setLocalRooms]       = useState(draft?.localRooms ?? rooms);
   const [localNights, setLocalNights]     = useState<number | null>(draft?.localNights ?? null);
   const [localAdults, setLocalAdults]     = useState<number | null>(draft?.localAdults ?? null);
-  const [childrenAges, setChildrenAges]   = useState<number[]>(draft?.childrenAges ?? []);
+  const [childrenAges, setChildrenAges] = useState<number[]>(
+    draft?.childrenAges ?? Array.from({ length: requestedChildren }, () => 0),
+  );
   const localChildren = childrenAges.length;
   const [editingCheckIn, setEditingCheckIn]   = useState(false);
   const [editingCheckOut, setEditingCheckOut] = useState(false);
@@ -222,8 +228,11 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
 
   const displayNights = localNights ?? nights;
   const displayAdults = localAdults ?? guests;
-  const displayRooms  = localRooms;
   const maxOccupancy  = selection?.roomType.maxOccupancy ?? 2;
+  // Never show or price an impossible one-room booking while the effect below
+  // persists the corrected room count. A selected room can override the
+  // default two-adult capacity.
+  const displayRooms  = Math.max(localRooms, Math.ceil(displayAdults / maxOccupancy));
   const maxAdultsAllowed = maxOccupancy * displayRooms;
   const availableRoomCount = selection?.roomType.availableCount ?? 10;
   const resumePayment = searchParams.get("resume") === "1";

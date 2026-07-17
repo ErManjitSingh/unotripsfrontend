@@ -92,6 +92,26 @@ function StarRating({ value }: { value: number }) {
   );
 }
 
+/** Keep internal board codes out of the traveller-facing hotel picker. */
+function friendlyMealPlanLabel(value?: string | string[]): string {
+  const raw = Array.isArray(value) ? value.join(" · ") : value ?? "";
+  const normalized = raw.toLowerCase();
+
+  if (/\bap\b|full board|all meals/.test(normalized)) return "All meals included";
+  if (/\bmap\b|half board|breakfast.*dinner|dinner.*breakfast/.test(normalized)) return "Breakfast & dinner included";
+  if (/\bcp\b|breakfast/.test(normalized)) return "Breakfast included";
+  if (/\bep\b|room only/.test(normalized)) return "Room only";
+
+  return raw.replace(/\s*\((?:ep|cp|map|ap)\)\s*/gi, "").trim() || "Meals included";
+}
+
+/** Describe the exact package-total effect of choosing a hotel. */
+function hotelPriceImpactLabel(delta: number): string {
+  if (delta === 0) return "₹0 change to package price";
+  if (delta > 0) return `+₹${fmtINR(delta)} to package price`;
+  return `Save ₹${fmtINR(Math.abs(delta))} on package`;
+}
+
 function useMounted() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -200,6 +220,8 @@ export function ChangeHotelModal({
   if (!mounted || !destination) return null;
 
   const selectedExtra = destination.opts[selectedIndex]?.extra ?? 0;
+  const pendingOption = destination.opts[pendingIndex];
+  const pendingDelta = (pendingOption?.extra ?? selectedExtra) - selectedExtra;
   const hasPricedChange = pendingIndex !== selectedIndex;
   const hasRoomChange = mode === "room" && pendingRoomPlan !== null;
   const canCommit = mode === "room" ? hasRoomChange : hasPricedChange;
@@ -230,7 +252,7 @@ export function ChangeHotelModal({
             role="dialog"
             aria-modal="true"
             aria-label={mode === "room" ? "Change room" : "Change hotel"}
-            className="fixed bottom-0 right-0 top-0 z-[230] flex w-full min-h-0 flex-col overflow-hidden rounded-l-[14px] bg-white shadow-2xl lg:w-[54vw] lg:max-w-[980px]"
+            className="fixed bottom-0 right-0 top-0 z-[230] flex w-full min-h-0 flex-col overflow-hidden rounded-l-[14px] bg-white shadow-2xl lg:w-[78vw] lg:max-w-[1280px]"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -467,7 +489,7 @@ export function ChangeHotelModal({
                                       roomId: room.id,
                                       planId: plan.id,
                                       roomName: room.name,
-                                      planName: plan.packageName,
+                                      planName: friendlyMealPlanLabel(plan.packageName),
                                       price: plan.price,
                                     })
                                   }
@@ -483,7 +505,7 @@ export function ChangeHotelModal({
                                       {pendingRoomPlan?.planId === plan.id && (
                                         <Check className="h-3.5 w-3.5 text-primary" />
                                       )}
-                                      {plan.packageName}
+                                      {friendlyMealPlanLabel(plan.packageName)}
                                     </p>
                                     <p className="mt-0.5 truncate text-[11px] text-slate-500">
                                       {plan.benefits.join(" · ")}
@@ -689,7 +711,7 @@ export function ChangeHotelModal({
                                   </p>
                                   <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-[#1b9c5a]">
                                     <MapPin className="h-3.5 w-3.5" />
-                                    MAP included
+                                    {friendlyMealPlanLabel(room.mealsIncluded)}
                                   </p>
                                 </div>
                                 {isSelectedHotel ? (
@@ -708,9 +730,7 @@ export function ChangeHotelModal({
                                             : "text-[#667085]",
                                       )}
                                     >
-                                      {delta === 0
-                                        ? "Included in package"
-                                        : `${delta > 0 ? "+" : "−"}₹${fmtINR(Math.abs(delta))} package total`}
+                                      {hotelPriceImpactLabel(delta)}
                                     </span>
                                     <button
                                       type="button"
@@ -734,34 +754,40 @@ export function ChangeHotelModal({
               </>
             )}
 
-            <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-[#e9edf3] bg-white px-6 py-3.5">
-              <div className="flex items-center gap-3">
-                <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#f2f0ff] text-[#7567ee]">
+            <footer className="flex shrink-0 flex-col gap-3 border-t border-[#e9edf3] bg-gradient-to-r from-[#fffaf7] via-white to-[#f8fbff] px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#fff0e8] text-primary shadow-sm">
                   <Building2 className="h-5 w-5" />
                 </span>
-                <div>
-                  <p className="text-sm font-extrabold text-[#475467]">
-                    Updated Package Subtotal{" "}
-                    <span className="ml-1 text-[10px] font-medium text-[#667085]">
-                      (Inclusive of GST)
-                    </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-extrabold text-[#172033]">
+                    Review your package change
+                    <span className="ml-1.5 text-[10px] font-semibold text-[#667085]">GST included</span>
                   </p>
-                  <p className="mt-0.5 text-xs text-[#667085]">
-                    {hasPricedChange
-                      ? "Your package total updates after you confirm"
-                      : hasRoomChange
-                        ? `${pendingRoomPlan?.roomName} · ${pendingRoomPlan?.planName}`
+                  <p className="mt-0.5 truncate text-xs text-[#667085]">
+                    {hasRoomChange
+                      ? `${pendingRoomPlan?.roomName} · ${pendingRoomPlan?.planName}`
+                      : hasPricedChange
+                        ? `${pendingOption?.name ?? "Selected hotel"} is ready to update`
                         : mode === "room"
-                          ? "Select a room and meal plan to continue"
-                          : "Select a hotel to preview its package-total difference"}
+                          ? "Choose the room and meal option that suits your stay"
+                          : "Choose a hotel to see how it affects your package price"}
                   </p>
                 </div>
+                {hasPricedChange && mode !== "room" && (
+                  <span className={cn(
+                    "ml-auto hidden shrink-0 rounded-full px-2.5 py-1 text-[11px] font-extrabold sm:inline-flex",
+                    pendingDelta > 0 ? "bg-orange-100 text-primary" : pendingDelta < 0 ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600",
+                  )}>
+                    {pendingDelta === 0 ? "Same package price" : `${pendingDelta > 0 ? "+" : "−"}₹${fmtINR(Math.abs(pendingDelta))}`}
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex w-full items-center gap-2 sm:w-auto sm:gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-xl border border-[#dce2ea] px-6 py-2.5 text-sm font-bold text-[#344054]"
+                  className="flex-1 rounded-xl border border-[#dce2ea] bg-white px-5 py-2.5 text-sm font-bold text-[#344054] transition hover:bg-slate-50 sm:flex-none"
                 >
                   Cancel
                 </button>
@@ -770,9 +796,9 @@ export function ChangeHotelModal({
                   onClick={commit}
                   disabled={!canCommit}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-extrabold",
+                    "inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-extrabold transition sm:flex-none",
                     canCommit
-                      ? "bg-primary text-white shadow-[0_8px_18px_rgba(255,107,0,0.22)]"
+                      ? "bg-primary text-white shadow-[0_8px_18px_rgba(255,107,0,0.22)] hover:bg-[#e85d00]"
                       : "cursor-not-allowed bg-slate-100 text-slate-400",
                   )}
                 >
@@ -780,7 +806,7 @@ export function ChangeHotelModal({
                     ? `Update ${mode === "room" ? "Room" : "Hotel"}`
                     : mode === "room"
                       ? "Select room & meal plan"
-                      : "No priced change selected"}
+                      : "Choose a different hotel"}
                   <span className="text-xl leading-none">›</span>
                 </button>
               </div>

@@ -232,7 +232,9 @@ export type HotelBookingQueryParams = {
   check_in?: string;
   check_out?: string;
   rooms?: number;
+  /** Adults; retained as `guests` in existing booking URLs for compatibility. */
   guests?: number;
+  children?: number;
 };
 
 export function hotelBookingHref(
@@ -250,6 +252,7 @@ export function hotelBookingHref(
   if (params?.check_out) q.set("check_out", params.check_out);
   if (params?.rooms != null) q.set("rooms", String(params.rooms));
   if (params?.guests != null) q.set("guests", String(params.guests));
+  if (params?.children != null) q.set("children", String(params.children));
   return `${hotelDetailHref(citySlug, hotelIdOrSlug)}/book?${q.toString()}`;
 }
 

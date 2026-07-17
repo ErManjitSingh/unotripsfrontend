@@ -125,6 +125,34 @@ function ActivityCard({ activity }: { activity: Activity }) {
   );
 }
 
+function ActivityCardSkeleton() {
+  return (
+    <div
+      aria-hidden
+      className="flex min-h-[248px] overflow-hidden rounded-[24px] border border-[#F0E6DD] bg-white shadow-[0_8px_30px_-18px_rgba(91,55,30,0.22)]"
+    >
+      <div className="m-3 mr-0 w-[42%] shrink-0 overflow-hidden rounded-2xl bg-[#f2eee9]">
+        <div className="h-full w-full animate-pulse bg-gradient-to-br from-[#f5f0ea] via-[#eae4dd] to-[#f5f0ea]" />
+      </div>
+      <div className="flex flex-1 flex-col p-5">
+        <div className="flex items-center justify-between">
+          <span className="h-3 w-20 animate-pulse rounded-full bg-[#f2ece6]" />
+          <span className="h-3 w-12 animate-pulse rounded-full bg-[#f2ece6]" />
+        </div>
+        <span className="mt-4 h-5 w-4/5 animate-pulse rounded bg-[#eee8e2]" />
+        <span className="mt-2 h-5 w-3/5 animate-pulse rounded bg-[#eee8e2]" />
+        <span className="mt-4 h-3 w-full animate-pulse rounded bg-[#f3eee9]" />
+        <span className="mt-2 h-3 w-4/5 animate-pulse rounded bg-[#f3eee9]" />
+        <div className="mt-5 flex gap-3">
+          <span className="h-3 w-16 animate-pulse rounded bg-[#f2ece6]" />
+          <span className="h-3 w-14 animate-pulse rounded bg-[#f2ece6]" />
+        </div>
+        <span className="mt-auto h-9 w-full animate-pulse rounded-xl bg-[#f5eee7]" />
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Export ───────────────────────────────────────────────────────────────
 
 export function ActivitiesClient() {
@@ -291,12 +319,19 @@ export function ActivitiesClient() {
       <section className="bg-[#FAF8F6] py-7 sm:py-9">
         <div className="mx-auto w-full max-w-[1120px] px-3 sm:px-4">
           <div className="mb-5 flex items-end justify-between border-b border-[#EDE5DE] pb-3">
-            <p className="text-[15px] font-semibold text-[#5F5751]">{total} {total===1?"activity":"activities"} found</p>
+            {loading ? (
+              <div className="flex items-center gap-2 text-[14px] font-semibold text-[#766D67]" aria-live="polite">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#EF6614]/25 border-t-[#EF6614]" />
+                Finding experiences for you…
+              </div>
+            ) : (
+              <p className="text-[15px] font-semibold text-[#5F5751]">{total} {total===1?"activity":"activities"} found</p>
+            )}
             <span className="hidden text-[12px] text-[#9A918A] sm:inline">Curated for your next escape</span>
           </div>
           {loading ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading activities">
-              {[1, 2, 3].map((item) => <div key={item} className="h-[430px] animate-pulse rounded-2xl bg-white" />)}
+            <div className="mx-auto grid max-w-[1120px] grid-cols-1 gap-5 md:grid-cols-2" aria-label="Loading activities">
+              {[1, 2, 3, 4].map((item) => <ActivityCardSkeleton key={item} />)}
             </div>
           ) : error ? (
             <div className="rounded-xl border border-[#E0E0E0] bg-white px-5 py-16 text-center">
