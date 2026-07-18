@@ -42,8 +42,8 @@
  */
 
 import { cache }         from "react";
-import { notFound }      from "next/navigation";
 import type { Metadata } from "next";
+import Link              from "next/link";
 import { PackageDetailView }              from "@/components/packages/package-detail-view";
 import { getPackageBySlug } from "@/services/packages";
 import { getRelatedPackages }             from "@/services/packages";
@@ -126,7 +126,25 @@ export default async function PackageDetailPage({ params, searchParams }: Props)
   // getCachedTour: returns memoized result if generateMetadata already called it.
   // This is the production pattern — zero duplicate backend calls.
   const tour = await getCachedTour(slug);
-  if (!tour) notFound();
+  // A package lookup can fail temporarily when the local/API service is
+  // restarting. That is not a missing route, so never turn it into Next's
+  // 404 page. Keep the user in the package journey with a useful recovery
+  // screen instead.
+  if (!tour) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#faf8f5] px-6 text-center">
+        <div className="max-w-md rounded-[28px] border border-orange-100 bg-white p-10 shadow-[0_22px_80px_rgba(15,23,42,0.12)]">
+          <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-primary">UNO Trips</p>
+          <h1 className="font-display mt-4 text-4xl font-bold tracking-[-0.04em] text-slate-900">We’re getting this trip ready.</h1>
+          <p className="mt-4 text-sm leading-6 text-slate-600">The package service is temporarily unavailable. Please try again in a moment, or explore our current escapes.</p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3">
+            <a href={`/packages/${slug}`} className="rounded-full bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90">Try again</a>
+            <Link href="/packages" className="rounded-full border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:border-primary hover:text-primary">Browse packages</Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   // getRelatedPackages: now uses targeted listPackages({ search: destName })
   // instead of getAllPackages() full dump — see packages.ts fix.

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   BedDouble,
+  BookOpen,
   CalendarDays,
   Car,
   ChevronLeft,
@@ -41,6 +42,7 @@ type Props = {
   selectedHotels: number[];
   selectedCab: number;
   onBook: () => void;
+  onViewBrochure: () => void;
   onEnquire: () => void;
   onChangeHotel: (index: number) => void;
   onChangeRoom: (index: number) => void;
@@ -101,6 +103,7 @@ export function GlacialStylePackageDetail({
   selectedHotels,
   selectedCab,
   onBook,
+  onViewBrochure,
   onEnquire,
   onChangeHotel,
   onChangeRoom,
@@ -161,7 +164,9 @@ export function GlacialStylePackageDetail({
   // `total` is the live package amount after traveller, room, hotel and cab
   // selections. Do not divide it back into a per-person number when rendering:
   // that hid every traveller-count price change from the customer.
-  const totalPrice = Math.max(0, Math.round(total));
+  const totalPrice = Math.max(0, Math.round(total >= 1000 ? total : (tour.priceINR >= 1000 ? tour.priceINR : 0)));
+  const bookingAmount = tokenType === "percent" ? (totalPrice * tokenAmount) / 100 : tokenAmount;
+  const hasBookingAmount = Number.isFinite(bookingAmount) && bookingAmount >= 1 && bookingAmount < totalPrice;
   const travellerLabel = `${travellerCount} Adult${travellerCount === 1 ? "" : "s"}`;
   const notices = [
     "Lowest price today",
@@ -242,7 +247,7 @@ export function GlacialStylePackageDetail({
     setImageIndex((next + heroImages.length) % heroImages.length);
 
   return (
-    <main className="min-h-screen bg-[#f6f7f9] pb-28 pt-[56px] text-[#172033] sm:pt-[92px] xl:pb-16">
+    <main className="min-h-screen bg-[#f6f7f9] pb-28 pt-0 text-[#172033] md:pt-[92px] xl:pb-16">
       <section className="sticky top-0 z-30 hidden pb-2.5 sm:block">
         <div className="mx-auto w-full max-w-[1240px] px-4 lg:px-0">
           <div className="flex flex-wrap items-stretch overflow-visible rounded-b-2xl rounded-t-none border border-[#e4e8ee] bg-white shadow-[0_10px_30px_-22px_rgba(15,23,42,0.35)]">
@@ -471,10 +476,11 @@ export function GlacialStylePackageDetail({
                 )}
                 <button
                   type="button"
-                  className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-2 text-xs font-bold text-slate-800 shadow-sm sm:right-4 sm:top-4"
+                  onClick={onViewBrochure}
+                  className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-2 text-xs font-bold text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:bg-orange-50 hover:text-primary sm:right-4 sm:top-4"
                 >
-                  <Ticket className="mr-1.5 inline h-3.5 w-3.5" />
-                  View Gallery
+                  <BookOpen className="mr-1.5 inline h-3.5 w-3.5" />
+                  View Trip Brochure
                 </button>
                 <div className="absolute inset-x-0 bottom-0 flex items-end justify-between bg-gradient-to-t from-black/75 via-black/15 to-transparent p-4 text-white">
                   <span className="flex max-w-[78%] items-center gap-2 rounded-lg bg-black/55 px-3 py-2 text-[11px] font-semibold sm:max-w-[80%]">
@@ -1033,12 +1039,7 @@ export function GlacialStylePackageDetail({
                   </button>
                 </div>
                 <div className="mt-3 flex items-center justify-between rounded-xl bg-[#FFF4EC] px-4 py-1.5 text-sm font-bold text-[#FF5A00]">
-                  Book with just ₹
-                  {formatMoney(
-                    tokenType === "percent"
-                      ? (totalPrice * tokenAmount) / 100
-                      : tokenAmount,
-                  )}{" "}
+                  {hasBookingAmount ? <>Book with just ₹{formatMoney(bookingAmount)}</> : <>Request your tailored quote</>}{" "}
                   <span className="text-xl">›</span>
                 </div>
               </div>
@@ -1081,8 +1082,8 @@ export function GlacialStylePackageDetail({
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-orange-100 bg-white/95 px-3 py-2.5 shadow-[0_-10px_30px_rgba(15,23,42,0.10)] backdrop-blur xl:hidden" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
         <div className="mx-auto flex max-w-[640px] items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold text-slate-500">Reserve today</p>
-            <p className="truncate text-base font-extrabold leading-tight text-[#172033]">₹{formatMoney(tokenType === "percent" ? (totalPrice * tokenAmount) / 100 : tokenAmount)} <span className="text-[10px] font-medium text-slate-500">booking amount</span></p>
+            <p className="text-[10px] font-semibold text-slate-500">{hasBookingAmount ? "Reserve today" : "Plan with UNO"}</p>
+            <p className="truncate text-base font-extrabold leading-tight text-[#172033]">{hasBookingAmount ? <>₹{formatMoney(bookingAmount)} <span className="text-[10px] font-medium text-slate-500">booking amount</span></> : <>Tailored quote available</>}</p>
           </div>
           <button
             type="button"

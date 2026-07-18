@@ -65,6 +65,476 @@
   z-index: 1;
 }
 
+/* The interactive reader is intentionally not printed. The PDF is a dedicated,
+   paper-sized version of the brochure so the saved document keeps its hierarchy
+   and imagery instead of capturing a modal, controls, or a half-turned sheet. */
+.brochure-print-document {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 297mm !important;
+    min-height: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  body > :not(.brochure-print-document) {
+    display: none !important;
+  }
+
+  .brochure-print-document {
+    display: block !important;
+    width: 297mm;
+    margin: 0;
+    color: #172033;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  .brochure-print-page {
+    position: relative;
+    box-sizing: border-box;
+    display: grid;
+    width: 297mm;
+    height: 210mm;
+    overflow: hidden;
+    background: #fffdf8;
+    break-after: page;
+    page-break-after: always;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .brochure-print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .brochure-print-page::before {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    content: "";
+    opacity: 0.2;
+    background-image: radial-gradient(rgba(83, 66, 43, 0.28) 0.45px, transparent 0.6px);
+    background-size: 2mm 2mm;
+  }
+
+  .brochure-print-page > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .brochure-print-cover {
+    display: block;
+    color: #fff9f1;
+    background: #3d2216;
+  }
+
+  .brochure-print-cover-image,
+  .brochure-print-cover-wash {
+    position: absolute !important;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .brochure-print-cover-image {
+    object-fit: cover;
+    opacity: 0.56;
+  }
+
+  .brochure-print-cover-wash {
+    background: linear-gradient(135deg, rgba(43, 24, 14, 0.95), rgba(100, 47, 18, 0.62));
+  }
+
+  .brochure-print-cover-content {
+    position: relative !important;
+    z-index: 2 !important;
+    display: flex;
+    box-sizing: border-box;
+    height: 100%;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 16mm 18mm;
+  }
+
+  .brochure-print-mark {
+    width: 31mm;
+    height: auto;
+    filter: brightness(0) invert(1);
+  }
+
+  .brochure-print-kicker {
+    margin: 0;
+    color: #ca642b;
+    font-size: 8pt;
+    font-weight: 800;
+    letter-spacing: 2.5pt;
+    text-transform: uppercase;
+  }
+
+  .brochure-print-cover .brochure-print-kicker {
+    color: #ffc79f;
+  }
+
+  .brochure-print-cover h1,
+  .brochure-print-cover strong,
+  .brochure-print-page h2,
+  .brochure-print-page h3 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    letter-spacing: -1.4pt;
+  }
+
+  .brochure-print-cover h1 {
+    max-width: 175mm;
+    margin: 4mm 0 0;
+    font-size: 47pt;
+    line-height: 0.88;
+  }
+
+  .brochure-print-duration {
+    margin: 8mm 0 0;
+    color: #ffe6d4;
+    font-size: 13pt;
+  }
+
+  .brochure-print-route-copy {
+    max-width: 205mm;
+    margin: 3mm 0 0;
+    color: #fff0e5;
+    font-size: 8.5pt;
+    font-weight: 700;
+    letter-spacing: 1.6pt;
+    line-height: 1.7;
+    text-transform: uppercase;
+  }
+
+  .brochure-print-spread {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .brochure-print-welcome {
+    position: relative;
+    display: grid;
+    grid-template-columns: 54% 46%;
+    overflow: hidden;
+  }
+
+  .brochure-print-welcome > div {
+    z-index: 2;
+    align-self: center;
+    padding: 18mm 12mm 18mm 15mm;
+    background: #fffdf8;
+  }
+
+  .brochure-print-welcome h2,
+  .brochure-print-route-panel h2,
+  .brochure-print-summary h2 {
+    margin: 6mm 0 0;
+    font-size: 31pt;
+    line-height: 0.9;
+  }
+
+  .brochure-print-welcome > img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .brochure-print-welcome > span {
+    position: absolute;
+    right: 7mm;
+    bottom: 10mm;
+    padding: 2mm 3.5mm;
+    border-radius: 99px;
+    color: #fff;
+    background: rgba(23, 32, 51, 0.72);
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 1.5pt;
+    text-transform: uppercase;
+  }
+
+  .brochure-print-copy {
+    margin: 7mm 0 0;
+    color: #526176;
+    font-size: 10pt;
+    line-height: 1.65;
+  }
+
+  .brochure-print-location {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+    margin: 8mm 0 0;
+    color: #27364d;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+
+  .brochure-print-location svg,
+  .brochure-print-distance svg,
+  .brochure-print-inclusions svg {
+    width: 11pt;
+    height: 11pt;
+    color: #d95f24;
+  }
+
+  .brochure-print-route-panel {
+    position: relative;
+    padding: 18mm 15mm 17mm;
+  }
+
+  .brochure-print-stop-count {
+    position: absolute;
+    top: 19mm;
+    right: 15mm;
+    margin: 0;
+    color: #a6afbd;
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 1.4pt;
+    text-transform: uppercase;
+  }
+
+  .brochure-print-route-map {
+    position: relative;
+    height: 125mm;
+    margin-top: 8mm;
+    overflow: hidden;
+    border: 0.35mm solid #e8dfd1;
+    border-radius: 5mm;
+    background: linear-gradient(135deg, #fffdf8, #f7efe5);
+  }
+
+  .brochure-print-route-map svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .brochure-print-car {
+    position: absolute;
+    top: 84%;
+    bottom: auto;
+    left: 6%;
+    display: grid;
+    width: 12mm;
+    height: 12mm;
+    place-items: center;
+    border: 0.8mm solid #fff;
+    border-radius: 50%;
+    color: #fff;
+    background: #d95f24;
+    transform: translate(-50%, -50%);
+  }
+
+  .brochure-print-car svg {
+    width: 6mm;
+    height: 6mm;
+  }
+
+  .brochure-print-stop {
+    position: absolute;
+    width: 20mm;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+
+  .brochure-print-stop img {
+    width: 13mm;
+    height: 13mm;
+    border: 0.8mm solid #fff;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 1mm 3mm rgba(77, 50, 29, 0.22);
+  }
+
+  .brochure-print-stop b {
+    position: absolute;
+    top: 4mm;
+    left: 0;
+    width: 100%;
+    color: #fff;
+    font-size: 7pt;
+  }
+
+  .brochure-print-stop span {
+    display: inline-block;
+    max-width: 21mm;
+    margin-top: 1.6mm;
+    padding: 1mm 2mm;
+    border-radius: 99px;
+    color: #364257;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 0.5mm 1.5mm rgba(77, 50, 29, 0.12);
+    font-size: 6.5pt;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .brochure-print-day-spread {
+    grid-template-columns: 1fr 1fr;
+    gap: 7mm;
+    padding: 14mm 15mm 14mm;
+  }
+
+  .brochure-print-day {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 54% 46%;
+    overflow: hidden;
+    border: 0.35mm solid #e8dfd1;
+    border-radius: 5mm;
+    background: #fffdf8;
+  }
+
+  .brochure-print-day-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    padding: 10mm 7mm 8mm;
+  }
+
+  .brochure-print-day h2 {
+    margin: 4mm 0 0;
+    font-size: 21pt;
+    line-height: 0.94;
+  }
+
+  .brochure-print-distance {
+    display: flex;
+    align-items: center;
+    gap: 1.5mm;
+    width: fit-content;
+    margin: 4mm 0 0;
+    padding: 1.5mm 2.5mm;
+    border-radius: 99px;
+    color: #c7632b;
+    background: #fff0e5;
+    font-size: 6.5pt;
+    font-weight: 800;
+    letter-spacing: 0.8pt;
+    text-transform: uppercase;
+  }
+
+  .brochure-print-story {
+    margin-top: 5mm;
+    padding-left: 3mm;
+    border-left: 0.8mm solid #e97334;
+  }
+
+  .brochure-print-story p,
+  .brochure-print-day-note span {
+    margin: 0;
+    color: #c7632b;
+    font-size: 6.5pt;
+    font-weight: 800;
+    letter-spacing: 1.3pt;
+    text-transform: uppercase;
+  }
+
+  .brochure-print-story span {
+    display: block;
+    margin-top: 1.7mm;
+    color: #526176;
+    font-size: 7.4pt;
+    line-height: 1.52;
+  }
+
+  .brochure-print-day-note {
+    margin-top: auto;
+    padding-top: 4mm;
+    border-top: 0.25mm solid #eadfce;
+  }
+
+  .brochure-print-day-note b {
+    display: block;
+    margin-top: 1.5mm;
+    font-size: 8.5pt;
+  }
+
+  .brochure-print-day-image {
+    position: relative;
+    overflow: hidden;
+    background: #172033;
+  }
+
+  .brochure-print-day-image img,
+  .brochure-print-day-image > div {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .brochure-print-day-image img { object-fit: cover; }
+  .brochure-print-day-image > div { background: linear-gradient(0deg, rgba(0, 0, 0, 0.8), transparent 62%); }
+  .brochure-print-day-image p { position: absolute; right: 4mm; bottom: 5mm; left: 4mm; margin: 0; color: #fff; font-family: Georgia, 'Times New Roman', serif; font-size: 16pt; line-height: 0.92; }
+
+  .brochure-print-note {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 12mm;
+    background: #fbefe5;
+  }
+  .brochure-print-note h2 { margin: 4mm 0 0; font-size: 29pt; line-height: 0.9; }
+  .brochure-print-note > p:last-child { max-width: 58mm; margin: 6mm 0 0; color: #59677b; font-size: 10pt; line-height: 1.55; }
+
+  .brochure-print-summary {
+    grid-template-columns: 1.05fr 0.8fr 1.15fr;
+    gap: 10mm;
+    padding: 22mm 17mm 17mm;
+  }
+
+  .brochure-print-inclusions { margin-top: 9mm; }
+  .brochure-print-inclusions p { display: flex; align-items: flex-start; gap: 2mm; margin: 0 0 4mm; color: #526176; font-size: 9pt; line-height: 1.35; }
+  .brochure-print-price-card { align-self: center; padding: 11mm; border-radius: 5mm; background: #fbefe5; }
+  .brochure-print-price-card h3 { margin: 5mm 0 12mm; font-size: 25pt; line-height: 0.9; }
+  .brochure-print-price-card > span { display: block; color: #607089; font-size: 9pt; }
+  .brochure-print-price-card strong { display: block; margin-top: 2mm; color: #d95f24; font-size: 29pt; line-height: 1; }
+  .brochure-print-stays > div:not(.brochure-print-stay-gallery) { display: grid; grid-template-columns: 28mm 1fr; gap: 3mm; margin-top: 5mm; overflow: hidden; border-radius: 4mm; background: #fff; box-shadow: 0 1mm 3mm rgba(77, 50, 29, 0.1); }
+  .brochure-print-stays img { width: 28mm; height: 23mm; object-fit: cover; }
+  .brochure-print-stays div p { align-self: center; margin: 0; padding-right: 3mm; font-size: 8pt; }
+  .brochure-print-stays b, .brochure-print-stays span { display: block; }
+  .brochure-print-stays span { margin-top: 1mm; color: #6b7789; font-size: 7pt; }
+
+  .brochure-print-closing .brochure-print-closing-copy { max-width: 105mm; margin: 7mm 0 0; color: #ffe6d4; font-size: 11pt; line-height: 1.5; }
+  .brochure-print-closing strong { display: block; margin-top: 2mm; color: #fff; font-size: 28pt; }
+  .brochure-print-closing .brochure-print-cover-content > div:last-child > p { margin: 0; color: #ffe6d4; font-size: 9pt; }
+
+  .brochure-print-footer {
+    position: absolute !important;
+    right: 15mm;
+    bottom: 7mm;
+    left: 15mm;
+    z-index: 8 !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #95a1b3;
+    font-size: 7pt;
+    font-weight: 700;
+    letter-spacing: 1pt;
+  }
+
+  .brochure-print-footer img { width: 19mm; height: auto; opacity: 0.8; }
+}
+
 @media (max-width: 1600px) and (max-height: 1000px) {
   .hero-search-shell,
   .hero-trust-shell,
@@ -396,3 +866,472 @@
       radial-gradient(at 60% 80%, rgba(123, 31, 162, 0.1) 0, transparent 40%);
   }
 }
+
+/* PDF export: a single brochure section on every physical sheet. */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body,
+  .brochure-print-document {
+    width: 210mm !important;
+    min-height: 297mm !important;
+  }
+
+  .brochure-print-page {
+    display: block;
+    width: 210mm;
+    height: 297mm;
+  }
+
+  .brochure-print-welcome-page .brochure-print-welcome {
+    display: grid;
+    height: 100%;
+    grid-template-columns: 1fr;
+    grid-template-rows: 43% 57%;
+  }
+
+  .brochure-print-welcome-page .brochure-print-welcome > img {
+    grid-row: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .brochure-print-welcome-page .brochure-print-welcome > div {
+    grid-row: 2;
+    align-self: stretch;
+    padding: 17mm 17mm 19mm;
+  }
+
+  .brochure-print-welcome-page .brochure-print-welcome h2 {
+    font-size: 38pt;
+  }
+
+  .brochure-print-welcome-page .brochure-print-welcome > span {
+    top: 37%;
+    right: 9mm;
+    bottom: auto;
+  }
+
+  .brochure-print-route-page .brochure-print-route-panel {
+    box-sizing: border-box;
+    height: 100%;
+    padding: 20mm 16mm 18mm;
+  }
+
+  .brochure-print-route-page .brochure-print-route-panel h2 {
+    font-size: 37pt;
+  }
+
+  .brochure-print-route-page .brochure-print-route-map {
+    height: 210mm;
+    margin-top: 12mm;
+  }
+
+  .brochure-print-route-page .brochure-print-stop {
+    width: 25mm;
+  }
+
+  .brochure-print-route-page .brochure-print-stop img {
+    width: 17mm;
+    height: 17mm;
+  }
+
+  .brochure-print-route-page .brochure-print-stop b {
+    top: 5mm;
+    font-size: 8pt;
+  }
+
+  .brochure-print-route-page .brochure-print-stop span {
+    max-width: 27mm;
+    font-size: 7pt;
+  }
+
+  .brochure-print-day-solo {
+    padding: 13mm;
+  }
+
+  .brochure-print-day-solo .brochure-print-day {
+    display: grid;
+    height: 100%;
+    grid-template-columns: 1fr;
+    grid-template-rows: 59% 41%;
+  }
+
+  .brochure-print-day-solo .brochure-print-day-copy {
+    padding: 16mm 14mm 12mm;
+  }
+
+  .brochure-print-day-solo .brochure-print-day h2 {
+    font-size: 32pt;
+  }
+
+  .brochure-print-day-solo .brochure-print-story {
+    margin-top: 7mm;
+  }
+
+  .brochure-print-day-solo .brochure-print-story span {
+    font-size: 8.5pt;
+    line-height: 1.55;
+  }
+
+  .brochure-print-day-solo .brochure-print-day-image p {
+    right: 8mm;
+    bottom: 8mm;
+    left: 8mm;
+    font-size: 26pt;
+  }
+
+  .brochure-print-summary {
+    display: grid;
+    box-sizing: border-box;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+    gap: 12mm;
+    padding: 22mm 18mm 22mm;
+  }
+
+  .brochure-print-summary h2,
+  .brochure-print-stays-page h2 {
+    font-size: 40pt;
+  }
+
+  .brochure-print-summary .brochure-print-price-card {
+    align-self: end;
+    padding: 13mm;
+  }
+
+  .brochure-print-summary .brochure-print-price-card h3 {
+    font-size: 33pt;
+  }
+
+  .brochure-print-summary .brochure-print-price-card strong {
+    font-size: 38pt;
+  }
+
+  .brochure-print-stays-page {
+    box-sizing: border-box;
+    padding: 22mm 18mm 18mm;
+  }
+
+  .brochure-print-stays-page .brochure-print-stays > div:not(.brochure-print-stay-gallery) {
+    grid-template-columns: 55mm 1fr;
+    gap: 6mm;
+    margin-top: 8mm;
+  }
+
+  .brochure-print-stays-page .brochure-print-stays img {
+    width: 55mm;
+    height: 42mm;
+  }
+
+  .brochure-print-stays-page .brochure-print-stays div p {
+    font-size: 11pt;
+  }
+
+  .brochure-print-stays-page .brochure-print-stays span {
+    font-size: 8.5pt;
+  }
+
+  .brochure-print-cover h1 {
+    max-width: 150mm;
+    font-size: 48pt;
+  }
+
+  .brochure-print-cover .brochure-print-cover-content {
+    padding: 19mm 17mm;
+  }
+
+  .brochure-print-cover .brochure-print-footer {
+    color: #ffe6d4;
+  }
+
+  .brochure-print-cover .brochure-print-footer img {
+    filter: brightness(0) invert(1);
+  }
+}
+
+/* PDF dossier redesign: this intentionally has its own visual rhythm instead
+   of inheriting the interactive reader's open-book spacing. */
+@media print {
+  .brochure-print-page {
+    background: #f3eee6;
+  }
+
+  .brochure-print-page::before {
+    opacity: 0.14;
+  }
+
+  .brochure-print-welcome-page {
+    background: #172033;
+  }
+
+  .brochure-print-welcome-page .brochure-print-welcome {
+    grid-template-rows: 56% 44%;
+  }
+
+  .brochure-print-welcome-page .brochure-print-welcome > div {
+    display: grid;
+    align-content: center;
+    padding: 13mm 17mm 18mm;
+    color: #fff8ef;
+    background: #172033;
+  }
+
+  .brochure-print-welcome-page .brochure-print-kicker,
+  .brochure-print-welcome-page .brochure-print-location {
+    color: #ffc79f;
+  }
+
+  .brochure-print-welcome-page .brochure-print-copy {
+    max-width: 138mm;
+    margin-top: 5mm;
+    color: #d9e0e9;
+    font-size: 9.3pt;
+    line-height: 1.48;
+  }
+
+  .brochure-print-welcome-page .brochure-print-location {
+    margin-top: 5mm;
+  }
+
+  .brochure-print-welcome-page .brochure-print-welcome h2 {
+    margin-top: 4mm;
+    color: #fff9f1;
+    font-size: 35pt;
+  }
+
+  .brochure-print-route-page {
+    background: #e8e1d5;
+  }
+
+  .brochure-print-route-page .brochure-print-route-panel {
+    padding: 17mm 14mm 16mm;
+  }
+
+  .brochure-print-route-page .brochure-print-route-panel h2 {
+    margin-top: 4mm;
+    font-size: 34pt;
+  }
+
+  .brochure-print-route-page .brochure-print-route-map {
+    height: 219mm;
+    margin-top: 8mm;
+    border: none;
+    border-radius: 0;
+    background-color: #fffaf2;
+    background-image: radial-gradient(#dfa171 0.65px, transparent 0.8px);
+    background-size: 3mm 3mm;
+    box-shadow: 0 4mm 11mm rgba(74, 51, 31, 0.12);
+  }
+
+  .brochure-print-route-page .brochure-print-stop-count {
+    top: 19mm;
+    right: 15mm;
+    color: #a95c33;
+  }
+
+  .brochure-print-day-solo {
+    padding: 0;
+    background: #f4eee5;
+  }
+
+  .brochure-print-day-solo .brochure-print-day {
+    height: 100%;
+    grid-template-rows: 51% 49%;
+    overflow: hidden;
+    border: none;
+    border-radius: 0;
+    background: #f4eee5;
+  }
+
+  .brochure-print-day-solo .brochure-print-day-image {
+    grid-row: 1;
+  }
+
+  .brochure-print-day-solo .brochure-print-day-image > div {
+    background: linear-gradient(0deg, rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.06) 65%);
+  }
+
+  .brochure-print-day-solo .brochure-print-day-image p {
+    right: 15mm;
+    bottom: 12mm;
+    left: 15mm;
+    max-width: 120mm;
+    font-size: 30pt;
+    text-shadow: 0 1mm 3mm rgba(0, 0, 0, 0.25);
+  }
+
+  .brochure-print-day-solo .brochure-print-day-copy {
+    position: relative;
+    grid-row: 2;
+    box-sizing: border-box;
+    padding: 13mm 15mm 14mm;
+    background: #f4eee5;
+  }
+
+  .brochure-print-day-solo .brochure-print-day-copy::after {
+    position: absolute;
+    top: 0;
+    right: 15mm;
+    width: 37mm;
+    height: 0.9mm;
+    content: "";
+    background: #d95f24;
+  }
+
+  .brochure-print-day-solo .brochure-print-day h2 {
+    max-width: 160mm;
+    margin-top: 3mm;
+    font-size: 29pt;
+    line-height: 0.91;
+  }
+
+  .brochure-print-day-solo .brochure-print-distance {
+    margin-top: 3mm;
+  }
+
+  .brochure-print-day-solo .brochure-print-story {
+    max-width: 158mm;
+    margin-top: 4mm;
+  }
+
+  .brochure-print-day-solo .brochure-print-story span {
+    font-size: 7.8pt;
+    line-height: 1.43;
+  }
+
+  .brochure-print-day-solo .brochure-print-day-note {
+    position: absolute;
+    right: 15mm;
+    bottom: 14mm;
+    width: 34mm;
+    margin: 0;
+    padding-top: 3mm;
+  }
+
+  .brochure-print-summary {
+    grid-template-rows: 1fr auto;
+    gap: 10mm;
+    padding: 18mm 16mm 20mm;
+    color: #fff9f1;
+    background: #1c3035;
+  }
+
+  .brochure-print-summary::before {
+    opacity: 0.16;
+    background-image: radial-gradient(rgba(255, 215, 180, 0.5) 0.5px, transparent 0.7px);
+  }
+
+  .brochure-print-summary h2 {
+    max-width: 145mm;
+    margin-top: 4mm;
+    color: #fff9f1;
+    font-size: 38pt;
+  }
+
+  .brochure-print-summary .brochure-print-kicker {
+    color: #ffc79f;
+  }
+
+  .brochure-print-summary .brochure-print-inclusions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3mm 11mm;
+    margin-top: 10mm;
+  }
+
+  .brochure-print-summary .brochure-print-inclusions p {
+    margin: 0;
+    color: #d8e0df;
+    font-size: 8.5pt;
+  }
+
+  .brochure-print-summary .brochure-print-price-card {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 3mm 10mm;
+    padding: 9mm 11mm;
+    border-radius: 0;
+    color: #172033;
+    background: #f6e9dc;
+  }
+
+  .brochure-print-summary .brochure-print-price-card .brochure-print-kicker,
+  .brochure-print-summary .brochure-print-price-card > span {
+    grid-column: 1;
+    color: #b55123;
+  }
+
+  .brochure-print-summary .brochure-print-price-card h3 {
+    grid-column: 1;
+    margin: 1mm 0 0;
+    font-size: 25pt;
+  }
+
+  .brochure-print-summary .brochure-print-price-card strong {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    margin: 0;
+    font-size: 35pt;
+  }
+
+  .brochure-print-stays-page {
+    padding: 18mm 16mm;
+    background: #e9e0d4;
+  }
+
+  .brochure-print-stays-page .brochure-print-stays h2 {
+    max-width: 155mm;
+    margin-top: 4mm;
+    font-size: 36pt;
+  }
+
+  .brochure-print-stay-gallery {
+    display: grid;
+    height: 76mm;
+    margin: 9mm 0 8mm;
+    grid-template-columns: 1.3fr 0.7fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 3mm;
+  }
+
+  .brochure-print-stay-gallery img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .brochure-print-stay-gallery img:first-child {
+    grid-row: 1 / span 2;
+  }
+
+  .brochure-print-stays-page .brochure-print-stays > div:not(.brochure-print-stay-gallery) {
+    grid-template-columns: 35mm 1fr;
+    gap: 4mm;
+    margin-top: 4mm;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .brochure-print-stays-page .brochure-print-stays > div:not(.brochure-print-stay-gallery) > img {
+    width: 35mm;
+    height: 24mm;
+  }
+
+  .brochure-print-stays-page .brochure-print-stays div p {
+    font-size: 8.5pt;
+  }
+
+  .brochure-print-footer {
+    color: #778397;
+  }
+}
+ .font-brochure-display {
+  font-family: var(--font-playfair-display), Georgia, serif;
+ }

@@ -34,7 +34,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BedDouble, Building2, Calendar, Car, Check, ChevronDown,
+  BedDouble, BookOpen, Building2, Calendar, Car, Check, ChevronDown,
   ChevronRight, CircleCheck, CircleX, Lock, MapPin,
   MessageCircle, Mountain, Phone, PlaneTakeoff, ShieldCheck,
   Snowflake, Star, UtensilsCrossed, Users,
@@ -49,6 +49,7 @@ import { PackageBookingSuccess } from "@/components/packages/PackageBookingSucce
 import { ActivitiesTab }         from "@/components/packages/ActivitiesTab";
 import { ChangeHotelModal }      from "@/components/packages/change-hotel-modal";
 import { ChangeVehicleModal }   from "@/components/packages/change-vehicle-modal";
+import { TripBrochureModal }    from "@/components/packages/trip-brochure-modal";
 import { cn, formatInrAmount }   from "@/lib/utils";
 import { SITE }                  from "@/lib/constants";
 import { formatTourType, packageDetailHref } from "@/lib/packages";
@@ -314,6 +315,7 @@ export function PackageDetailView({
   const [changeHotelDestIdx, setChangeHotelDestIdx] = useState<number | null>(null);
   const [changeHotelMode, setChangeHotelMode] = useState<"hotel" | "room">("hotel");
   const [changeVehicleOpen, setChangeVehicleOpen] = useState(false);
+  const [showBrochure, setShowBrochure] = useState(false);
   const tabBarRef = useRef<HTMLDivElement>(null);
 
   // ── Booking ───────────────────────────────────────────────────────────────
@@ -427,6 +429,20 @@ export function PackageDetailView({
         : [];
     return imgs.slice(0, 12);
   }, [tour]);
+
+  // The brochure should feel immediate when a visitor opens it. Prime the
+  // package gallery while the detail page is being read, rather than waiting
+  // until the modal has already started its hardcover animation.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sources = Array.from(new Set([tour.image, ...galleryImages].filter(Boolean))).slice(0, 12);
+    sources.forEach((src) => {
+      const image = new window.Image();
+      image.decoding = "async";
+      image.src = src;
+      void image.decode?.().catch(() => undefined);
+    });
+  }, [galleryImages, tour.image]);
 
   // ── Build selected option IDs for booking ─────────────────────────────────
 
@@ -584,9 +600,10 @@ export function PackageDetailView({
   // ── Dedicated checkout summary page ───────────────────────────────────────
   if (checkoutOnly) {
     return (
-      <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
-        <HeroGlassNavbar activeId="holidays" solid flushDetailShell />
-        <div className="border-b border-[#e0e0e0] bg-white pt-[112px] sm:pt-[104px]">
+      <>
+        <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
+          <HeroGlassNavbar activeId="holidays" solid flushDetailShell />
+          <div className="border-b border-[#e0e0e0] bg-white pt-[112px] sm:pt-[104px]">
           <div className="mx-auto flex w-full max-w-[1320px] items-center gap-6 px-4 py-3 sm:px-6 lg:px-8">
             <div className="flex items-center gap-2 text-[13px] font-bold text-[#212121]"><span className="grid h-6 w-6 place-items-center rounded-full bg-[#212121] text-[11px] text-white">1</span>Review &amp; Travellers</div>
             <div className="h-px w-12 bg-[#d7dce2]" />
@@ -610,8 +627,10 @@ export function PackageDetailView({
             </section>
             <aside className="lg:sticky lg:top-24 lg:self-start"><div className="overflow-hidden rounded-xl border border-[#e8e8e8] bg-white shadow-sm"><div className="border-b border-[#f0f0f0] px-5 py-4"><h2 className="text-[16px] font-extrabold text-[#1a1a1a]">Price Summary</h2><p className="mt-1 text-[11px] text-[#9E9E9E]">Final price for your selected trip</p></div><div className="space-y-3 p-5 text-[13px]"><div className="flex justify-between text-[#616161]"><span>Package price</span><span>₹{fmtINR(breakdown.base)}</span></div>{breakdown.hotel > 0 && <div className="flex justify-between text-[#616161]"><span>Hotel upgrades</span><span>+₹{fmtINR(breakdown.hotel)}</span></div>}{breakdown.cab > 0 && <div className="flex justify-between text-[#616161]"><span>Vehicle upgrade</span><span>+₹{fmtINR(breakdown.cab)}</span></div>}<div className="flex justify-between border-t border-[#f0f0f0] pt-3 text-[15px] font-extrabold text-[#1a1a1a]"><span>Total trip price</span><span>₹{fmtINR(breakdown.total)}</span></div><p className="text-right text-[11px] text-[#757575]">₹{fmtINR(Math.round(breakdown.total / Math.max(1, rooms.reduce((s, r) => s + r.adults, 0))))} per person</p>{tokenPaymentAvailable && <div className="rounded-lg border border-[#ffe0cc] bg-[#fff8f3] p-3"><p className="text-[11px] font-bold text-[#E65100]">Pay only today</p><p className="mt-1 text-xl font-extrabold text-[#EF6614]">₹{fmtINR(token)}</p><p className="mt-1 text-[10px] text-[#757575]">Remaining balance can be paid later.</p></div>}<button type="submit" form="package-checkout-form" disabled={isBooking} className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-[#EF6614] text-[14px] font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(239,102,20,.65)] disabled:opacity-60">{isBooking ? "Preparing booking…" : `Continue to payment · ₹${fmtINR(payAmt)}`}</button><p className="text-center text-[10px] text-[#9E9E9E]">Secure payment · Instant confirmation</p></div></div></aside>
           </>}
-        </div>
-      </main>
+          </div>
+        </main>
+        <Footer />
+      </>
     );
   }
 
@@ -624,7 +643,7 @@ export function PackageDetailView({
         <HeroGlassNavbar activeId="holidays" solid combinedAuth flushDetailShell />
       </div>
       <TravelMobileTopShell activeId="holidays" showGreeting={false} />
-      <GlacialStylePackageDetail
+        <GlacialStylePackageDetail
           tour={tour}
           images={galleryImages}
           roomsLabel={roomsLabel(rooms)}
@@ -638,6 +657,7 @@ export function PackageDetailView({
           selectedHotels={selectedHotels}
           selectedCab={selectedCab}
           onBook={goToPackageCheckout}
+          onViewBrochure={() => setShowBrochure(true)}
           onEnquire={() => setShowLoginModal(true)}
           onChangeHotel={(index) => { setChangeHotelMode("hotel"); setChangeHotelDestIdx(index); }}
           onChangeRoom={(index) => { setChangeHotelMode("room"); setChangeHotelDestIdx(index); }}
@@ -645,6 +665,17 @@ export function PackageDetailView({
           onChangeTravellers={updateTravellers}
           onChangeDate={setTravelDate}
         />
+      <Footer />
+      <TripBrochureModal
+        open={showBrochure}
+        onClose={() => setShowBrochure(false)}
+        tour={tour}
+        stays={hotelGroups.map((group) => ({
+          name: group?.opts?.[selectedHotels[hotelGroups.indexOf(group)] ?? 0]?.name ?? group?.dest ?? "",
+          location: group?.dest,
+          image: group?.opts?.[selectedHotels[hotelGroups.indexOf(group)] ?? 0]?.img,
+        })).filter((stay) => stay.name)}
+      />
       <BookingAuthModal
         open={showLoginModal}
         onClose={() => setShowLoginModal(false)}
@@ -749,6 +780,13 @@ export function PackageDetailView({
                   className="mt-4 flex h-10 w-full items-center justify-center rounded-lg bg-primary px-3 text-sm font-bold text-white shadow-[0_8px_18px_-8px_rgba(234,88,12,0.7)] transition hover:bg-orange-700"
                 >
                   <span className="mx-auto">Book Now</span><span className="text-lg">→</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBrochure(true)}
+                  className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-primary/35 bg-white text-sm font-bold text-primary transition hover:-translate-y-0.5 hover:bg-orange-50 hover:shadow-sm"
+                >
+                  <BookOpen className="h-4 w-4" aria-hidden /> View Trip Brochure
                 </button>
                 <button type="button" className="mt-2 flex h-9 w-full items-center justify-center rounded-lg border border-primary/30 bg-white text-sm font-bold text-primary hover:bg-orange-50">
                   ♡&nbsp; Save Package

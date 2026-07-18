@@ -17,7 +17,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
   openRazorpayCheckout,
-  getRazorpayKeyId,
   type RazorpaySuccessResponse,
 } from "@/lib/razorpay-checkout";
 import { apiData } from "@/lib/api";
@@ -175,13 +174,17 @@ export function usePackageBooking(slug: string) {
     try {
       setState({ phase: "awaiting_payment", message: "Resuming payment…" });
 
+      if (!recoveryData.razorpay_key_id || !recoveryData.razorpay_order_id) {
+        throw new Error("This payment session is incomplete. Please create a new booking.");
+      }
+
       const payDesc =
         recoveryData.payment_type === "token"
           ? `Token payment (40%) — ₹${recoveryData.token_amount.toLocaleString("en-IN")}`
           : `Full payment — ₹${recoveryData.total_amount.toLocaleString("en-IN")}`;
 
       await openRazorpayCheckout({
-        keyId:       recoveryData.razorpay_key_id || getRazorpayKeyId(),
+        keyId:       recoveryData.razorpay_key_id,
         orderId:     recoveryData.razorpay_order_id,
         amountPaise: recoveryData.amount_paise,
         currency:    recoveryData.currency,
@@ -287,6 +290,13 @@ export function usePackageBooking(slug: string) {
           return;
         }
 
+        // The backend creates the Razorpay order and owns the key that is
+        // authorised for it. Falling back to a browser environment key can
+        // pair an order with a different account and make checkout fail.
+        if (!orderData.razorpay_key_id || !orderData.razorpay_order_id) {
+          throw new Error("Payment service did not return a valid Razorpay order. Please try again.");
+        }
+
         // ── Save recovery data ──────────────────────────────────────────
         saveRecovery(slug, {
           booking_id:        orderData.booking_id,
@@ -312,7 +322,7 @@ export function usePackageBooking(slug: string) {
             : `Full payment — ₹${orderData.total_amount.toLocaleString("en-IN")}`;
 
         await openRazorpayCheckout({
-          keyId:       orderData.razorpay_key_id || getRazorpayKeyId(),
+          keyId:       orderData.razorpay_key_id,
           orderId:     orderData.razorpay_order_id,
           amountPaise: orderData.amount_paise,
           currency:    orderData.currency,
@@ -399,10 +409,14 @@ export function usePackageBooking(slug: string) {
           body:    JSON.stringify({ booking_id: bookingId }),
         });
 
+        if (!orderData.razorpay_key_id || !orderData.razorpay_order_id) {
+          throw new Error("Payment service did not return a valid Razorpay balance order. Please try again.");
+        }
+
         setState({ phase: "awaiting_payment", message: "Opening payment window…" });
 
         await openRazorpayCheckout({
-          keyId:       orderData.razorpay_key_id || getRazorpayKeyId(),
+          keyId:       orderData.razorpay_key_id,
           orderId:     orderData.razorpay_order_id,
           amountPaise: orderData.amount_paise,
           currency:    orderData.currency,

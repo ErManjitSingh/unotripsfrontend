@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { Dancing_Script, Roboto } from "next/font/google";
+import { Dancing_Script, Playfair_Display, Roboto } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import { TopBanner } from "@/components/layout/top-banner";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -21,6 +21,12 @@ const roboto = Roboto({
   subsets: ["latin"],
   weight: ["300", "400", "500", "700", "900"],
   variable: "--font-roboto",
+  display: "swap",
+});
+
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair-display",
   display: "swap",
 });
 
@@ -107,7 +113,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${dancingScript.variable} ${roboto.variable}`}
+      className={`${dancingScript.variable} ${roboto.variable} ${playfairDisplay.variable}`}
     >
       <body className="min-h-screen font-sans" suppressHydrationWarning>
         <Script id="meta-pixel" strategy="afterInteractive">
