@@ -26,6 +26,7 @@ export type CreateBookingPayload = {
   rooms?: number;
   guest: GuestInfoPayload;
   payment_method_nonce?: string | null;
+  payment_plan?: "full" | "advance_40" | "pay_at_hotel";
   meal_plan?: string | null;
   meal_plan_label?: string | null;
   meal_plan_price?: number;
