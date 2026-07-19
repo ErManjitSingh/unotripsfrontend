@@ -79,6 +79,7 @@ function todayIso(): string {
 }
 
 type BookingStep = "travellers" | "payment" | "confirmed";
+type PaymentPlan = "full" | "advance_40" | "pay_at_hotel";
 
 // ── Checkout draft — survives auth redirect (sessionStorage) ─────────────────
 
@@ -212,19 +213,37 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   );
   const [continuing, setContinuing] = useState(false);
   const [guestCheckoutToken, setGuestCheckoutToken] = useState<string | null>(null);
+  const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("full");
+
+  // A link from search/results is authoritative. A saved draft belongs to an
+  // older attempt for the same room and must never overwrite dates supplied
+  // in the new URL (otherwise a 19→20 search can incorrectly show 18→18).
+  const hasUrlStay = Boolean(checkInIso && checkOutIso);
 
   // Editable order summary state (restored from draft if available)
-  const [localRooms, setLocalRooms]       = useState(draft?.localRooms ?? rooms);
-  const [localNights, setLocalNights]     = useState<number | null>(draft?.localNights ?? null);
-  const [localAdults, setLocalAdults]     = useState<number | null>(draft?.localAdults ?? null);
+  const [localRooms, setLocalRooms]       = useState(hasUrlStay ? rooms : (draft?.localRooms ?? rooms));
+  const [localNights, setLocalNights]     = useState<number | null>(hasUrlStay ? null : (draft?.localNights ?? null));
+  const [localAdults, setLocalAdults]     = useState<number | null>(hasUrlStay ? null : (draft?.localAdults ?? null));
   const [childrenAges, setChildrenAges] = useState<number[]>(
-    draft?.childrenAges ?? Array.from({ length: requestedChildren }, () => 0),
+    hasUrlStay ? Array.from({ length: requestedChildren }, () => 0) : (draft?.childrenAges ?? Array.from({ length: requestedChildren }, () => 0)),
   );
   const localChildren = childrenAges.length;
   const [editingCheckIn, setEditingCheckIn]   = useState(false);
   const [editingCheckOut, setEditingCheckOut] = useState(false);
-  const [localCheckIn,  setLocalCheckIn]  = useState(draft?.localCheckIn || checkInIso);
-  const [localCheckOut, setLocalCheckOut] = useState(draft?.localCheckOut || checkOutIso);
+  const [localCheckIn,  setLocalCheckIn]  = useState(checkInIso || draft?.localCheckIn || "");
+  const [localCheckOut, setLocalCheckOut] = useState(checkOutIso || draft?.localCheckOut || "");
+
+  // Also handle client-side navigation between room/result links without
+  // relying on this component being remounted by Next.js.
+  useEffect(() => {
+    if (apiBooking || !checkInIso || !checkOutIso) return;
+    setLocalCheckIn(checkInIso);
+    setLocalCheckOut(checkOutIso);
+    setLocalNights(null);
+    setLocalRooms(rooms);
+    setLocalAdults(null);
+    setChildrenAges(Array.from({ length: requestedChildren }, () => 0));
+  }, [apiBooking, checkInIso, checkOutIso, rooms, guests, requestedChildren]);
 
   const displayNights = localNights ?? nights;
   const displayAdults = localAdults ?? guests;
@@ -378,6 +397,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       .then((booking) => {
         if (cancelled) return;
         setApiBooking(booking);
+        if (booking.payment_plan === "full" || booking.payment_plan === "advance_40" || booking.payment_plan === "pay_at_hotel") {
+          setPaymentPlan(booking.payment_plan);
+        }
         setBookingRef(booking.confirmation_number);
         if (isConfirmedBookingStatus(booking.status)) {
           setStep("confirmed");
@@ -510,6 +532,17 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const discount = ratePlan.discountAmount * displayNights * displayRooms;
   const estimatedTotal = roomTotal + taxes - discount + estimatedChildCharges;
   const payTotal = apiBooking?.total_amount ?? estimatedTotal;
+  const confirmedPaymentPlan = apiBooking?.payment_plan ?? paymentPlan;
+  const confirmedBalanceDue = apiBooking?.balance_due_amount ?? (
+    confirmedPaymentPlan === "pay_at_hotel" ? payTotal
+    : confirmedPaymentPlan === "advance_40" ? payTotal - Math.round(payTotal * 40) / 100
+    : 0
+  );
+  const confirmedAmountPaid = apiBooking?.amount_paid ?? (
+    confirmedPaymentPlan === "advance_40" ? Math.round(payTotal * 40) / 100
+    : confirmedPaymentPlan === "pay_at_hotel" ? 0
+    : payTotal
+  );
 
   const guestFullName = `${title} ${firstName} ${lastName}`.trim();
 
@@ -568,6 +601,11 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
         setContinuing(false);
         return;
       }
+      if (effectiveCheckIn < todayIso()) {
+        setFormError("Your selected check-in date has passed. Please choose today or a future date.");
+        setContinuing(false);
+        return;
+      }
 
       // Children aged 12+ count as adults for occupancy
       const adultsForBooking = displayAdults + childrenAges.filter((a) => a >= 12).length;
@@ -588,13 +626,14 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
           phone: mobile.replace(/\D/g, "").slice(-10),
           country_code: "+91",
         },
+        payment_plan: paymentPlan,
         ...mealPlanPayloadFromRatePlan(ratePlan),
       }, { "X-Idempotency-Key": idempotencyKeyRef.current });
 
       // Reset idempotency key so a back-and-retry creates a fresh booking
       idempotencyKeyRef.current = crypto.randomUUID();
 
-      if (auth.user?.id) {
+      if (auth?.user?.id) {
         upsertCachedBooking(auth.user.id, created);
       }
 
@@ -603,6 +642,12 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       setApiBookingId(created.id);
       setBookingRef(created.confirmation_number);
       persistPendingCheckout(created.id);
+
+      if (paymentPlan === "pay_at_hotel") {
+        setStep("confirmed");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
 
       // ── Open Razorpay directly — no separate payment step ────────────────
       const keyId   = created.razorpay_key_id ?? getRazorpayKeyId();
@@ -625,7 +670,10 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       }
 
       const confirmedAmount = created.total_amount;
-      const amountPaise = Math.round(confirmedAmount * 100);
+      const amountDueNow = paymentPlan === "advance_40"
+        ? Math.round(confirmedAmount * 40) / 100
+        : confirmedAmount;
+      const amountPaise = Math.round(amountDueNow * 100);
 
       try {
         await openRazorpayCheckout({
@@ -634,7 +682,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
           amountPaise,
           currency: "INR",
           name: hotel.name,
-          description: `Full payment — ₹${confirmedAmount.toLocaleString("en-IN")}`,
+          description: paymentPlan === "advance_40"
+            ? `40% advance — ₹${amountDueNow.toLocaleString("en-IN")}`
+            : `Full payment — ₹${confirmedAmount.toLocaleString("en-IN")}`,
           prefill: {
             name:    `${firstName.trim()} ${lastName.trim()}`.trim(),
             email:   email.trim(),
@@ -642,11 +692,14 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
           },
           onSuccess: async (response) => {
             try {
-              await verifyHotelBookingPayment(
+              const verified = await verifyHotelBookingPayment(
                 token ?? created.guest_checkout_token,
                 created.id,
                 response,
               );
+              const confirmed = verified as unknown as BookingWithOrder;
+              setApiBooking(confirmed);
+              if (auth?.user?.id) upsertCachedBooking(auth.user.id, confirmed);
               setStep("confirmed");
             } catch {
               setStep("payment");
@@ -675,6 +728,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     const keyId = apiBooking?.razorpay_key_id ?? getRazorpayKeyId();
     const orderId = apiBooking?.razorpay_order_id;
     const bookingId = apiBookingId;
+    const activePaymentPlan = apiBooking?.payment_plan === "advance_40" ? "advance_40" : paymentPlan;
 
     if (!bookingId) {
       setFormError("Booking session expired. Please go back and create the booking again.");
@@ -748,7 +802,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       await openRazorpayCheckout({
         keyId,
         orderId,
-        amountPaise: Math.round(payTotal * 100),
+        amountPaise: Math.round((activePaymentPlan === "advance_40" ? Math.round(payTotal * 40) / 100 : payTotal) * 100),
         name: "UNO Trips",
         description: `${hotel.name} — ${roomType.name}`,
         prefill: {
@@ -971,14 +1025,24 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   ))}
                 </div>
 
-                {/* ── Amount paid strip ── */}
+                {/* ── Payment / balance strip ── */}
                 <div className="flex items-center justify-between border-t border-[#f0f0f0] bg-[#FFF8F3] px-5 py-4">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-[#9E9E9E]">Amount Paid</p>
-                    <p className="text-[10px] text-[#757575]">Incl. all taxes &amp; fees</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-[#9E9E9E]">
+                      {confirmedPaymentPlan === "pay_at_hotel"
+                        ? "Pay at hotel"
+                        : confirmedBalanceDue > 0 ? "Balance due at hotel" : "Amount paid"}
+                    </p>
+                    <p className="text-[10px] text-[#757575]">
+                      {confirmedPaymentPlan === "pay_at_hotel"
+                        ? "Due on arrival · incl. all taxes & fees"
+                        : confirmedBalanceDue > 0
+                          ? `₹ ${formatInrAmount(confirmedAmountPaid)} paid online · due at check-in`
+                          : "Incl. all taxes & fees"}
+                    </p>
                   </div>
                   <p className="text-2xl font-extrabold text-[#EF6614]">
-                    ₹ {formatInrAmount(apiBooking?.total_amount ?? payTotal)}
+                    ₹ {formatInrAmount(confirmedBalanceDue > 0 ? confirmedBalanceDue : confirmedAmountPaid)}
                   </p>
                 </div>
               </div>
@@ -990,7 +1054,11 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   {[
                     "This booking confirmation (screenshot or printout)",
                     "A valid government-issued photo ID (Aadhaar / Passport / Driving Licence)",
-                    "Original credit/debit card used for payment (if requested)",
+                    confirmedPaymentPlan === "pay_at_hotel"
+                      ? `₹ ${formatInrAmount(confirmedBalanceDue)} to pay at the hotel on arrival`
+                      : confirmedBalanceDue > 0
+                        ? `₹ ${formatInrAmount(confirmedBalanceDue)} balance to pay at the hotel on arrival`
+                        : "Original credit/debit card used for payment (if requested)",
                   ].map((tip) => (
                     <li key={tip} className="flex items-start gap-2 text-[12px] text-[#616161]">
                       <span className="mt-0.5 text-[#EF6614]">•</span>
@@ -1054,6 +1122,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   rooms={rooms}
                   guests={guests}
                   grandTotal={payTotal}
+                  payNow={(apiBooking?.payment_plan ?? paymentPlan) === "advance_40" ? Math.round(payTotal * 40) / 100 : payTotal}
+                  balanceDue={(apiBooking?.payment_plan ?? paymentPlan) === "advance_40" ? payTotal - Math.round(payTotal * 40) / 100 : 0}
+                  paymentPlan={(apiBooking?.payment_plan ?? paymentPlan) === "advance_40" ? "advance_40" : "full"}
                   guestName={guestFullName}
                   email={email}
                   mobile={mobile}
@@ -1518,6 +1589,25 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                       </div>
                     )}
 
+                    {!apiBooking ? (
+                      <fieldset className="mt-4 space-y-2" aria-label="Payment option">
+                        <legend className="text-[12px] font-bold text-[#1a1a1a]">Choose payment option</legend>
+                        {([
+                          { value: "full", title: "Pay full amount online", note: `₹${formatInrAmount(payTotal)} via Razorpay` },
+                          { value: "advance_40", title: "Pay 40% advance", note: `₹${formatInrAmount(Math.round(payTotal * 40) / 100)} now · 60% at hotel` },
+                          { value: "pay_at_hotel", title: "Pay at hotel", note: `₹${formatInrAmount(payTotal)} due at check-in` },
+                        ] as const).map((option) => (
+                          <label key={option.value} className={cn(
+                            "flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 transition",
+                            paymentPlan === option.value ? "border-[#EF6614] bg-[#FFF7F2]" : "border-[#e8e8e8] hover:border-[#f1b58e]",
+                          )}>
+                            <input type="radio" name="payment-plan" value={option.value} checked={paymentPlan === option.value} onChange={() => setPaymentPlan(option.value)} className="mt-0.5 accent-[#EF6614]" />
+                            <span><span className="block text-[12px] font-bold text-[#1a1a1a]">{option.title}</span><span className="block text-[10px] text-[#757575]">{option.note}</span></span>
+                          </label>
+                        ))}
+                      </fieldset>
+                    ) : null}
+
                     {/* CTA */}
                     {holdExpired ? (
                       <button
@@ -1541,7 +1631,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                         ) : !firstName.trim() || !lastName.trim() || !email.trim() || !mobile.trim() ? (
                           "Fill Details to Continue"
                         ) : (
-                          "Confirm & Proceed to Pay →"
+                          paymentPlan === "pay_at_hotel" ? "Confirm Booking →" : "Confirm & Proceed to Pay →"
                         )}
                       </button>
                     )}
@@ -1550,7 +1640,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                     <div className="mt-3 space-y-1.5">
                       <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#9E9E9E]">
                         <Lock className="h-3 w-3" aria-hidden />
-                        No payment charged at this step
+                        {paymentPlan === "pay_at_hotel" ? "No payment charged online" : "No payment charged at this step"}
                       </div>
                       <div className="flex items-center justify-center gap-4 text-[10px] text-[#b0b0b0]">
                         <span>🔒 SSL Secured</span>
