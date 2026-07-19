@@ -19,6 +19,9 @@ type HotelBookingPaymentStepProps = {
   rooms: number;
   guests: number;
   grandTotal: number;
+  payNow: number;
+  balanceDue: number;
+  paymentPlan: "full" | "advance_40";
   guestName: string;
   email: string;
   mobile: string;
@@ -35,6 +38,9 @@ export function HotelBookingPaymentStep({
   rooms,
   guests,
   grandTotal,
+  payNow,
+  balanceDue,
+  paymentPlan,
   guestName,
   email,
   mobile,
@@ -52,8 +58,9 @@ export function HotelBookingPaymentStep({
         <section className="rounded-lg border border-[#e0e0e0] bg-white p-4 shadow-sm sm:p-5">
           <h2 className="text-base font-bold">Pay securely with Razorpay</h2>
           <p className="mt-2 text-[13px] leading-relaxed text-[#616161]">
-            UPI, cards, net banking, and wallets — powered by Razorpay. You&apos;ll complete payment in
-            a secure popup after clicking Pay Now.
+            {paymentPlan === "advance_40"
+              ? "Pay 40% now in the secure Razorpay popup to confirm your stay. The remaining 60% is payable at the hotel at check-in."
+              : "UPI, cards, net banking, and wallets — powered by Razorpay. You’ll complete payment in a secure popup after clicking Pay Now."}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <Image
@@ -115,8 +122,8 @@ export function HotelBookingPaymentStep({
             {processing
               ? (isMockOrder ? "Confirming…" : "Opening Razorpay…")
               : isMockOrder
-                ? `[TEST] Simulate Pay ₹ ${formatInrAmount(grandTotal)}`
-                : `Pay ₹ ${formatInrAmount(grandTotal)}`}
+                ? `[TEST] Simulate Pay ₹ ${formatInrAmount(payNow)}`
+                : `Pay ₹ ${formatInrAmount(payNow)}`}
           </button>
         </div>
       </div>
@@ -147,6 +154,12 @@ export function HotelBookingPaymentStep({
               <span className="text-lg font-bold text-[#EF6614]">₹ {formatInrAmount(grandTotal)}</span>
             </div>
             <p className="mt-1 text-[10px] text-[#2E7D32]">✓ Confirmed · Incl. all taxes &amp; fees</p>
+            {balanceDue > 0 ? (
+              <div className="mt-3 rounded-md bg-[#FFF8E1] px-3 py-2 text-[12px] text-[#7C4A03]">
+                <div className="flex justify-between font-semibold"><span>Pay now (40%)</span><span>₹ {formatInrAmount(payNow)}</span></div>
+                <div className="mt-1 flex justify-between"><span>Due at hotel</span><span>₹ {formatInrAmount(balanceDue)}</span></div>
+              </div>
+            ) : null}
           </div>
         </section>
       </aside>

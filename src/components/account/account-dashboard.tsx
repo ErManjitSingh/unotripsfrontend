@@ -324,8 +324,11 @@ function NextTripSpotlight({ booking }: { booking: UserBooking }) {
           {/* Bottom row */}
           <div className="flex items-center justify-between gap-3 border-t border-[#f0f0f0] pt-4">
             <div>
-              <p className="text-[11px] text-[#9E9E9E]">Total paid</p>
-              <p className="text-[20px] font-black text-[#212121]">{formatMoney(booking.total_amount, booking.currency)}</p>
+              <p className="text-[11px] text-[#9E9E9E]">{(booking.balance_due_amount ?? 0) > 0 ? "Paid so far" : "Total paid"}</p>
+              <p className="text-[20px] font-black text-[#212121]">{formatMoney(booking.amount_paid ?? booking.total_amount, booking.currency)}</p>
+              {(booking.balance_due_amount ?? 0) > 0 ? (
+                <p className="mt-0.5 text-[10px] font-semibold text-[#B45309]">{formatMoney(booking.balance_due_amount ?? 0, booking.currency)} due at hotel</p>
+              ) : null}
             </div>
             <Link href={hotelPath}
               className="inline-flex items-center gap-2 rounded-xl bg-[#EF6614] px-5 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#E65100]"
@@ -1041,7 +1044,6 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
     </div>
   );
 }
-
 
 
 
