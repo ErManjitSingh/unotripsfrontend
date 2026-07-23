@@ -20,9 +20,9 @@ if (!is_array($input)) {
   $input = $_POST;
 }
 
-$DEFAULT_DESTINATION = getenv('UNO_META_DESTINATION') ?: 'Assam';
-$subject = trim((string) ($input['_subject'] ?? $input['subject'] ?? 'Assam Lead'));
-$source = trim((string) ($input['source'] ?? 'Assam Landing Page'));
+$DEFAULT_DESTINATION = getenv('UNO_META_DESTINATION') ?: '__DESTINATION__';
+$subject = trim((string) ($input['_subject'] ?? $input['subject'] ?? '__SUBJECT__'));
+$source = trim((string) ($input['source'] ?? '__SOURCE__'));
 $phone = trim((string) ($input['phone'] ?? ''));
 $name = trim((string) ($input['name'] ?? ''));
 $email = trim((string) ($input['email'] ?? ''));
@@ -40,10 +40,10 @@ if ($phone === '' && $message === '' && $transcript === '') {
 $crmOk = false;
 if ($phone !== '') {
   $crmResult = uno_crm_push_lead([
-    'name' => $name !== '' ? $name : ('Assam Lead'),
+    'name' => $name !== '' ? $name : ('__DESTINATION__ Lead'),
     'phone' => $phone,
     'email' => $email,
-    'destination' => $destination !== '' ? $destination : 'Assam',
+    'destination' => $destination !== '' ? $destination : '__DESTINATION__',
     'source' => 'DPW',
     'sourceLabel' => 'DPW',
     'landingPage' => $source,

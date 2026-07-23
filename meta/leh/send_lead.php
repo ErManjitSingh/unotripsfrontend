@@ -1,10 +1,11 @@
-﻿<?php
+<?php
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/mail_smtp.php';
+require_once __DIR__ . '/crm_lead_push.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -19,6 +20,7 @@ if (!is_array($input)) {
   $input = $_POST;
 }
 
+$DEFAULT_DESTINATION = getenv('UNO_META_DESTINATION') ?: 'Leh Ladakh';
 $subject = trim((string) ($input['_subject'] ?? $input['subject'] ?? 'Leh Ladakh Lead'));
 $source = trim((string) ($input['source'] ?? 'Leh Landing Page'));
 $phone = trim((string) ($input['phone'] ?? ''));
@@ -27,6 +29,7 @@ $email = trim((string) ($input['email'] ?? ''));
 $message = trim((string) ($input['message'] ?? ''));
 $transcript = trim((string) ($input['transcript'] ?? ''));
 $packageTitle = trim((string) ($input['package'] ?? $input['package-title'] ?? ''));
+$destination = trim((string) ($input['destination'] ?? $input['destinationy'] ?? $DEFAULT_DESTINATION));
 
 if ($phone === '' && $message === '' && $transcript === '') {
   http_response_code(422);
@@ -34,7 +37,29 @@ if ($phone === '' && $message === '' && $transcript === '') {
   exit;
 }
 
+$crmOk = false;
+if ($phone !== '') {
+  $crmResult = uno_crm_push_lead([
+    'name' => $name !== '' ? $name : ('Leh Ladakh Lead'),
+    'phone' => $phone,
+    'email' => $email,
+    'destination' => $destination !== '' ? $destination : 'Leh Ladakh',
+    'source' => 'DPW',
+    'sourceLabel' => 'DPW',
+    'landingPage' => $source,
+    'message' => $message,
+    'package' => $packageTitle,
+    'transcript' => $transcript,
+    'captureType' => $transcript !== '' ? 'chatbot' : 'form',
+    'channel' => 'website',
+  ]);
+  $crmOk = !empty($crmResult['success']);
+}
+
 $lines = ["New enquiry — {$source}"];
+if ($destination !== '') {
+  $lines[] = 'Destination: ' . $destination;
+}
 if ($packageTitle !== '') {
   $lines[] = 'Package: ' . $packageTitle;
 }
@@ -58,18 +83,30 @@ if ($transcript !== '') {
 }
 $body = implode("\n", $lines);
 
-$mail = new PHPMailer(true);
+$mailOk = false;
 try {
+  $mail = new PHPMailer(true);
   uno_trips_smtp_configure($mail);
   $mail->setFrom('query@ptwhotels.com', 'Uno Trips');
   $mail->addAddress('unotripsit@gmail.com');
   $mail->addAddress('manjitsingh012345@gmail.com');
   $mail->Subject = $subject;
   $mail->Body = $body;
-
   $mail->send();
-  echo json_encode(['success' => true, 'message' => 'Lead sent']);
+  $mailOk = true;
 } catch (Exception $e) {
-  http_response_code(500);
-  echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+  error_log('[send_lead] mail failed: ' . $e->getMessage());
 }
+
+if ($crmOk || $mailOk) {
+  echo json_encode([
+    'success' => true,
+    'message' => 'Lead sent',
+    'crm' => $crmOk,
+    'email' => $mailOk,
+  ]);
+  exit;
+}
+
+http_response_code(500);
+echo json_encode(['success' => false, 'message' => 'Could not save lead. Please call us.']);
