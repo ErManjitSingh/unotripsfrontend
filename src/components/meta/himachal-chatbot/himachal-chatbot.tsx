@@ -106,15 +106,23 @@ export function HimachalChatbot({
   }, []);
 
   const sendChatToServer = useCallback(
-    (useBeacon = false) => {
+    (_useBeacon = false) => {
       const transcript = transcriptRef.current;
       if (!transcript.some((m) => m.who === "user")) return;
-      const phone = userMobileRef.current.replace(/\s+/g, "");
-      if (!phone) return;
+
+      const phoneDigits = userMobileRef.current.replace(/\D/g, "");
+      const phone = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : phoneDigits;
+      if (phone.length < 10) return;
 
       const snapshot = JSON.stringify(transcript);
       if (snapshot === lastSentRef.current) return;
       lastSentRef.current = snapshot;
+
+      const userAnswers = transcript.filter((m) => m.who === "user").map((m) => m.text);
+      const destGuess = userAnswers.find((t) =>
+        /manali|shimla|spiti|dharamshala|jibhi|honeymoon/i.test(t),
+      );
+      const resolvedDestination = destGuess || destination;
 
       const chatLines = transcript
         .map((m) => `${m.who === "bot" ? "Bot" : "User"}: ${m.text}`)
@@ -124,26 +132,18 @@ export function HimachalChatbot({
         name: "Himachal Chatbot Lead",
         phone,
         email: "",
-        destination,
-        package: "",
+        destination: resolvedDestination,
+        package: destGuess || "",
         landingPage,
         captureType: "chatbot",
         message: `Himachal Chatbot conversation\n\n${chatLines}`,
       };
-      const body = JSON.stringify(payload);
 
-      if (useBeacon && typeof navigator !== "undefined" && navigator.sendBeacon) {
-        navigator.sendBeacon(
-          "/api/meta/leads",
-          new Blob([body], { type: "application/json" }),
-        );
-        return;
-      }
-
+      // Prefer fetch+keepalive over sendBeacon so Next.js reliably parses JSON body.
       void fetch("/api/meta/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body,
+        body: JSON.stringify(payload),
         keepalive: true,
       }).catch(() => {});
     },

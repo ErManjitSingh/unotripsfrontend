@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sendMetaLeadMail } from "@/lib/meta/send-meta-lead-mail";
 
 type LeadBody = {
   name?: string;
@@ -12,6 +13,10 @@ type LeadBody = {
   captureType?: string;
 };
 
+function digitsPhone(raw: string): string {
+  return raw.replace(/[^\d+]/g, "").trim();
+}
+
 export async function POST(request: Request) {
   let body: LeadBody;
   try {
@@ -24,9 +29,10 @@ export async function POST(request: Request) {
   }
 
   const name = String(body.name ?? "").trim();
-  const phone = String(body.phone ?? "").trim();
+  const phone = digitsPhone(String(body.phone ?? ""));
   const email = String(body.email ?? "").trim();
-  const destination = String(body.destination ?? "Himachal").trim() || "Himachal";
+  const destination =
+    String(body.destination ?? "Himachal").trim() || "Himachal";
   const city = String(body.city ?? "").trim();
   const packageTitle = String(body.package ?? "").trim();
   const message = String(body.message ?? "").trim();
@@ -34,7 +40,7 @@ export async function POST(request: Request) {
     String(body.landingPage ?? "").trim() || "Himachal Special Landing Page";
   const captureType = String(body.captureType ?? "form").trim() || "form";
 
-  if (!phone) {
+  if (!phone || phone.replace(/\D/g, "").length < 10) {
     return NextResponse.json(
       { success: false, message: "Phone is required" },
       { status: 422 },
@@ -47,8 +53,8 @@ export async function POST(request: Request) {
   const apiKey =
     process.env.UNO_CRM_LEAD_API_KEY || "unotrips-meta-lead-2026-secure";
 
-  const payload = {
-    name: name || "Himachal Lead",
+  const crmPayload = {
+    name: name || (captureType === "chatbot" ? "Himachal Chatbot Lead" : "Himachal Lead"),
     phone,
     email: email || undefined,
     destination,
@@ -62,6 +68,8 @@ export async function POST(request: Request) {
     channel: "website",
   };
 
+  let crmOk = false;
+  let crmMessage = "";
   try {
     const res = await fetch(apiUrl, {
       method: "POST",
@@ -70,31 +78,55 @@ export async function POST(request: Request) {
         Accept: "application/json",
         "X-Api-Key": apiKey,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(crmPayload),
       signal: AbortSignal.timeout(12000),
     });
-
     const data = (await res.json().catch(() => ({}))) as {
       success?: boolean;
       message?: string;
     };
-
-    if (!res.ok || data.success === false) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: data.message || "Could not save enquiry",
-        },
-        { status: res.ok ? 502 : res.status },
-      );
+    crmOk = res.ok && data.success !== false;
+    crmMessage = data.message || (crmOk ? "Lead saved" : "CRM rejected lead");
+    if (!crmOk) {
+      console.error("[meta/leads] CRM failed", res.status, data);
     }
-
-    return NextResponse.json({ success: true, message: "Lead saved" });
   } catch (err) {
-    console.error("[meta/leads]", err);
-    return NextResponse.json(
-      { success: false, message: "CRM unreachable. Please call us." },
-      { status: 502 },
-    );
+    console.error("[meta/leads] CRM unreachable", err);
+    crmMessage = "CRM unreachable";
   }
+
+  let mailOk = false;
+  try {
+    mailOk = await sendMetaLeadMail({
+      name: crmPayload.name,
+      phone,
+      email: email || undefined,
+      destination,
+      city: city || undefined,
+      packageTitle: packageTitle || undefined,
+      landingPage,
+      captureType,
+      message: message || undefined,
+    });
+  } catch (err) {
+    console.error("[meta/leads] mail failed", err);
+  }
+
+  // Match PHP behaviour: succeed if CRM OR mail works.
+  if (crmOk || mailOk) {
+    return NextResponse.json({
+      success: true,
+      message: "Lead saved",
+      crm: crmOk,
+      mail: mailOk,
+    });
+  }
+
+  return NextResponse.json(
+    {
+      success: false,
+      message: crmMessage || "Could not save enquiry. Please call us.",
+    },
+    { status: 502 },
+  );
 }
