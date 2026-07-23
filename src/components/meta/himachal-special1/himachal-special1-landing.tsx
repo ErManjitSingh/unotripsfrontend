@@ -7,6 +7,7 @@ import {
   HS1_BEST_TIME,
   HS1_INCLUSIONS,
   HS1_PACKAGES,
+  HS1_TESTIMONIALS,
   type Hs1Package,
 } from "@/lib/meta/himachal-special1-data";
 import { WeatherWidget } from "./weather-widget";
