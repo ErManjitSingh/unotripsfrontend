@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { HimachalSpecialLanding } from "@/components/meta/himachal-special/himachal-special-landing";
 import {
   HIMACHAL_ADS,
-  HIMACHAL_FAQS,
-  HIMACHAL_PACKAGES,
+  HS1_PACKAGES,
   resolveAdsH1,
 } from "@/lib/meta/himachal-special-data";
 
@@ -15,7 +14,7 @@ export async function generateMetadata({
   searchParams,
 }: PageProps): Promise<Metadata> {
   const params = await searchParams;
-  const h1 = resolveAdsH1(params.h1 ?? params.headline);
+  const h1 = resolveAdsH1(params.h1, params.headline, params.kw);
   return {
     title: { absolute: `${h1} | Uno Trips` },
     description: HIMACHAL_ADS.description,
@@ -25,58 +24,80 @@ export async function generateMetadata({
 
 export default async function HimachalSpecialPage({ searchParams }: PageProps) {
   const params = await searchParams;
-  const h1 = resolveAdsH1(params.h1 ?? params.headline);
+  const h1 = resolveAdsH1(params.h1, params.headline, params.kw);
+  const ads = HIMACHAL_ADS;
+  const site = "https://unotrips.com";
 
   const schema = {
     "@context": "https://schema.org",
     "@graph": [
       {
         "@type": "TravelAgency",
-        "@id": `https://unotrips.com${HIMACHAL_ADS.path}/#agency`,
-        name: "Uno Trips — Himachal Tour Packages",
-        url: `https://unotrips.com${HIMACHAL_ADS.path}/`,
-        telephone: HIMACHAL_ADS.phoneDisplay,
+        "@id": `${site}${ads.path}/#agency`,
+        name: "Uno Trips - Himachal Tour Packages",
+        url: `${site}${ads.path}/`,
+        telephone: ads.phoneDisplay,
         areaServed: "Himachal Pradesh, India",
-        image: `https://unotrips.com${HIMACHAL_ADS.img}/hero.webp`,
+        image: `${site}${ads.img}/hero.webp`,
+        priceRange: "₹₹",
       },
       {
         "@type": "ItemList",
-        name: "Himachal Tour Packages",
-        itemListElement: HIMACHAL_PACKAGES.slice(0, 8).map((pkg, i) => ({
+        name: "Himachal Tour Packages 2026",
+        itemListElement: HS1_PACKAGES.map((pkg, i) => ({
           "@type": "ListItem",
           position: i + 1,
           item: {
-            "@type": "TouristTrip",
+            "@type": "Product",
             name: pkg.title,
-            description: pkg.itinerary.join(" · "),
-            touristType: pkg.focus.includes("honeymoon")
-              ? "Honeymoon"
-              : "Leisure",
-            itinerary: {
-              "@type": "ItemList",
-              itemListElement: pkg.itinerary.map((day, di) => ({
-                "@type": "ListItem",
-                position: di + 1,
-                name: day,
-              })),
+            description: `${pkg.duration} · ${pkg.route.join(" - ")} · ${pkg.highlights.join(", ")}`,
+            image: `${site}${pkg.image}`,
+            brand: { "@type": "Brand", name: ads.brand },
+            offers: {
+              "@type": "Offer",
+              priceCurrency: "INR",
+              price: pkg.priceValue,
+              availability: "https://schema.org/InStock",
+              url: `${site}${ads.path}/#${pkg.anchor}`,
+            },
+            aggregateRating: {
+              "@type": "AggregateRating",
+              ratingValue: "4.9",
+              reviewCount: "14001",
+              bestRating: "5",
             },
           },
         })),
       },
-      {
-        "@type": "FAQPage",
-        mainEntity: HIMACHAL_FAQS.map((f) => ({
-          "@type": "Question",
-          name: f.q,
-          acceptedAnswer: { "@type": "Answer", text: f.a },
-        })),
-      },
+      ...HS1_PACKAGES.map((pkg) => ({
+        "@type": "TouristTrip",
+        name: pkg.title,
+        description: `${pkg.duration} Himachal package covering ${pkg.route.join(", ")}`,
+        touristType: pkg.focus.includes("honeymoon")
+          ? "Honeymoon"
+          : pkg.focus.includes("spiti")
+            ? "Adventure"
+            : "Leisure",
+        itinerary: {
+          "@type": "ItemList",
+          itemListElement: pkg.itinerary.map((day, d) => ({
+            "@type": "ListItem",
+            position: d + 1,
+            name: day,
+          })),
+        },
+        offers: {
+          "@type": "Offer",
+          priceCurrency: "INR",
+          price: pkg.priceValue,
+        },
+      })),
       {
         "@type": "WebPage",
-        "@id": `https://unotrips.com${HIMACHAL_ADS.path}/#webpage`,
-        url: `https://unotrips.com${HIMACHAL_ADS.path}/`,
+        "@id": `${site}${ads.path}/#webpage`,
+        url: `${site}${ads.path}/`,
         name: h1,
-        description: HIMACHAL_ADS.description,
+        description: ads.description,
         isPartOf: { "@id": "https://unotrips.com/#website" },
       },
     ],

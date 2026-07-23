@@ -13,17 +13,17 @@ const plusJakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    absolute: HIMACHAL_ADS.defaultTitle,
+    absolute: HIMACHAL_ADS.defaultH1,
   },
   description: HIMACHAL_ADS.description,
   alternates: {
     canonical: HIMACHAL_ADS.path,
   },
   openGraph: {
-    title: HIMACHAL_ADS.defaultTitle,
+    title: HIMACHAL_ADS.defaultH1,
     description: HIMACHAL_ADS.description,
     url: HIMACHAL_ADS.path,
-    images: [`${HIMACHAL_ADS.img}/hero-original.webp`],
+    images: [`${HIMACHAL_ADS.img}/hero.webp`],
   },
 };
 
@@ -38,7 +38,7 @@ export default function HimachalSpecialLayout({
         src="https://www.googletagmanager.com/gtag/js?id=AW-17928878008"
         strategy="afterInteractive"
       />
-      <Script id="google-ads-himachal" strategy="afterInteractive">
+      <Script id="google-ads-himachal-special" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
