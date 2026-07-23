@@ -7,7 +7,6 @@ import {
   HS1_BEST_TIME,
   HS1_INCLUSIONS,
   HS1_PACKAGES,
-  HS1_TESTIMONIALS,
   type Hs1Package,
 } from "@/lib/meta/himachal-special1-data";
 import { WeatherWidget } from "./weather-widget";
@@ -73,6 +72,93 @@ function IconMail() {
   );
 }
 
+function IconPin({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function IconHeart({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+
+function IconFlame({ size = 12 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2c0 4-3 6-3 10a3 3 0 0 0 6 0c0-2 2-3.5 2-6-2 1-3 2.5-3 4.5C14 7 13 4.5 12 2zm-1.5 16.5a1.5 1.5 0 1 0 3 0c0-1.5-1.5-2.5-1.5-2.5s-1.5 1-1.5 2.5z" />
+    </svg>
+  );
+}
+
+function IconHotel({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M3 21h18M5 21V8l7-4 7 4v13" />
+      <path d="M9 21v-5h6v5M9 10h.01M15 10h.01M9 14h.01M15 14h.01" />
+    </svg>
+  );
+}
+
+function IconCoffee({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
+      <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z" />
+      <path d="M6 2v2M10 2v2M14 2v2" />
+    </svg>
+  );
+}
+
+function IconCar({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M5 17h14v2a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-2H8v2a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-2z" />
+      <path d="M5 17l-1.5-5.5A2 2 0 0 1 5.4 9H18.6a2 2 0 0 1 1.9 2.5L19 17" />
+      <path d="M7 9V6a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v3" />
+    </svg>
+  );
+}
+
+function IconCamera({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
+
+function IconCheck({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+      <path d="M20 6L9 17l-5-5" />
+    </svg>
+  );
+}
+
+function IconShield({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M12 22s8-4 8-10V6l-8-3-8 3v6c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
+function IconStar({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+    </svg>
+  );
+}
+
 function InclusionIcon({ type }: { type: (typeof HS1_INCLUSIONS)[number]["icon"] }) {
   const common = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", "aria-hidden": true as const };
   switch (type) {
@@ -111,38 +197,6 @@ function InclusionIcon({ type }: { type: (typeof HS1_INCLUSIONS)[number]["icon"]
         </svg>
       );
   }
-}
-
-function PackageItinerary({ pkg }: { pkg: Hs1Package }) {
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-
-  return (
-    <div className="hs1-acc">
-      <button
-        type="button"
-        className="hs1-acc-btn"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span>DAY-WISE ITINERARY</span>
-        <span className={`hs1-chevron${open ? " open" : ""}`} aria-hidden />
-      </button>
-      {open ? (
-        <div id={panelId} className="hs1-acc-panel">
-          <ul className="hs1-itinerary">
-            {pkg.itinerary.map((day) => (
-              <li key={day}>
-                <span className="hs1-dot" aria-hidden />
-                <span>{day}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 function LeadForm({
@@ -245,72 +299,164 @@ function PackageCard({
   pkg: Hs1Package;
   onEnquire: (title: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const thumbs = pkg.galleryImages.slice(0, 3);
   const waText = encodeURIComponent(
     `Hi, I want details for ${pkg.title} (${pkg.duration}) starting ${pkg.priceFrom}/person.`,
   );
 
   return (
-    <article className="hs1-pkg" id={pkg.anchor}>
-      <div className="hs1-pkg-row">
-        <div className="hs1-pkg-media">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={pkg.image}
-            alt={pkg.title}
-            width={640}
-            height={400}
-            loading="lazy"
-            decoding="async"
-          />
-          <span className="hs1-pkg-badge">{pkg.duration}</span>
+    <article className="hs1-card" id={pkg.anchor}>
+      <div className="hs1-card-media">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={pkg.image}
+          alt={pkg.title}
+          width={640}
+          height={400}
+          loading="lazy"
+          decoding="async"
+        />
+        {pkg.bestSeller ? (
+          <span className="hs1-card-best">
+            <IconFlame />
+            BEST SELLER
+          </span>
+        ) : null}
+        <button type="button" className="hs1-card-heart" aria-label="Save package">
+          <IconHeart />
+        </button>
+        <span className="hs1-card-dur">{pkg.duration}</span>
+        <div className="hs1-card-thumbs" aria-hidden>
+          {thumbs.map((src) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={src} src={src} alt="" width={48} height={48} loading="lazy" decoding="async" />
+          ))}
+          <span className="hs1-card-thumb-more">+{pkg.extraPhotoCount}</span>
         </div>
-        <div className="hs1-pkg-body">
-          <p className="hs1-pkg-duration">{pkg.nights}</p>
-          <h3 className="hs1-pkg-title">{pkg.shortTitle}</h3>
-          <p className="hs1-pkg-nights">{pkg.highlights.join(" · ")}</p>
-          <div className="hs1-pkg-route">
-            {pkg.route.map((r) => (
-              <span key={r} className="hs1-chip">
-                {r}
-              </span>
-            ))}
-          </div>
-          <div className="hs1-pkg-price">
-            <span className="from">From</span>
+      </div>
+
+      <div className="hs1-card-body">
+        <div className="hs1-card-title-row">
+          <h3 className="hs1-card-title">{pkg.shortTitle}</h3>
+          <p className="hs1-card-price">
             <span className="amt">{pkg.priceFrom}</span>
-            <span className="pp">/ person</span>
+            <span className="pp">/person</span>
+          </p>
+        </div>
+
+        <p className="hs1-card-loc">
+          <IconPin />
+          <span>{pkg.locationLine}</span>
+        </p>
+
+        <div className="hs1-card-amenities">
+          <div className="hs1-card-amenity">
+            <span className="hs1-card-amenity-icon">
+              <IconHotel />
+            </span>
+            <span className="lbl">Hotels</span>
+            <span className="sub">{pkg.hotelLabel}</span>
           </div>
-          <div className="hs1-pkg-route">
-            {pkg.inclusions.map((inc) => (
-              <span key={inc} className="hs1-chip incl">
-                {inc}
-              </span>
-            ))}
+          <div className="hs1-card-amenity">
+            <span className="hs1-card-amenity-icon">
+              <IconCoffee />
+            </span>
+            <span className="lbl">Breakfast</span>
+            <span className="sub">{pkg.breakfastLabel}</span>
           </div>
-          <PackageItinerary pkg={pkg} />
-          <div className="hs1-pkg-actions">
-            <a
-              className="hs1-btn hs1-btn-wa"
-              href={`https://wa.me/${ADS.whatsapp}?text=${waText}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <IconWhatsApp />
-              <span>WhatsApp</span>
-            </a>
-            <a className="hs1-btn hs1-btn-call" href={`tel:${PHONE}`}>
-              <IconPhone size={16} />
-              <span>Call</span>
-            </a>
-            <button
-              type="button"
-              className="hs1-btn hs1-btn-enquire"
-              onClick={() => onEnquire(pkg.title)}
-            >
-              <span>Enquire</span>
-            </button>
+          <div className="hs1-card-amenity">
+            <span className="hs1-card-amenity-icon">
+              <IconCar />
+            </span>
+            <span className="lbl">Transfers</span>
+            <span className="sub">{pkg.transferLabel}</span>
+          </div>
+          <div className="hs1-card-amenity">
+            <span className="hs1-card-amenity-icon">
+              <IconCamera />
+            </span>
+            <span className="lbl">Sightseeing</span>
+            <span className="sub">{pkg.sightseeingLabel}</span>
           </div>
         </div>
+
+        <div className="hs1-card-highlights">
+          <div className="hs1-card-highlights-head">
+            <strong>Package Highlights</strong>
+            <svg className="hs1-card-mtn" width="40" height="20" viewBox="0 0 40 20" aria-hidden>
+              <path d="M0 18 L10 6 L16 12 L24 2 L40 18 Z" fill="currentColor" opacity="0.18" />
+            </svg>
+          </div>
+          <ul>
+            {pkg.highlightBullets.map((b) => (
+              <li key={b}>
+                <span className="hs1-card-check">
+                  <IconCheck />
+                </span>
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="hs1-card-footer">
+          <div className="hs1-card-rating">
+            <span className="hs1-card-star">
+              <IconStar />
+            </span>
+            <span>
+              {pkg.rating.toFixed(1)} ({pkg.reviewCount} Reviews)
+            </span>
+          </div>
+          <button
+            type="button"
+            className="hs1-card-details"
+            aria-expanded={open}
+            aria-controls={panelId}
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? "Hide Details" : "View Details"}
+            <span aria-hidden>{"\u2192"}</span>
+          </button>
+        </div>
+
+        {open ? (
+          <div id={panelId} className="hs1-card-expand">
+            <p className="hs1-card-expand-title">Day-wise Itinerary</p>
+            <ul className="hs1-itinerary">
+              {pkg.itinerary.map((day) => (
+                <li key={day}>
+                  <span className="hs1-dot" aria-hidden />
+                  <span>{day}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="hs1-card-actions">
+              <a
+                className="hs1-btn hs1-btn-wa"
+                href={`https://wa.me/${ADS.whatsapp}?text=${waText}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <IconWhatsApp />
+                <span>WhatsApp</span>
+              </a>
+              <a className="hs1-btn hs1-btn-call" href={`tel:${PHONE}`}>
+                <IconPhone size={16} />
+                <span>Call</span>
+              </a>
+              <button
+                type="button"
+                className="hs1-btn hs1-btn-enquire"
+                onClick={() => onEnquire(pkg.title)}
+              >
+                <span>Enquire</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </article>
   );
@@ -394,7 +540,7 @@ export function HimachalSpecial1Landing({ h1 }: Props) {
               <div className="hs1-review-logo g">G</div>
               <div className="hs1-review-meta">
                 <div className="rating">
-                  <span className="star">★</span>
+                  <span className="star">{"\u2605"}</span>
                   <span>4.9</span>
                 </div>
                 <div className="count">(14,001 reviews)</div>
@@ -408,7 +554,7 @@ export function HimachalSpecial1Landing({ h1 }: Props) {
               </div>
               <div className="hs1-review-meta">
                 <div className="rating">
-                  <span className="star">★</span>
+                  <span className="star">{"\u2605"}</span>
                   <span>5.0</span>
                 </div>
                 <div className="count">(3,850 reviews)</div>
@@ -418,7 +564,7 @@ export function HimachalSpecial1Landing({ h1 }: Props) {
               <div className="hs1-review-logo fb">f</div>
               <div className="hs1-review-meta">
                 <div className="rating">
-                  <span className="star">★</span>
+                  <span className="star">{"\u2605"}</span>
                   <span>4.9</span>
                 </div>
                 <div className="count">(1,031 reviews)</div>
@@ -496,7 +642,7 @@ export function HimachalSpecial1Landing({ h1 }: Props) {
             {HS1_TESTIMONIALS.map((t) => (
               <blockquote key={t.name} className="hs1-testimonial">
                 <div className="stars" aria-label={`${t.rating} out of 5 stars`}>
-                  {"★★★★★".slice(0, t.rating)}
+                  {"\u2605\u2605\u2605\u2605\u2605".slice(0, t.rating)}
                 </div>
                 <p>&ldquo;{t.quote}&rdquo;</p>
                 <div className="who">{t.name}</div>
@@ -526,19 +672,26 @@ export function HimachalSpecial1Landing({ h1 }: Props) {
             </a>
           </div>
           <p style={{ marginTop: "1rem", opacity: 0.7, fontSize: "0.78rem" }}>
-            © {new Date().getFullYear()} Uno Trips · Himachal tour packages
+            {"\u00A9"} {new Date().getFullYear()} Uno Trips · Himachal tour packages
           </p>
         </div>
       </footer>
 
       <div className="hs1-sticky" role="navigation" aria-label="Quick actions">
-        <button type="button" className="hs1-sticky-quote" onClick={() => setModalPkg(h1)}>
-          Get Free Quote
-        </button>
-        <a className="hs1-sticky-wa" href={WA} target="_blank" rel="noopener noreferrer">
-          <IconWhatsApp />
-          WhatsApp Us
-        </a>
+        <div className="hs1-sticky-btns">
+          <a className="hs1-sticky-call" href={`tel:${PHONE}`}>
+            <IconPhone size={16} />
+            Call Now
+          </a>
+          <a className="hs1-sticky-wa" href={WA} target="_blank" rel="noopener noreferrer">
+            <IconWhatsApp />
+            WhatsApp Us
+          </a>
+        </div>
+        <p className="hs1-sticky-trust">
+          <IconShield size={13} />
+          <span>100% Secure Booking | No Hidden Charges</span>
+        </p>
       </div>
 
       {modalPkg ? (
@@ -556,7 +709,7 @@ export function HimachalSpecial1Landing({ h1 }: Props) {
               aria-label="Close"
               onClick={() => setModalPkg(null)}
             >
-              ×
+              {"\u00D7"}
             </button>
             <div className="hs1-modal-header">
               <h2 id="hs1-modal-title">Get Free Quote</h2>

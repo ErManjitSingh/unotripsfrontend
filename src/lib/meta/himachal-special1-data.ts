@@ -21,7 +21,9 @@ export type Hs1PackageFocus =
   | "shimla"
   | "jibhi"
   | "honeymoon"
-  | "spiti";
+  | "spiti"
+  | "family"
+  | "dharamshala";
 
 export type Hs1Package = {
   id: string;
@@ -38,6 +40,17 @@ export type Hs1Package = {
   focus: Hs1PackageFocus[];
   inclusions: string[];
   itinerary: string[];
+  bestSeller?: boolean;
+  rating: number;
+  reviewCount: number;
+  hotelLabel: string;
+  breakfastLabel: string;
+  transferLabel: string;
+  sightseeingLabel: string;
+  locationLine: string;
+  galleryImages: string[];
+  highlightBullets: string[];
+  extraPhotoCount: number;
 };
 
 export const HS1_INCLUSIONS = [
@@ -48,27 +61,44 @@ export const HS1_INCLUSIONS = [
   { label: "Trip Assistance", icon: "assist" as const },
 ] as const;
 
+const IMG = HIMACHAL_SPECIAL1_ADS.img;
+
 export const HS1_PACKAGES: Hs1Package[] = [
   {
-    id: "classic-himachal-6d5n",
+    id: "shimla-manali-6d5n",
     anchor: "Manali",
-    title: "Classic Himachal - Shimla & Manali",
-    shortTitle: "Classic Himachal",
-    duration: "6D / 5N",
+    title: "Shimla Manali Package",
+    shortTitle: "Shimla Manali Package",
+    duration: "5N / 6D",
     nights: "Shimla 2N, Manali 3N",
     route: ["Shimla", "Manali"],
-    highlights: ["Mall Road", "Solang Valley", "Atal Tunnel"],
-    priceFrom: "Rs. 12,999",
-    priceValue: 12999,
-    image: `${HIMACHAL_SPECIAL1_ADS.img}/shimla.webp`,
+    highlights: ["Scenic views", "Solang & Rohtang", "Mall Road", "Comfortable stay"],
+    priceFrom: "\u20B9 21,999",
+    priceValue: 21999,
+    image: `${IMG}/hero.webp`,
     focus: ["classic", "manali", "shimla"],
-    inclusions: [
-      "3/4 Star Hotels",
-      "Daily Breakfast",
-      "Private Cab",
-      "Sightseeing",
-      "Trip Assistance",
+    inclusions: ["3 Star Hotels", "Daily Breakfast", "Private Cab", "Sightseeing"],
+    bestSeller: true,
+    rating: 4.8,
+    reviewCount: 320,
+    hotelLabel: "3 Star",
+    breakfastLabel: "Daily",
+    transferLabel: "Private Cab",
+    sightseeingLabel: "7+ Places",
+    locationLine: "Shimla (2N) \u2022 Manali (3N)",
+    galleryImages: [
+      `${IMG}/shimla.webp`,
+      `${IMG}/solang.webp`,
+      `${IMG}/kullu.webp`,
+      `${IMG}/himachal-opt.webp`,
     ],
+    highlightBullets: [
+      "Scenic mountain views & snow peaks",
+      "Solang Valley & Rohtang experience",
+      "Mall Road evening walk in Shimla",
+      "Comfortable stay with daily breakfast",
+    ],
+    extraPhotoCount: 12,
     itinerary: [
       "Day 1: Arrive Shimla - check-in & Mall Road evening walk",
       "Day 2: Shimla sightseeing - Ridge, Christ Church, Kufri viewpoints",
@@ -81,23 +111,37 @@ export const HS1_PACKAGES: Hs1Package[] = [
   {
     id: "romantic-honeymoon-5d4n",
     anchor: "Honeymoon",
-    title: "Romantic Honeymoon - Manali Special",
-    shortTitle: "Romantic Honeymoon",
-    duration: "5D / 4N",
+    title: "Romantic Manali Honeymoon",
+    shortTitle: "Romantic Manali Honeymoon",
+    duration: "4N / 5D",
     nights: "Manali 4N",
     route: ["Manali"],
     highlights: ["Private Photoshoot", "Candlelight Dinner", "Couple Stays"],
-    priceFrom: "Rs. 18,999",
+    priceFrom: "\u20B9 18,999",
     priceValue: 18999,
-    image: `${HIMACHAL_SPECIAL1_ADS.img}/romantic-opt.webp`,
+    image: `${IMG}/romantic-opt.webp`,
     focus: ["honeymoon", "manali"],
-    inclusions: [
-      "Couple-friendly Stay",
-      "Breakfast",
-      "Private Photoshoot",
-      "Candlelight Dinner",
-      "Cab & Assistance",
+    inclusions: ["Couple Stay", "Breakfast", "Photoshoot", "Candlelight Dinner"],
+    rating: 4.9,
+    reviewCount: 186,
+    hotelLabel: "4 Star",
+    breakfastLabel: "Daily",
+    transferLabel: "Private Cab",
+    sightseeingLabel: "5+ Places",
+    locationLine: "Manali (4N) \u2022 Couple Stay",
+    galleryImages: [
+      `${IMG}/romantic-opt.webp`,
+      `${IMG}/solang.webp`,
+      `${IMG}/himachal-opt.webp`,
+      `${IMG}/hero.webp`,
     ],
+    highlightBullets: [
+      "Private couple photoshoot at scenic spots",
+      "Candlelight dinner setup included",
+      "Romantic hotel / boutique stay",
+      "Solang Valley snow day (seasonal)",
+    ],
+    extraPhotoCount: 10,
     itinerary: [
       "Day 1: Arrive Manali - romantic check-in & evening stroll",
       "Day 2: Couple photoshoot at scenic spots + Hadimba & Old Manali",
@@ -109,23 +153,37 @@ export const HS1_PACKAGES: Hs1Package[] = [
   {
     id: "jibhi-tirthan-5d4n",
     anchor: "Jibhi",
-    title: "Offbeat Jibhi & Tirthan Escape",
+    title: "Offbeat Jibhi & Tirthan",
     shortTitle: "Offbeat Jibhi & Tirthan",
-    duration: "5D / 4N",
+    duration: "4N / 5D",
     nights: "Jibhi / Tirthan 4N",
     route: ["Jibhi", "Tirthan", "Jalori Pass"],
     highlights: ["Jalori Pass", "Serolsar Lake", "Homestays"],
-    priceFrom: "Rs. 14,999",
+    priceFrom: "\u20B9 14,999",
     priceValue: 14999,
-    image: `${HIMACHAL_SPECIAL1_ADS.img}/himachal-opt.webp`,
+    image: `${IMG}/himachal-opt.webp`,
     focus: ["jibhi"],
-    inclusions: [
-      "Homestay / Boutique Stay",
-      "Breakfast",
-      "Local Transfers",
-      "Trek Guidance",
-      "Trip Assistance",
+    inclusions: ["Homestay", "Breakfast", "Local Transfers", "Trek Guidance"],
+    rating: 4.7,
+    reviewCount: 142,
+    hotelLabel: "Homestay",
+    breakfastLabel: "Daily",
+    transferLabel: "Local Cab",
+    sightseeingLabel: "6+ Places",
+    locationLine: "Jibhi (2N) \u2022 Tirthan (2N)",
+    galleryImages: [
+      `${IMG}/himachal-opt.webp`,
+      `${IMG}/himachal.webp`,
+      `${IMG}/full_himachal.webp`,
+      `${IMG}/shimla.webp`,
     ],
+    highlightBullets: [
+      "Jalori Pass day trip with mountain views",
+      "Serolsar Lake trek (seasonal)",
+      "Riverside cafes & village trails",
+      "Boutique homestay experience",
+    ],
+    extraPhotoCount: 8,
     itinerary: [
       "Day 1: Arrive Jibhi - riverside check-in & cafe hop",
       "Day 2: Tirthan Valley walks, waterfalls & local trails",
@@ -137,23 +195,37 @@ export const HS1_PACKAGES: Hs1Package[] = [
   {
     id: "spiti-expedition-9d8n",
     anchor: "Spiti",
-    title: "Spiti Valley Expedition - Full Circuit",
+    title: "Spiti Valley Expedition",
     shortTitle: "Spiti Valley Expedition",
-    duration: "9D / 8N",
+    duration: "8N / 9D",
     nights: "Shimla to Manali circuit",
     route: ["Shimla", "Spiti", "Manali"],
     highlights: ["4x4 SUV", "Permits", "Key Monastery"],
-    priceFrom: "Rs. 32,999",
+    priceFrom: "\u20B9 32,999",
     priceValue: 32999,
-    image: `${HIMACHAL_SPECIAL1_ADS.img}/himachal-group-opt.webp`,
+    image: `${IMG}/himachal-group-opt.webp`,
     focus: ["spiti"],
-    inclusions: [
-      "4x4 SUV Transfers",
-      "Stay & Meals (as per plan)",
-      "Inner Line Permits",
-      "Monastery Visits",
-      "Experienced Driver",
+    inclusions: ["4x4 SUV", "Stay & Meals", "Inner Line Permits", "Driver"],
+    rating: 4.8,
+    reviewCount: 98,
+    hotelLabel: "3 Star",
+    breakfastLabel: "As Plan",
+    transferLabel: "4x4 SUV",
+    sightseeingLabel: "10+ Places",
+    locationLine: "Shimla \u2022 Spiti \u2022 Manali",
+    galleryImages: [
+      `${IMG}/himachal-group-opt.webp`,
+      `${IMG}/full_himachal.webp`,
+      `${IMG}/himachal.webp`,
+      `${IMG}/shimla.webp`,
     ],
+    highlightBullets: [
+      "4x4 SUV transfers for high-altitude roads",
+      "Inner line permits handled for you",
+      "Key Monastery & Spiti village visits",
+      "Experienced mountain driver included",
+    ],
+    extraPhotoCount: 15,
     itinerary: [
       "Day 1: Arrive Shimla - briefing & overnight",
       "Day 2: Shimla to Kalpa / Sangla via Kinnaur route",
@@ -164,6 +236,89 @@ export const HS1_PACKAGES: Hs1Package[] = [
       "Day 7: Cross toward Manali via Atal Tunnel corridor",
       "Day 8: Manali leisure & buffer day",
       "Day 9: Departure from Manali",
+    ],
+  },
+  {
+    id: "manali-kullu-family-5d4n",
+    anchor: "Family",
+    title: "Manali Kullu Family Tour",
+    shortTitle: "Manali Kullu Family Tour",
+    duration: "4N / 5D",
+    nights: "Manali 3N, Kullu 1N",
+    route: ["Manali", "Kullu"],
+    highlights: ["Family Friendly", "Solang Valley", "Kullu Valley"],
+    priceFrom: "\u20B9 16,999",
+    priceValue: 16999,
+    image: `${IMG}/kullu.webp`,
+    focus: ["family", "manali"],
+    inclusions: ["Family Hotels", "Breakfast", "Private Cab", "Sightseeing"],
+    rating: 4.8,
+    reviewCount: 210,
+    hotelLabel: "3 Star",
+    breakfastLabel: "Daily",
+    transferLabel: "Private Cab",
+    sightseeingLabel: "6+ Places",
+    locationLine: "Manali (3N) \u2022 Kullu (1N)",
+    galleryImages: [
+      `${IMG}/kullu.webp`,
+      `${IMG}/solang.webp`,
+      `${IMG}/hero.webp`,
+      `${IMG}/shimla.webp`,
+    ],
+    highlightBullets: [
+      "Family-friendly hotels & pacing",
+      "Solang Valley adventure for all ages",
+      "Kullu valley scenic drive & river views",
+      "Hadimba Temple & local Manali sights",
+    ],
+    extraPhotoCount: 9,
+    itinerary: [
+      "Day 1: Arrive Manali - family check-in & Mall Road stroll",
+      "Day 2: Manali local - Hadimba, Vashisht & Old Manali cafes",
+      "Day 3: Solang Valley day with easy adventure options",
+      "Day 4: Kullu valley sightseeing & overnight",
+      "Day 5: Departure with trip assistance",
+    ],
+  },
+  {
+    id: "dharamshala-mcleod-4d3n",
+    anchor: "Dharamshala",
+    title: "Dharamshala McLeodganj Escape",
+    shortTitle: "Dharamshala McLeodganj Escape",
+    duration: "3N / 4D",
+    nights: "Dharamshala / McLeodganj 3N",
+    route: ["Dharamshala", "McLeodganj"],
+    highlights: ["Triund", "Bhagsu", "Dalai Lama Temple"],
+    priceFrom: "\u20B9 11,999",
+    priceValue: 11999,
+    image: `${IMG}/dharamshala-opt.webp`,
+    focus: ["dharamshala"],
+    inclusions: ["Hotels", "Breakfast", "Private Cab", "Sightseeing"],
+    rating: 4.7,
+    reviewCount: 156,
+    hotelLabel: "3 Star",
+    breakfastLabel: "Daily",
+    transferLabel: "Private Cab",
+    sightseeingLabel: "5+ Places",
+    locationLine: "Dharamshala (1N) \u2022 McLeodganj (2N)",
+    galleryImages: [
+      `${IMG}/dharamshala-opt.webp`,
+      `${IMG}/dharamshala.webp`,
+      `${IMG}/himachal-opt.webp`,
+      `${IMG}/full_himachal.webp`,
+    ],
+    highlightBullets: [
+      "Bhagsu waterfall & temple visit",
+      "Triund trek option (seasonal)",
+      "Dalai Lama Temple & McLeodganj cafes",
+      "Peaceful hill-station stay with breakfast",
+    ],
+    extraPhotoCount: 7,
+    itinerary: [
+      "Day 1: Arrive Dharamshala - check-in & local evening walk",
+      "Day 2: McLeodganj - Dalai Lama Temple, Bhagsu waterfall",
+      "Day 3: Triund trek option or Naddi viewpoints (seasonal)",
+      "Day 4: Departure",
     ],
   },
 ];
