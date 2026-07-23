@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { permanentRedirect } from "next/navigation";
 
 export default function HimachalSpecial1ThankYouRedirect() {
-  redirect("/meta/himachal_special/thank-you");
+  permanentRedirect("/meta/himachal_special/thank-you");
 }

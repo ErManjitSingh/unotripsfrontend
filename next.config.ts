@@ -40,6 +40,21 @@ const nextConfig: NextConfig = {
 
   transpilePackages: ["swiper"],
 
+  async redirects() {
+    return [
+      {
+        source: "/meta/himachal_special1",
+        destination: "/meta/himachal_special",
+        permanent: true,
+      },
+      {
+        source: "/meta/himachal_special1/:path*",
+        destination: "/meta/himachal_special/:path*",
+        permanent: true,
+      },
+    ];
+  },
+
   images: {
     // Serve images as-is — Supabase CDN handles resizing/compression.
     unoptimized: true,
