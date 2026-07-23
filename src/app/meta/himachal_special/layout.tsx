@@ -43,7 +43,7 @@ export default function HimachalSpecialLayout({
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
           gtag('js', new Date());
-          gtag('config', 'AW-17928878008');
+          gtag('config', 'AW-17928878008', { allow_enhanced_conversions: true });
         `}
       </Script>
       {children}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { HIMACHAL_ADS } from "@/lib/meta/himachal-special-data";
+import { HimachalThankYouConversion } from "@/components/meta/himachal-special/himachal-thank-you-conversion";
 import "@/components/meta/himachal-special/himachal-special.css";
 
 export const metadata = {
@@ -13,6 +14,7 @@ export default function HimachalThankYouPage() {
 
   return (
     <div className="hs1-ty-root">
+      <HimachalThankYouConversion />
       <div className="hs1-ty-card">
         <p className="hs1-ty-brand">Uno Trips</p>
         <h1>Thank you — we got your enquiry</h1>

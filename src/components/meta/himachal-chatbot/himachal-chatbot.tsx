@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import "./himachal-chatbot.css";
+import { trackHimachalAdsConversion } from "@/lib/meta/himachal-ads-conversion";
 
 type ChatMsg = { who: "bot" | "user"; text: string };
 
@@ -145,7 +146,13 @@ export function HimachalChatbot({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         keepalive: true,
-      }).catch(() => {});
+      })
+        .then((res) => {
+          if (res.ok) {
+            trackHimachalAdsConversion({ phone });
+          }
+        })
+        .catch(() => {});
     },
     [destination, landingPage],
   );

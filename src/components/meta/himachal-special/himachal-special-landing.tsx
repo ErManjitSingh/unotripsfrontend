@@ -11,6 +11,7 @@ import {
   type Hs1Package,
 } from "@/lib/meta/himachal-special-data";
 import { HimachalChatbot } from "@/components/meta/himachal-chatbot/himachal-chatbot";
+import { trackHimachalAdsConversion } from "@/lib/meta/himachal-ads-conversion";
 import { WeatherWidget } from "./weather-widget";
 
 type Props = {
@@ -239,11 +240,10 @@ function LeadForm({
           setError(data.message || "Something went wrong. Please call us.");
           return;
         }
-        if (typeof window !== "undefined" && typeof window.gtag === "function") {
-          window.gtag("event", "conversion", {
-            send_to: "AW-17928878008",
-          });
-        }
+        trackHimachalAdsConversion({
+          email: payload.email,
+          phone: payload.phone,
+        });
         router.push(`${ADS.path}/thank-you`);
       } catch {
         setError("Network error. Please call or WhatsApp us.");
