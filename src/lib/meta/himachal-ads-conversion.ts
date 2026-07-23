@@ -1,6 +1,11 @@
 export const HIMACHAL_GOOGLE_ADS_ID = "AW-17928878008";
 export const HIMACHAL_GOOGLE_ADS_CONVERSION =
   "AW-17928878008/xcUNCIPosfIbELjvk-VC";
+/** Website-call conversion (same Ads account; phone clicks on tel: links). */
+export const HIMACHAL_GOOGLE_ADS_PHONE_CONVERSION =
+  "AW-17928878008/xcUNCIPosfIbELjvk-VC";
+/** Must match the number shown on the page (Google phone conversion matching). */
+export const HIMACHAL_PHONE_CONVERSION_NUMBER = "+91-7876505119";
 
 const EC_STORAGE_KEY = "uno_hs_enhanced_conversion";
 
