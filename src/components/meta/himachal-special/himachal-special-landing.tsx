@@ -461,14 +461,37 @@ export function HimachalSpecialLanding({ h1 }: Props) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const hash = window.location.hash.replace(/^#/, "");
-    if (!hash) return;
-    const el = document.getElementById(hash);
-    if (el) {
+
+    const HASH_ALIASES: Record<string, string> = {
+      Manali: "ShimlaManali",
+      Shimla: "ShimlaManali",
+      Jibhi: "JibhiTour",
+      Spiti: "SpitiValley",
+      Honeymoon: "HoneymoonTour",
+      Family: "FamilyTour",
+      DharamshalaTour: "Dharamshala",
+      Dalhousie: "Dharamshala",
+    };
+
+    const scrollToHash = () => {
+      const raw = window.location.hash.replace(/^#/, "").trim();
+      if (!raw) return;
+      const targetId = HASH_ALIASES[raw] || raw;
+      const el = document.getElementById(targetId);
+      if (!el) return;
       requestAnimationFrame(() => {
         el.scrollIntoView({ behavior: "smooth", block: "start" });
       });
-    }
+    };
+
+    scrollToHash();
+    // Retry once after paint (images/layout shift)
+    const t = window.setTimeout(scrollToHash, 350);
+    window.addEventListener("hashchange", scrollToHash);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("hashchange", scrollToHash);
+    };
   }, []);
 
   useEffect(() => {
@@ -579,11 +602,12 @@ export function HimachalSpecialLanding({ h1 }: Props) {
       </section>
 
       <nav className="hs1-jump" aria-label="Destination shortcuts">
-        <a href="#Manali">Manali</a>
-        <a href="#Manali">Shimla</a>
-        <a href="#Jibhi">Jibhi</a>
-        <a href="#Honeymoon">Honeymoon</a>
-        <a href="#Spiti">Spiti</a>
+        <a href="#ShimlaManali">Shimla Manali</a>
+        <a href="#FamilyTour">Family</a>
+        <a href="#HoneymoonTour">Honeymoon</a>
+        <a href="#JibhiTour">Jibhi</a>
+        <a href="#SpitiValley">Spiti</a>
+        <a href="#Dharamshala">Dharamshala</a>
         <a href="#inclusions">Inclusions</a>
       </nav>
 

@@ -66,7 +66,7 @@ const IMG = HIMACHAL_ADS.img;
 export const HS1_PACKAGES: Hs1Package[] = [
   {
     id: "shimla-manali-6d5n",
-    anchor: "Manali",
+    anchor: "ShimlaManali",
     title: "Shimla Manali Package",
     shortTitle: "Shimla Manali Package",
     duration: "5N / 6D",
@@ -110,7 +110,7 @@ export const HS1_PACKAGES: Hs1Package[] = [
   },
   {
     id: "romantic-honeymoon-5d4n",
-    anchor: "Honeymoon",
+    anchor: "HoneymoonTour",
     title: "Romantic Manali Honeymoon",
     shortTitle: "Romantic Manali Honeymoon",
     duration: "4N / 5D",
@@ -152,7 +152,7 @@ export const HS1_PACKAGES: Hs1Package[] = [
   },
   {
     id: "jibhi-tirthan-5d4n",
-    anchor: "Jibhi",
+    anchor: "JibhiTour",
     title: "Offbeat Jibhi & Tirthan",
     shortTitle: "Offbeat Jibhi & Tirthan",
     duration: "4N / 5D",
@@ -194,7 +194,7 @@ export const HS1_PACKAGES: Hs1Package[] = [
   },
   {
     id: "spiti-expedition-9d8n",
-    anchor: "Spiti",
+    anchor: "SpitiValley",
     title: "Spiti Valley Expedition",
     shortTitle: "Spiti Valley Expedition",
     duration: "8N / 9D",
@@ -240,7 +240,7 @@ export const HS1_PACKAGES: Hs1Package[] = [
   },
   {
     id: "manali-kullu-family-5d4n",
-    anchor: "Family",
+    anchor: "FamilyTour",
     title: "Manali Kullu Family Tour",
     shortTitle: "Manali Kullu Family Tour",
     duration: "4N / 5D",
