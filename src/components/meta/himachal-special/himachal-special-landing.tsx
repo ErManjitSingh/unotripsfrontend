@@ -11,6 +11,7 @@ import {
   HIMACHAL_TESTIMONIALS,
   type HimachalPackage,
 } from "@/lib/meta/himachal-special-data";
+import { HimachalChatbot } from "@/components/meta/himachal-chatbot/himachal-chatbot";
 
 type Props = {
   h1: string;
@@ -662,6 +663,11 @@ export function HimachalSpecialLanding({ h1 }: Props) {
           </div>
         </div>
       ) : null}
+
+      <HimachalChatbot
+        landingPage={HIMACHAL_ADS.landingPage}
+        destination="Himachal"
+      />
     </div>
   );
 }

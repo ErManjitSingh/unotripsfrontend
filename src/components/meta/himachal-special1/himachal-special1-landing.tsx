@@ -10,6 +10,7 @@ import {
   HS1_TESTIMONIALS,
   type Hs1Package,
 } from "@/lib/meta/himachal-special1-data";
+import { HimachalChatbot } from "@/components/meta/himachal-chatbot/himachal-chatbot";
 import { WeatherWidget } from "./weather-widget";
 
 type Props = {
@@ -721,6 +722,11 @@ export function HimachalSpecial1Landing({ h1 }: Props) {
           </div>
         </div>
       ) : null}
+
+      <HimachalChatbot
+        landingPage={ADS.landingPage}
+        destination="Himachal"
+      />
     </div>
   );
 }
