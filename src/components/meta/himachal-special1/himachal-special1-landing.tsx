@@ -279,11 +279,6 @@ function LeadForm({
         {pending ? "Sending..." : "Get Free Quote"}
       </button>
       <p className="hs1-form-note">No spam · Free consultation · Instant WhatsApp response</p>
-      {onClose ? (
-        <button type="button" className="hs1-modal-close" onClick={onClose} aria-label="Close" style={{ position: "static", margin: "0 auto" }}>
-          Close
-        </button>
-      ) : null}
     </form>
   );
 }
@@ -424,6 +419,25 @@ function PackageCard({
           </button>
         </div>
 
+        <div className="hs1-card-cta">
+          <a
+            className="hs1-btn hs1-btn-wa"
+            href={`https://wa.me/${ADS.whatsapp}?text=${waText}`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <IconWhatsApp />
+            <span>WhatsApp</span>
+          </a>
+          <button
+            type="button"
+            className="hs1-btn hs1-btn-book"
+            onClick={() => onEnquire(pkg.title)}
+          >
+            <span>Book Now</span>
+          </button>
+        </div>
+
         {open ? (
           <div id={panelId} className="hs1-card-expand">
             <p className="hs1-card-expand-title">Day-wise Itinerary</p>
@@ -435,28 +449,6 @@ function PackageCard({
                 </li>
               ))}
             </ul>
-            <div className="hs1-card-actions">
-              <a
-                className="hs1-btn hs1-btn-wa"
-                href={`https://wa.me/${ADS.whatsapp}?text=${waText}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <IconWhatsApp />
-                <span>WhatsApp</span>
-              </a>
-              <a className="hs1-btn hs1-btn-call" href={`tel:${PHONE}`}>
-                <IconPhone size={16} />
-                <span>Call</span>
-              </a>
-              <button
-                type="button"
-                className="hs1-btn hs1-btn-enquire"
-                onClick={() => onEnquire(pkg.title)}
-              >
-                <span>Enquire</span>
-              </button>
-            </div>
           </div>
         ) : null}
       </div>
@@ -478,6 +470,16 @@ export function HimachalSpecial1Landing({ h1 }: Props) {
       });
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (!modalPkg) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [modalPkg]);
 
   return (
     <div className="hs1-root">
@@ -697,14 +699,15 @@ export function HimachalSpecial1Landing({ h1 }: Props) {
       </div>
 
       {modalPkg ? (
-        <div className="hs1-modal" role="dialog" aria-modal="true" aria-labelledby="hs1-modal-title">
+        <div className="hs1-sheet" role="dialog" aria-modal="true" aria-labelledby="hs1-modal-title">
           <button
             type="button"
-            className="hs1-modal-backdrop"
+            className="hs1-sheet-backdrop"
             aria-label="Close dialog"
             onClick={() => setModalPkg(null)}
           />
-          <div className="hs1-modal-card">
+          <div className="hs1-sheet-panel">
+            <div className="hs1-sheet-handle" aria-hidden />
             <button
               type="button"
               className="hs1-modal-close"
@@ -714,11 +717,11 @@ export function HimachalSpecial1Landing({ h1 }: Props) {
               {"\u00D7"}
             </button>
             <div className="hs1-modal-header">
-              <h2 id="hs1-modal-title">Get Free Quote</h2>
+              <h2 id="hs1-modal-title">Book Now</h2>
               <p>Share your details — we reply on call / WhatsApp</p>
               <p className="hs1-modal-pkg">{modalPkg}</p>
             </div>
-            <LeadForm packageTitle={modalPkg} onClose={() => setModalPkg(null)} />
+            <LeadForm packageTitle={modalPkg} />
           </div>
         </div>
       ) : null}

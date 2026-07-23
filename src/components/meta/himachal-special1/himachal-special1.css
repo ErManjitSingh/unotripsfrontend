@@ -215,6 +215,14 @@
 .hs1-btn-enquire:hover {
   background: var(--hs1-orange-hover);
 }
+.hs1-btn-book {
+  background: var(--hs1-orange);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.28);
+}
+.hs1-btn-book:hover {
+  background: var(--hs1-orange-hover);
+}
 .hs1-pulse {
   animation: hs1-pulse 2.2s ease-in-out infinite;
 }
@@ -704,6 +712,20 @@
   min-height: 48px;
 }
 
+/* Always-visible WhatsApp + Book Now on cards */
+.hs1-card-cta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+}
+.hs1-card-cta .hs1-btn {
+  width: 100%;
+  min-height: 48px;
+  font-size: 0.92rem;
+  border-radius: 0.7rem;
+}
+
 /* Inclusions grid */
 .hs1-incl-grid {
   display: grid;
@@ -979,7 +1001,61 @@
   flex: 0 0 auto;
 }
 
-/* Modal */
+/* Bottom sheet form (Book Now) */
+.hs1-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.hs1-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  background: rgba(15, 23, 42, 0.55);
+  animation: hs1-fade-in 0.2s ease-out;
+  cursor: pointer;
+}
+.hs1-sheet-panel {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  max-height: min(92vh, 640px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 1.1rem 1.1rem 0 0;
+  padding: 0.55rem 1.15rem 1.35rem;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.22);
+  animation: hs1-sheet-up 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  padding-bottom: calc(1.35rem + env(safe-area-inset-bottom, 0px));
+}
+.hs1-sheet-handle {
+  width: 42px;
+  height: 4px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  margin: 0.15rem auto 0.85rem;
+}
+@keyframes hs1-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes hs1-sheet-up {
+  from {
+    opacity: 0.6;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modal (legacy aliases kept for any leftover refs) */
 .hs1-modal {
   position: fixed;
   inset: 0;
