@@ -463,15 +463,12 @@ export function LehTourLanding({ h1 }: Props) {
     if (typeof window === "undefined") return;
 
     const HASH_ALIASES: Record<string, string> = {
-      "tour-packages": "TurtukTour",
-      "family-tours": "FamilyGlimpse",
-      "biking-tours": "BikeTurtuk",
-      Family: "FamilyGlimpse",
-      Bike: "BikeTurtuk",
-      Biking: "BikeTurtuk",
-      Pangong: "PangongLake",
-      Turtuk: "TurtukTour",
-      UmlingLa: "BikeUmlingLa",
+      "tour-packages": "LehTurtukPackageTour",
+      Turtuk: "LehTurtukPackageTour",
+      TurtukTour: "LehTurtukPackageTour",
+      UmlingLa: "SrinagarToLehLadakh",
+      Hanle: "IncredibleLadakhWithHanle",
+      Premium: "RemarkableLadakhTourPackage",
     };
 
     const scrollToHash = () => {
@@ -603,12 +600,12 @@ export function LehTourLanding({ h1 }: Props) {
       </section>
 
       <nav className="hs1-jump" aria-label="Destination shortcuts">
-        <a href="#TurtukTour">Turtuk</a>
-        <a href="#LehExpedition">Expedition</a>
-        <a href="#PangongLake">Pangong</a>
-        <a href="#FamilyGlimpse">Family</a>
-        <a href="#BikeTurtuk">Bike</a>
-        <a href="#BikeUmlingLa">Umling La</a>
+        <a href="#LehTurtukPackageTour">Turtuk</a>
+        <a href="#LehPackageTour">Most Wanted</a>
+        <a href="#SrinagarToLehLadakh">Umling La</a>
+        <a href="#RemarkableLadakhTourPackage">Premium</a>
+        <a href="#LehLadakhOdyssey">Odyssey</a>
+        <a href="#ExclusiveLadakhLuxuryTour">Elite</a>
         <a href="#inclusions">Inclusions</a>
       </nav>
 
