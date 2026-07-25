@@ -1,785 +1,111 @@
 "use client";
 
-import { useEffect, useId, useState, useTransition, type FormEvent } from "react";
+import { useEffect, useId, useState, useTransition, type CSSProperties, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { LEH_ADS, LEH_TESTIMONIALS } from "@/lib/meta/leh-tour-data";
 import {
-  LEH_ADS,
-  LEH_BEST_TIME,
-  LEH_INCLUSIONS,
-  LEH_PACKAGES,
-  LEH_TESTIMONIALS,
-  type LehPackage,
-} from "@/lib/meta/leh-tour-data";
+  LEH_CRO, LEH_TRUST_STRIP, LEH_TRUST_CARDS, LEH_PACKAGES_ENRICHED,
+  LEH_SAMPLE_ITINERARY, LEH_HOTELS, LEH_CABS, LEH_INCLUDED, LEH_EXCLUDED,
+  LEH_WHY, LEH_GALLERY, LEH_FAQS,
+} from "@/lib/meta/leh-ads-content";
 import { HimachalChatbot } from "@/components/meta/himachal-chatbot/himachal-chatbot";
 import { trackHimachalAdsConversion } from "@/lib/meta/himachal-ads-conversion";
-import { WeatherWidget } from "@/components/meta/himachal-special/weather-widget";
+import "./leh-ads.css";
 
-type Props = {
-  h1: string;
-};
+type Props = { h1: string };
+type FormProps = { packageTitle?: string; onSuccess?: () => void };
+const WA = `https://wa.me/${LEH_ADS.whatsapp}?text=${encodeURIComponent("Hi, I would like a free quote for a Leh Ladakh trip.")}`;
 
-const ADS = LEH_ADS;
-const PHONE = ADS.phoneTel;
-const WA = `https://wa.me/${ADS.whatsapp}?text=${encodeURIComponent(
-  "Hi, I want a Leh Ladakh tour quote from Leh Tour Package Ads Landing.",
-)}`;
-
-function IconPhone({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z" />
-    </svg>
-  );
-}
-
-function IconWhatsApp({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
-    </svg>
-  );
-}
-
-function IconCalendar() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M16 2v4M8 2v4M3 10h18" />
-    </svg>
-  );
-}
-
-function IconArrow() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
-      <path d="M5 12h14M13 5l7 7-7 7" />
-    </svg>
-  );
-}
-
-function IconUser() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
-  );
-}
-
-function IconMail() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-      <path d="M22 6l-10 7L2 6" />
-    </svg>
-  );
-}
-
-function IconPin({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
-  );
-}
-
-function IconHeart({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-    </svg>
-  );
-}
-
-function IconFlame({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M12 2c0 4-3 6-3 10a3 3 0 0 0 6 0c0-2 2-3.5 2-6-2 1-3 2.5-3 4.5C14 7 13 4.5 12 2zm-1.5 16.5a1.5 1.5 0 1 0 3 0c0-1.5-1.5-2.5-1.5-2.5s-1.5 1-1.5 2.5z" />
-    </svg>
-  );
-}
-
-function IconHotel({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      <path d="M3 21h18M5 21V8l7-4 7 4v13" />
-      <path d="M9 21v-5h6v5M9 10h.01M15 10h.01M9 14h.01M15 14h.01" />
-    </svg>
-  );
-}
-
-function IconCoffee({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
-      <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z" />
-      <path d="M6 2v2M10 2v2M14 2v2" />
-    </svg>
-  );
-}
-
-function IconCar({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      <path d="M5 17h14v2a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-2H8v2a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-2z" />
-      <path d="M5 17l-1.5-5.5A2 2 0 0 1 5.4 9H18.6a2 2 0 0 1 1.9 2.5L19 17" />
-      <path d="M7 9V6a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v3" />
-    </svg>
-  );
-}
-
-function IconCamera({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-      <circle cx="12" cy="13" r="4" />
-    </svg>
-  );
-}
-
-function IconCheck({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
-      <path d="M20 6L9 17l-5-5" />
-    </svg>
-  );
-}
-
-function IconShield({ size = 14 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M12 22s8-4 8-10V6l-8-3-8 3v6c0 6 8 10 8 10z" />
-    </svg>
-  );
-}
-
-function IconStar({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-    </svg>
-  );
-}
-
-function InclusionIcon({ type }: { type: (typeof LEH_INCLUSIONS)[number]["icon"] }) {
-  const common = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", "aria-hidden": true as const };
-  switch (type) {
-    case "hotel":
-      return (
-        <svg {...common} stroke="currentColor" strokeWidth="1.8">
-          <path d="M3 21V8l9-5 9 5v13" />
-          <path d="M9 21v-6h6v6" />
-        </svg>
-      );
-    case "meal":
-      return (
-        <svg {...common} stroke="currentColor" strokeWidth="1.8">
-          <path d="M4 3v8a4 4 0 0 0 4 4h0V3" />
-          <path d="M8 15v6M16 3v18M16 3c2.5 2 3 5 0 8" />
-        </svg>
-      );
-    case "transfer":
-      return (
-        <svg {...common} stroke="currentColor" strokeWidth="1.8">
-          <rect x="3" y="10" width="18" height="8" rx="2" />
-          <path d="M5 10V8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2M7 18v2M17 18v2" />
-        </svg>
-      );
-    case "sight":
-      return (
-        <svg {...common} stroke="currentColor" strokeWidth="1.8">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...common} stroke="currentColor" strokeWidth="1.8">
-          <path d="M12 22s8-4 8-10V6l-8-3-8 3v6c0 6 8 10 8 10z" />
-        </svg>
-      );
-  }
-}
-
-function LeadForm({
-  packageTitle,
-  onClose,
-}: {
-  packageTitle: string;
-  onClose?: () => void;
-}) {
+function LeadForm({ packageTitle = "Leh Ladakh Tour Package", onSuccess }: FormProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
-
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const id = useId();
+  const submit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get("name") || "").trim();
+    const phone = String(form.get("phone") || "").replace(/\D/g, "").slice(-10);
+    if (!name) return setError("Please enter your name.");
+    if (phone.length !== 10) return setError("Enter a valid 10-digit phone number.");
     setError("");
-    const fd = new FormData(e.currentTarget);
-    const payload = {
-      name: String(fd.get("name") || ""),
-      phone: String(fd.get("phone") || ""),
-      email: String(fd.get("email") || ""),
-      destination: String(fd.get("destination") || "Leh Ladakh"),
-      package: String(fd.get("package") || packageTitle),
-      landingPage: ADS.landingPage,
-      captureType: "form",
-      message: "Google Ads Leh Tour Package landing enquiry",
-    };
-
     startTransition(async () => {
       try {
-        const res = await fetch("/api/meta/leads", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = (await res.json()) as { success?: boolean; message?: string };
-        if (!res.ok || !data.success) {
-          setError(data.message || "Something went wrong. Please call us.");
-          return;
-        }
-        trackHimachalAdsConversion({
-          email: payload.email,
-          phone: payload.phone,
-        });
-        router.push(`${ADS.path}/thank-you`);
-      } catch {
-        setError("Network error. Please call or WhatsApp us.");
-      }
+        const response = await fetch("/api/meta/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, phone, destination: "Leh Ladakh", package: packageTitle, travelMonth: String(form.get("month") || ""), travellers: String(form.get("travellers") || ""), landingPage: LEH_ADS.landingPage, captureType: "form", message: "Leh Ladakh Google Ads CRO enquiry" }) });
+        const data = (await response.json()) as { success?: boolean; message?: string };
+        if (!response.ok || !data.success) return setError(data.message || "We could not send your enquiry. Please call us.");
+        trackHimachalAdsConversion({ phone });
+        onSuccess?.();
+        router.push(`${LEH_ADS.path}/thank-you`);
+      } catch { setError("Network error. Please call or WhatsApp us."); }
     });
-  }
-
-  return (
-    <form className="hs1-form" onSubmit={onSubmit}>
-      <input type="hidden" name="package" value={packageTitle} />
-      <input type="hidden" name="destination" value="Leh Ladakh" />
-      <div className="hs1-input-wrap">
-        <IconUser />
-        <input name="name" required autoComplete="name" placeholder="Your name *" />
-      </div>
-      <div className="hs1-input-wrap">
-        <IconPhone size={18} />
-        <input
-          name="phone"
-          required
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="Phone number *"
-          pattern="[0-9+\-\s]{10,15}"
-        />
-      </div>
-      <div className="hs1-input-wrap">
-        <IconMail />
-        <input name="email" type="email" autoComplete="email" placeholder="Email (optional)" />
-      </div>
-      {error ? <p className="hs1-form-error">{error}</p> : null}
-      <button type="submit" className="hs1-form-submit" disabled={pending}>
-        {pending ? "Sending..." : "Get Free Quote"}
-      </button>
-      <p className="hs1-form-note">No spam · Free consultation · Instant WhatsApp response</p>
-    </form>
-  );
+  };
+  return <form className="leh-form" onSubmit={submit} noValidate>
+    <label htmlFor={`${id}-name`} className="sr-only">Name</label><input id={`${id}-name`} name="name" required autoComplete="name" placeholder="Your name *" />
+    <label htmlFor={`${id}-phone`} className="sr-only">Phone number</label><input id={`${id}-phone`} name="phone" required inputMode="numeric" autoComplete="tel" placeholder="10-digit phone number *" />
+    <select name="month" aria-label="Travel month" defaultValue=""><option value="" disabled>Travel month</option><option>May - June</option><option>July - August</option><option>September - October</option><option>Not decided yet</option></select>
+    <select name="travellers" aria-label="Number of travellers" defaultValue=""><option value="" disabled>Travellers</option><option>1 Traveller</option><option>2 Travellers</option><option>3 - 5 Travellers</option><option>6+ Travellers</option></select>
+    {error && <p className="leh-form-error" role="alert">{error}</p>}
+    <button className="leh-btn leh-btn-primary" disabled={pending} type="submit">{pending ? "Sending..." : "Get Free Quote"}</button>
+    <p className="leh-form-note">Free consultation · No spam · Quick WhatsApp response</p>
+  </form>;
 }
 
-declare global {
-  interface Window {
-    gtag?: (...args: unknown[]) => void;
-  }
-}
-
-function PackageCard({
-  pkg,
-  onEnquire,
-}: {
-  pkg: LehPackage;
-  onEnquire: (title: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const panelId = useId();
-  const thumbs = pkg.galleryImages.slice(0, 3);
-  const waText = encodeURIComponent(
-    `Hi, I want details for ${pkg.title} (${pkg.duration}) starting ${pkg.priceFrom}/person.`,
-  );
-
-  return (
-    <article className="hs1-card" id={pkg.anchor}>
-      <div className="hs1-card-media">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={pkg.image}
-          alt={pkg.title}
-          width={640}
-          height={400}
-          loading="lazy"
-          decoding="async"
-        />
-        {pkg.bestSeller ? (
-          <span className="hs1-card-best">
-            <IconFlame />
-            BEST SELLER
-          </span>
-        ) : null}
-        <button type="button" className="hs1-card-heart" aria-label="Save package">
-          <IconHeart />
-        </button>
-        <span className="hs1-card-dur">{pkg.duration}</span>
-        <div className="hs1-card-thumbs" aria-hidden>
-          {thumbs.map((src) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={src} src={src} alt="" width={48} height={48} loading="lazy" decoding="async" />
-          ))}
-          <span className="hs1-card-thumb-more">+{pkg.extraPhotoCount}</span>
-        </div>
-      </div>
-
-      <div className="hs1-card-body">
-        <div className="hs1-card-title-row">
-          <h3 className="hs1-card-title">{pkg.shortTitle}</h3>
-          <p className="hs1-card-price">
-            <span className="amt">{pkg.priceFrom}</span>
-            <span className="pp">/person</span>
-          </p>
-        </div>
-
-        <p className="hs1-card-loc">
-          <IconPin />
-          <span>{pkg.locationLine}</span>
-        </p>
-
-        <div className="hs1-card-amenities">
-          <div className="hs1-card-amenity">
-            <span className="hs1-card-amenity-icon">
-              <IconHotel />
-            </span>
-            <span className="lbl">Hotels</span>
-            <span className="sub">{pkg.hotelLabel}</span>
-          </div>
-          <div className="hs1-card-amenity">
-            <span className="hs1-card-amenity-icon">
-              <IconCoffee />
-            </span>
-            <span className="lbl">Breakfast</span>
-            <span className="sub">{pkg.breakfastLabel}</span>
-          </div>
-          <div className="hs1-card-amenity">
-            <span className="hs1-card-amenity-icon">
-              <IconCar />
-            </span>
-            <span className="lbl">Transfers</span>
-            <span className="sub">{pkg.transferLabel}</span>
-          </div>
-          <div className="hs1-card-amenity">
-            <span className="hs1-card-amenity-icon">
-              <IconCamera />
-            </span>
-            <span className="lbl">Sightseeing</span>
-            <span className="sub">{pkg.sightseeingLabel}</span>
-          </div>
-        </div>
-
-        <div className="hs1-card-highlights">
-          <div className="hs1-card-highlights-head">
-            <strong>Package Highlights</strong>
-            <svg className="hs1-card-mtn" width="40" height="20" viewBox="0 0 40 20" aria-hidden>
-              <path d="M0 18 L10 6 L16 12 L24 2 L40 18 Z" fill="currentColor" opacity="0.18" />
-            </svg>
-          </div>
-          <ul>
-            {pkg.highlightBullets.map((b) => (
-              <li key={b}>
-                <span className="hs1-card-check">
-                  <IconCheck />
-                </span>
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="hs1-card-footer">
-          <div className="hs1-card-rating">
-            <span className="hs1-card-star">
-              <IconStar />
-            </span>
-            <span>
-              {pkg.rating.toFixed(1)} ({pkg.reviewCount} Reviews)
-            </span>
-          </div>
-          <button
-            type="button"
-            className="hs1-card-details"
-            aria-expanded={open}
-            aria-controls={panelId}
-            onClick={() => setOpen((v) => !v)}
-          >
-            {open ? "Hide Details" : "View Details"}
-            <span aria-hidden>{"\u2192"}</span>
-          </button>
-        </div>
-
-        <div className="hs1-card-cta">
-          <a
-            className="hs1-btn hs1-btn-wa"
-            href={`https://wa.me/${ADS.whatsapp}?text=${waText}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <IconWhatsApp />
-            <span>WhatsApp</span>
-          </a>
-          <button
-            type="button"
-            className="hs1-btn hs1-btn-book"
-            onClick={() => onEnquire(pkg.title)}
-          >
-            <span>Book Now</span>
-          </button>
-        </div>
-
-        {open ? (
-          <div id={panelId} className="hs1-card-expand">
-            <p className="hs1-card-expand-title">Day-wise Itinerary</p>
-            <ul className="hs1-itinerary">
-              {pkg.itinerary.map((day) => (
-                <li key={day}>
-                  <span className="hs1-dot" aria-hidden />
-                  <span>{day}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-      </div>
-    </article>
-  );
+function PackageCard({ pkg, quote }: { pkg: (typeof LEH_PACKAGES_ENRICHED)[number]; quote: (title: string) => void }) {
+  const [open, setOpen] = useState(false); const panel = useId();
+  return <article className="leh-card leh-package" id={pkg.anchor}>
+    <div className="leh-package-media"><img src={pkg.image} alt={pkg.title} loading="lazy" /><span className="leh-discount">Save {pkg.discountPct}%</span><span className="leh-seats">Only {pkg.seatsLeft} seats left</span></div>
+    <div className="leh-package-body"><p className="leh-meta">{pkg.duration} · {pkg.locationLine}</p><h3>{pkg.title}</h3>
+      <div className="leh-tags">{pkg.route.map((route) => <span className="leh-tag" key={route}>{route}</span>)}{pkg.focus.map((tag) => <span className="leh-tag" key={tag}>{tag}</span>)}</div>
+      <div className="leh-specs"><span>🏨 {pkg.hotelLabel}</span><span>☕ {pkg.breakfastLabel}</span><span>🚕 {pkg.transferLabel}</span></div>
+      <div className="leh-package-price"><strong>{pkg.priceFrom}</strong><del>{pkg.wasPrice}</del><small>/ person</small></div>
+      <div className="leh-card-actions"><button className="leh-btn leh-btn-primary" type="button" onClick={() => quote(pkg.title)}>Book Now</button><button className="leh-btn" type="button" onClick={() => quote(pkg.title)}>Get Quote</button></div>
+      <div className="leh-details"><button type="button" aria-expanded={open} aria-controls={panel} onClick={() => setOpen(!open)}>{open ? "Hide" : "View"} sample itinerary ↓</button>{open && <ul id={panel}>{pkg.itinerary.map((day) => <li key={day}>{day}</li>)}</ul>}</div>
+    </div>
+  </article>;
 }
 
 export function LehTourLanding({ h1 }: Props) {
-  const [modalPkg, setModalPkg] = useState<string | null>(null);
+  const [quoteFor, setQuoteFor] = useState<string | null>(null);
+  const [itineraryOpen, setItineraryOpen] = useState(false);
+  const [faq, setFaq] = useState<number | null>(null);
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const [showExit, setShowExit] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [viewing, setViewing] = useState(14);
+  const [toast, setToast] = useState(0);
+  const [remaining, setRemaining] = useState("");
+  const openQuote = (title = "Leh Ladakh Tour Package") => { setQuoteFor(title); window.setTimeout(() => document.getElementById("leh-quote")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0); };
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const HASH_ALIASES: Record<string, string> = {
-      "tour-packages": "LehTurtukPackageTour",
-      Turtuk: "LehTurtukPackageTour",
-      TurtukTour: "LehTurtukPackageTour",
-      UmlingLa: "SrinagarToLehLadakh",
-      Hanle: "IncredibleLadakhWithHanle",
-      Premium: "RemarkableLadakhTourPackage",
-    };
-
-    const scrollToHash = () => {
-      const raw = window.location.hash.replace(/^#/, "").trim();
-      if (!raw) return;
-      const targetId = HASH_ALIASES[raw] || raw;
-      const el = document.getElementById(targetId);
-      if (!el) return;
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    };
-
-    scrollToHash();
-    // Retry once after paint (images/layout shift)
-    const t = window.setTimeout(scrollToHash, 350);
-    window.addEventListener("hashchange", scrollToHash);
-    return () => {
-      window.clearTimeout(t);
-      window.removeEventListener("hashchange", scrollToHash);
-    };
+    const onScroll = () => { const max = document.documentElement.scrollHeight - window.innerHeight; setProgress(max ? (window.scrollY / max) * 100 : 0); };
+    onScroll(); window.addEventListener("scroll", onScroll, { passive: true }); return () => window.removeEventListener("scroll", onScroll);
   }, []);
+  useEffect(() => { const tick = () => { const now = new Date(); const end = new Date(now); end.setHours(23, 59, 59, 999); let ms = end.getTime() - now.getTime(); if (ms > 6 * 3600000) ms = 6 * 3600000; const h = Math.floor(ms / 3600000); const m = Math.floor((ms % 3600000) / 60000); const s = Math.floor((ms % 60000) / 1000); setRemaining(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`); }; tick(); const timer = window.setInterval(tick, 1000); return () => clearInterval(timer); }, []);
+  useEffect(() => { const timer = window.setInterval(() => setViewing(8 + Math.floor(Math.random() * 17)), 9000); return () => clearInterval(timer); }, []);
+  useEffect(() => { const timer = window.setInterval(() => setToast((n) => (n + 1) % 4), 20000); return () => clearInterval(timer); }, []);
+  useEffect(() => { const handleLeave = (e: MouseEvent) => { if (e.clientY <= 0 && !sessionStorage.getItem("leh-exit")) { sessionStorage.setItem("leh-exit", "1"); setShowExit(true); } }; document.addEventListener("mouseout", handleLeave); return () => document.removeEventListener("mouseout", handleLeave); }, []);
+  useEffect(() => { document.body.style.overflow = (lightbox || showExit) ? "hidden" : ""; return () => { document.body.style.overflow = ""; }; }, [lightbox, showExit]);
+  const bookings = ["Priya from Delhi just requested a Pangong quote", "Rohit from Mumbai booked a 6N Ladakh trip", "Neha from Jaipur is planning Nubra Valley", "A family from Chandigarh requested a callback"];
 
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (!modalPkg) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [modalPkg]);
-
-  return (
-    <div className="hs1-root">
-      <header className="hs1-header">
-        <div className="hs1-header-inner">
-          <a href={ADS.path} className="hs1-logo" aria-label="Uno Trips">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`${ADS.img}/logo.png`}
-              alt="Uno Trips Logo"
-              width={120}
-              height={40}
-              decoding="async"
-            />
-          </a>
-          <a className="hs1-header-call" href={`tel:${PHONE}`}>
-            <IconPhone />
-            <span>{ADS.phoneDisplay}</span>
-          </a>
-        </div>
-      </header>
-
-      <section className="hs1-hero">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          className="hs1-hero-img"
-          src={`${ADS.img}/hero.jpg`}
-          alt="Leh Ladakh mountains - Pangong Nubra Turtuk"
-          width={1280}
-          height={720}
-          fetchPriority="high"
-          decoding="async"
-        />
-        <div className="hs1-hero-overlay" />
-        <div className="hs1-hero-content">
-          <p className="hs1-hero-badge">Best Leh Ladakh Tour Packages 2026</p>
-          <h1 className="hs1-hero-title">{h1}</h1>
-          <p className="hs1-hero-sub">Leh - Nubra - Pangong - Turtuk</p>
-          <div className="hs1-hero-cta">
-            <button
-              type="button"
-              className="hs1-btn hs1-btn-primary hs1-pulse"
-              onClick={() => setModalPkg(h1)}
-            >
-              <IconCalendar />
-              <span>Book Now</span>
-              <IconArrow />
-            </button>
-            <a className="hs1-btn hs1-btn-ghost" href={`tel:${PHONE}`}>
-              <IconPhone size={16} />
-              <span>Call Now</span>
-            </a>
-          </div>
-        </div>
-
-        <div className="hs1-review-overlay">
-          <p className="hs1-review-trust">
-            No spam - Free consultation - Instant response on WhatsApp
-          </p>
-          <div className="hs1-review-row">
-            <div className="hs1-review-item">
-              <div className="hs1-review-logo g">G</div>
-              <div className="hs1-review-meta">
-                <div className="rating">
-                  <span className="star">{"\u2605"}</span>
-                  <span>4.9</span>
-                </div>
-                <div className="count">(14,001 reviews)</div>
-              </div>
-            </div>
-            <div className="hs1-review-item">
-              <div className="hs1-review-logo ta" aria-hidden>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="12" cy="12" r="10" />
-                </svg>
-              </div>
-              <div className="hs1-review-meta">
-                <div className="rating">
-                  <span className="star">{"\u2605"}</span>
-                  <span>5.0</span>
-                </div>
-                <div className="count">(3,850 reviews)</div>
-              </div>
-            </div>
-            <div className="hs1-review-item">
-              <div className="hs1-review-logo fb">f</div>
-              <div className="hs1-review-meta">
-                <div className="rating">
-                  <span className="star">{"\u2605"}</span>
-                  <span>4.9</span>
-                </div>
-                <div className="count">(1,031 reviews)</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <nav className="hs1-jump" aria-label="Destination shortcuts">
-        <a href="#LehTurtukPackageTour">Turtuk</a>
-        <a href="#LehPackageTour">Most Wanted</a>
-        <a href="#SrinagarToLehLadakh">Umling La</a>
-        <a href="#RemarkableLadakhTourPackage">Premium</a>
-        <a href="#LehLadakhOdyssey">Odyssey</a>
-        <a href="#ExclusiveLadakhLuxuryTour">Elite</a>
-        <a href="#inclusions">Inclusions</a>
-      </nav>
-
-      <section className="hs1-section">
-        <div className="hs1-container">
-          <h2 className="hs1-section-title">Best Leh Ladakh Tour Packages</h2>
-          <p className="hs1-section-sub">
-            Customized family & bike trips with hotels, meals, transfers & itineraries — save up to 40%
-          </p>
-          <div className="hs1-pkg-list">
-            {LEH_PACKAGES.map((pkg) => (
-              <PackageCard key={pkg.id} pkg={pkg} onEnquire={setModalPkg} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="hs1-section alt" id="inclusions">
-        <div className="hs1-container">
-          <h2 className="hs1-section-title">What&apos;s Included</h2>
-          <p className="hs1-section-sub">Everything you need for a smooth Ladakh holiday</p>
-          <ul className="hs1-incl-grid">
-            {LEH_INCLUSIONS.map((item) => (
-              <li key={item.label}>
-                <span className="hs1-incl-icon">
-                  <InclusionIcon type={item.icon} />
-                </span>
-                {item.label}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="hs1-section">
-        <div className="hs1-container">
-          <h2 className="hs1-section-title">Best Time to Visit</h2>
-          <p className="hs1-section-sub">Plan around seasons — live Leh weather below</p>
-          <div className="hs1-time-grid">
-            <div className="hs1-season-list">
-              {LEH_BEST_TIME.map((s) => (
-                <div key={s.season} className="hs1-season">
-                  <strong>
-                    {s.season} · {s.label}
-                  </strong>
-                  <span>{s.detail}</span>
-                </div>
-              ))}
-            </div>
-            <WeatherWidget place="Leh" lat={34.15} lon={77.58} />
-          </div>
-        </div>
-      </section>
-
-      <section className="hs1-section alt">
-        <div className="hs1-container">
-          <h2 className="hs1-section-title">Trusted by Travellers</h2>
-          <p className="hs1-section-sub">Family, adventure & bike trip stories from real guests</p>
-          <div className="hs1-trust-grid">
-            {LEH_TESTIMONIALS.map((t) => (
-              <blockquote key={t.name} className="hs1-testimonial">
-                <div className="stars" aria-label={`${t.rating} out of 5 stars`}>
-                  {"\u2605\u2605\u2605\u2605\u2605".slice(0, t.rating)}
-                </div>
-                <p>&ldquo;{t.quote}&rdquo;</p>
-                <div className="who">{t.name}</div>
-                <div className="tag">{t.tag}</div>
-              </blockquote>
-            ))}
-          </div>
-          <div className="hs1-badges">
-            {ADS.badges.map((b) => (
-              <span key={b} className="hs1-badge">
-                {b}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <footer className="hs1-footer">
-        <div className="hs1-footer-inner">
-          <strong>{ADS.brand}</strong>
-          <p>Tourism Registration No: {ADS.tourismReg}</p>
-          <p>GSTIN: {ADS.gstin}</p>
-          <div className="hs1-footer-links">
-            <a href={`tel:${PHONE}`}>Call {ADS.phoneDisplay}</a>
-            <a href={WA} target="_blank" rel="noopener noreferrer">
-              WhatsApp Us
-            </a>
-          </div>
-          <p style={{ marginTop: "1rem", opacity: 0.7, fontSize: "0.78rem" }}>
-            {"\u00A9"} {new Date().getFullYear()} Uno Trips · Leh Ladakh tour packages
-          </p>
-        </div>
-      </footer>
-
-      <div className="hs1-sticky" role="navigation" aria-label="Quick actions">
-        <div className="hs1-sticky-btns">
-          <a className="hs1-sticky-call" href={`tel:${PHONE}`}>
-            <IconPhone size={16} />
-            Call Now
-          </a>
-          <a className="hs1-sticky-wa" href={WA} target="_blank" rel="noopener noreferrer">
-            <IconWhatsApp />
-            WhatsApp Us
-          </a>
-        </div>
-        <p className="hs1-sticky-trust">
-          <IconShield size={13} />
-          <span>100% Secure Booking | No Hidden Charges</span>
-        </p>
-      </div>
-
-      {modalPkg ? (
-        <div className="hs1-sheet" role="dialog" aria-modal="true" aria-labelledby="hs1-modal-title">
-          <button
-            type="button"
-            className="hs1-sheet-backdrop"
-            aria-label="Close dialog"
-            onClick={() => setModalPkg(null)}
-          />
-          <div className="hs1-sheet-panel">
-            <div className="hs1-sheet-handle" aria-hidden />
-            <button
-              type="button"
-              className="hs1-modal-close"
-              aria-label="Close"
-              onClick={() => setModalPkg(null)}
-            >
-              {"\u00D7"}
-            </button>
-            <div className="hs1-modal-header">
-              <h2 id="hs1-modal-title">Book Now</h2>
-              <p>Share your details — we reply on call / WhatsApp</p>
-              <p className="hs1-modal-pkg">{modalPkg}</p>
-            </div>
-            <LeadForm packageTitle={modalPkg} />
-          </div>
-        </div>
-      ) : null}
-
-      <HimachalChatbot
-        landingPage={ADS.landingPage}
-        destination="Leh Ladakh"
-        chatTitle="Leh Ladakh Tour"
-        leadName="Leh Chatbot Lead"
-        greeting={
-          "Hello \u{1F44B}\nWelcome to our Leh Ladakh Tour Services.\nI will help you plan your perfect trip."
-        }
-        questions={[
-          {
-            id: "dest",
-            text: "Which Ladakh trip are you looking for?",
-            options: [
-              "Leh Expedition",
-              "Family Tour",
-              "Bike Trip",
-              "Pangong / Nubra",
-              "Suggest best package",
-            ],
-          },
-          {
-            id: "timeline",
-            text: "Planning to travel?",
-            options: ["Within 15 days", "Next month", "Later", "Just checking prices"],
-          },
-          {
-            id: "contact",
-            text: "Please share your contact number so our travel expert can get in touch with the best package.",
-            inputType: "mobile",
-          },
-        ]}
-      />
-    </div>
-  );
+  return <main className="leh-root" style={{ "--leh-progress": `${progress}%` } as CSSProperties}>
+    <div className="leh-progress" aria-hidden />
+    <header className="leh-header"><div className="leh-container leh-header-in"><a href={LEH_ADS.path} className="leh-logo" aria-label="Uno Trips home">UNO <b>TRIPS</b></a><a className="leh-call" href={`tel:${LEH_ADS.phoneTel}`}>☎ Call {LEH_ADS.phoneDisplay}</a></div></header>
+    <section className="leh-hero"><img className="leh-hero-bg" src="/meta/leh_tour_package/hero.jpg" alt="Leh Ladakh mountains" fetchPriority="high" /><div className="leh-hero-overlay" /><div className="leh-container leh-hero-in"><div><span className="leh-kicker">Leh Ladakh 2026 · Local Himalayan Experts</span><h1>{LEH_CRO.heroH1}</h1><p className="leh-sub">{LEH_CRO.heroSub}</p>{h1 !== LEH_CRO.heroH1 ? <p className="leh-sub" style={{ opacity: 0.85, fontSize: "0.95rem" }}>{h1}</p> : null}<div className="leh-price"><div><small>Starting from</small><strong>{LEH_CRO.startingFrom}</strong></div><small>per person · twin sharing</small></div><div className="leh-offers"><span className="leh-badge">{LEH_CRO.saveBadge}</span><span className="leh-badge">{LEH_CRO.offerBadge}</span></div><p className="leh-countdown">Offer ends in {remaining} · {viewing} people viewing this page</p><div className="leh-trust-row">{LEH_TRUST_STRIP.map((item) => <span key={item.label}><b>{item.label}</b>{item.sub}</span>)}</div><div className="leh-actions"><button type="button" className="leh-btn leh-btn-primary" onClick={() => openQuote()}>Get Free Quote</button><a className="leh-btn leh-btn-wa" href={WA} target="_blank" rel="noreferrer">WhatsApp Expert</a><a className="leh-btn leh-btn-outline" href={`tel:${LEH_ADS.phoneTel}`}>Call Now</a></div></div><aside className="leh-form-card" id="leh-quote"><h2>Plan your Ladakh escape</h2><p>Get a tailored itinerary and exact quote in minutes.</p><LeadForm packageTitle={quoteFor || "Leh Ladakh Tour Package"} /></aside></div></section>
+    <section className="leh-section"><div className="leh-container"><div className="leh-trust-cards">{LEH_TRUST_CARDS.map((item) => <div className="leh-card leh-trust-card" key={item.label}><i>{item.icon === "star" ? "★" : item.icon === "shield" ? "◈" : "✦"}</i><strong>{item.value}</strong><span>{item.label}</span></div>)}</div></div></section>
+    <section className="leh-section" id="packages"><div className="leh-container"><div className="leh-heading"><h2>Choose your Leh Ladakh package</h2><p>Transparent prices, handpicked stays and routes designed around acclimatisation.</p></div><div className="leh-packages">{LEH_PACKAGES_ENRICHED.map((pkg) => <PackageCard pkg={pkg} quote={openQuote} key={pkg.id} />)}</div></div></section>
+    <section className="leh-section leh-section-dark" id="itinerary"><div className="leh-container"><div className="leh-heading"><h2>Your Ladakh journey, day by day</h2><p>A sample 6-day route. We adapt it to your pace, dates and group.</p></div><div className="leh-timeline">{LEH_SAMPLE_ITINERARY.slice(0, itineraryOpen ? undefined : 3).map((day) => <div className="leh-day" key={day.day}><div className="leh-day-num">{day.day}</div><article><h3>{day.title}</h3><p>{day.detail}</p></article></div>)}</div><button className="leh-btn leh-btn-outline leh-show-more" type="button" onClick={() => setItineraryOpen(!itineraryOpen)}>{itineraryOpen ? "Show less" : "View full itinerary"}</button></div></section>
+    <section className="leh-section"><div className="leh-container"><div className="leh-heading"><h2>Stays selected for comfort</h2><p>Quality hotels, camps and cottages — or similar, based on your chosen plan.</p></div><div className="leh-hotel-grid">{LEH_HOTELS.map((hotel) => <article className="leh-card leh-photo-card" key={hotel.name}><img src={hotel.image} alt={hotel.name} loading="lazy" /><div><h3>{hotel.name}</h3><p>★ {hotel.rating} · {hotel.room}</p><p>{hotel.amenities.join(" · ")}</p></div></article>)}</div></div></section>
+    <section className="leh-section"><div className="leh-container"><div className="leh-heading"><h2>Private cabs for every group</h2><p>Experienced high-pass drivers and vehicles matched to your group size.</p></div><div className="leh-cab-grid">{LEH_CABS.map((cab) => <article className="leh-card leh-photo-card" key={cab.name}><img src={cab.image} alt={cab.name} loading="lazy" /><div><h3>{cab.name}</h3><p>{cab.type} · {cab.seats} seats</p></div></article>)}</div></div></section>
+    <section className="leh-section"><div className="leh-container leh-split"><article className="leh-card leh-list-card"><h2>Included in your trip</h2><ul className="leh-check-list leh-included">{LEH_INCLUDED.map((x) => <li key={x.label}>{x.label}</li>)}</ul></article><article className="leh-card leh-list-card"><h2>Not included</h2><ul className="leh-check-list leh-excluded">{LEH_EXCLUDED.map((x) => <li key={x}>{x}</li>)}</ul></article></div></section>
+    <section className="leh-section"><div className="leh-container"><div className="leh-heading"><h2>Why travel with Uno Trips</h2><p>Expert planning before you leave and calm support while you are on the road.</p></div><div className="leh-why-grid">{LEH_WHY.map((item, i) => <article className="leh-card leh-why" key={item.title}><span>0{i + 1}</span><h3>{item.title}</h3><p>{item.desc}</p></article>)}</div></div></section>
+    <section className="leh-section leh-section-dark"><div className="leh-container"><div className="leh-heading"><h2>Rated 4.9 by travellers</h2><p>Real trip stories from family and adventure guests.</p></div><div className="leh-review-grid">{LEH_TESTIMONIALS.map((review) => <article className="leh-card leh-review" key={review.name}><div className="leh-stars" aria-label={`${review.rating} stars`}>★★★★★</div><blockquote>“{review.quote}”</blockquote><cite><b>{review.name}</b> · {review.tag}</cite></article>)}</div></div></section>
+    <section className="leh-section"><div className="leh-container"><div className="leh-heading"><h2>See Ladakh before you go</h2><p>Tap a photograph to view it closer.</p></div><div className="leh-gallery">{LEH_GALLERY.map((image, i) => <button type="button" key={image} onClick={() => setLightbox(image)} aria-label={`View Ladakh photo ${i + 1}`}><img src={image} alt={`Leh Ladakh travel experience ${i + 1}`} loading="lazy" /></button>)}</div></div></section>
+    <section className="leh-section" id="faq"><div className="leh-container"><div className="leh-heading"><h2>Leh Ladakh trip FAQs</h2><p>Answers before you request your itinerary.</p></div><div className="leh-faq">{LEH_FAQS.map((item, i) => <div className="leh-faq-item" key={item.q}><button type="button" aria-expanded={faq === i} aria-controls={`leh-faq-${i}`} onClick={() => setFaq(faq === i ? null : i)}>{item.q}<span>{faq === i ? "−" : "+"}</span></button>{faq === i && <p id={`leh-faq-${i}`}>{item.a}</p>}</div>)}</div></div></section>
+    <footer className="leh-footer"><div className="leh-container"><h2>Ready for your Ladakh story?</h2><p>Get a clear, custom quote from a local trip expert today.</p><div className="leh-actions"><button className="leh-btn leh-btn-primary" type="button" onClick={() => openQuote()}>Get My Free Quote</button><a className="leh-btn leh-btn-outline" href={`tel:${LEH_ADS.phoneTel}`}>Call {LEH_ADS.phoneDisplay}</a></div><p className="leh-reg">Tourism Registration: {LEH_ADS.tourismReg} · GSTIN: {LEH_ADS.gstin}</p><p className="leh-reg">© {new Date().getFullYear()} Uno Trips. All prices subject to availability.</p></div></footer>
+    <div className="leh-mobile-bar" role="navigation" aria-label="Quick actions"><a href={`tel:${LEH_ADS.phoneTel}`}>Call</a><a href={WA} target="_blank" rel="noreferrer">WhatsApp</a><button type="button" onClick={() => openQuote()}>Get Quote</button></div><div className="leh-float"><a href={WA} target="_blank" rel="noreferrer">WhatsApp Expert</a><a href={`tel:${LEH_ADS.phoneTel}`}>Call Now</a></div><aside className="leh-toast" aria-live="polite"><b>Recent traveller activity</b>{bookings[toast]}</aside><button className="leh-top" type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Back to top">↑</button>
+    {lightbox && <div className="leh-modal leh-lightbox" role="dialog" aria-modal="true" aria-label="Photo preview" onClick={() => setLightbox(null)}><img src={lightbox} alt="Leh Ladakh enlarged travel view" /></div>}
+    {showExit && <div className="leh-modal" role="dialog" aria-modal="true" aria-labelledby="exit-title"><div className="leh-modal-panel"><button type="button" className="leh-close" onClick={() => setShowExit(false)} aria-label="Close">×</button><h2 id="exit-title">Before you go — get today&apos;s offer</h2><p>Leave your details and a Ladakh expert will send a tailored quote.</p><LeadForm packageTitle="Exit offer — Leh Ladakh" onSuccess={() => setShowExit(false)} /></div></div>}
+    <HimachalChatbot landingPage={LEH_ADS.landingPage} destination="Leh Ladakh" chatTitle="Leh Ladakh Tour Expert" leadName="Leh Chatbot Lead" greeting="Hello 👋 Welcome to Uno Trips Leh Ladakh tours. Let’s find your perfect route." questions={[{ id: "route", text: "Which trip interests you?", options: ["Leh Nubra Pangong", "Family Tour", "Bike Trip", "Custom itinerary"] }, { id: "date", text: "When are you travelling?", options: ["Within 15 days", "Next month", "Later"] }, { id: "contact", text: "Share your 10-digit number for your free quote.", inputType: "mobile" }]} />
+  </main>;
 }
