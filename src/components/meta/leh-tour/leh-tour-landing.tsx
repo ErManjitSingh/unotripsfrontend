@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useTransition, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { LEH_ADS, LEH_TESTIMONIALS, resolveLehAdsH1 } from "@/lib/meta/leh-tour-data";
 import {
   LEH_CRO, LEH_TRUST_STRIP, LEH_TRUST_CARDS, LEH_PACKAGES_ENRICHED,
@@ -108,8 +108,7 @@ function PackageCard({ pkg, quote, eager }: { pkg: (typeof LEH_PACKAGES_ENRICHED
 }
 
 export function LehTourLanding() {
-  const searchParams = useSearchParams();
-  const h1 = resolveLehAdsH1(searchParams.get("h1") || undefined, searchParams.get("headline") || undefined, searchParams.get("kw") || undefined);
+  const [h1, setH1] = useState<string>(LEH_CRO.heroH1);
   const [quoteFor, setQuoteFor] = useState<string | null>(null);
   const [itineraryOpen, setItineraryOpen] = useState(false);
   const [faq, setFaq] = useState<number | null>(null);
@@ -124,6 +123,11 @@ export function LehTourLanding() {
     setQuoteFor(title);
     window.setTimeout(() => document.getElementById("leh-quote")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
   };
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    setH1(resolveLehAdsH1(p.get("h1") || undefined, p.get("headline") || undefined, p.get("kw") || undefined));
+  }, []);
 
   useEffect(() => {
     let ticking = false;

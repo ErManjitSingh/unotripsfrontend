@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { LehTourLanding } from "@/components/meta/leh-tour/leh-tour-landing";
 import { LEH_ADS } from "@/lib/meta/leh-tour-data";
 import { LEH_CRO, LEH_FAQS, LEH_PACKAGES_ENRICHED, LEH_SAMPLE_ITINERARY } from "@/lib/meta/leh-ads-content";
@@ -101,9 +100,7 @@ export default function LehTourPackagePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
-      <Suspense fallback={<main className="leh-root" style={{ minHeight: "100vh" }} />}>
-        <LehTourLanding />
-      </Suspense>
+      <LehTourLanding />
     </>
   );
 }
