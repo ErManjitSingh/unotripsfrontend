@@ -52,6 +52,16 @@ const nextConfig: NextConfig = {
         destination: "/meta/himachal_special/:path*",
         permanent: true,
       },
+      {
+        source: "/meta/leh",
+        destination: "/meta/leh_tour_package",
+        permanent: true,
+      },
+      {
+        source: "/meta/leh/:path*",
+        destination: "/meta/leh_tour_package/:path*",
+        permanent: true,
+      },
     ];
   },
 

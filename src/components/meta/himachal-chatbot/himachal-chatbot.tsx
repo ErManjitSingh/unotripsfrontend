@@ -37,6 +37,11 @@ const QUESTIONS: Question[] = [
 type Props = {
   landingPage?: string;
   destination?: string;
+  chatTitle?: string;
+  leadName?: string;
+  greeting?: string;
+  questions?: Question[];
+  messagePrefix?: string;
 };
 
 function IconClose() {
@@ -66,7 +71,13 @@ function IconChat() {
 export function HimachalChatbot({
   landingPage = "Himachal Special Landing",
   destination = "Himachal",
+  chatTitle = "Himachal Tour",
+  leadName = "Himachal Chatbot Lead",
+  greeting = GREETING,
+  questions = QUESTIONS,
+  messagePrefix = "Himachal Chatbot conversation",
 }: Props) {
+  const activeQuestions = questions;
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [typing, setTyping] = useState(false);
@@ -121,7 +132,9 @@ export function HimachalChatbot({
 
       const userAnswers = transcript.filter((m) => m.who === "user").map((m) => m.text);
       const destGuess = userAnswers.find((t) =>
-        /manali|shimla|spiti|dharamshala|jibhi|honeymoon/i.test(t),
+        /manali|shimla|spiti|dharamshala|jibhi|honeymoon|leh|ladakh|pangong|nubra|turtuk|bike|family/i.test(
+          t,
+        ),
       );
       const resolvedDestination = destGuess || destination;
 
@@ -130,14 +143,14 @@ export function HimachalChatbot({
         .join("\n");
 
       const payload = {
-        name: "Himachal Chatbot Lead",
+        name: leadName,
         phone,
         email: "",
         destination: resolvedDestination,
         package: destGuess || "",
         landingPage,
         captureType: "chatbot",
-        message: `Himachal Chatbot conversation\n\n${chatLines}`,
+        message: `${messagePrefix}\n\n${chatLines}`,
       };
 
       // Prefer fetch+keepalive over sendBeacon so Next.js reliably parses JSON body.
@@ -154,7 +167,7 @@ export function HimachalChatbot({
         })
         .catch(() => {});
     },
-    [destination, landingPage],
+    [destination, landingPage, leadName, messagePrefix],
   );
 
   const sendChatAndThankYou = useCallback(() => {
@@ -174,11 +187,11 @@ export function HimachalChatbot({
 
   const askNext = useCallback(() => {
     const idx = currentIndexRef.current;
-    if (idx >= QUESTIONS.length) {
+    if (idx >= activeQuestions.length) {
       sendChatAndThankYou();
       return;
     }
-    const q = QUESTIONS[idx];
+    const q = activeQuestions[idx];
     setTyping(true);
     schedule(() => {
       setTyping(false);
@@ -194,7 +207,7 @@ export function HimachalChatbot({
         setQuickReplies(q.options || []);
       }
     }, TYPING_DELAY);
-  }, [pushMessage, schedule, sendChatAndThankYou]);
+  }, [activeQuestions, pushMessage, schedule, sendChatAndThankYou]);
 
   const startChat = useCallback(() => {
     clearTimers();
@@ -211,11 +224,11 @@ export function HimachalChatbot({
     setTyping(true);
     schedule(() => {
       setTyping(false);
-      pushMessage("bot", GREETING);
+      pushMessage("bot", greeting);
       currentIndexRef.current = 0;
       schedule(() => askNext(), 500);
     }, TYPING_DELAY);
-  }, [askNext, clearTimers, pushMessage, schedule]);
+  }, [askNext, clearTimers, greeting, pushMessage, schedule]);
 
   const openChat = useCallback(() => {
     setOpen(true);
@@ -236,13 +249,13 @@ export function HimachalChatbot({
       pushMessage("user", label);
       setShowInput(false);
       currentIndexRef.current += 1;
-      if (currentIndexRef.current < QUESTIONS.length) {
+      if (currentIndexRef.current < activeQuestions.length) {
         schedule(() => askNext(), 400);
       } else {
         sendChatAndThankYou();
       }
     },
-    [askNext, pushMessage, schedule, sendChatAndThankYou],
+    [activeQuestions.length, askNext, pushMessage, schedule, sendChatAndThankYou],
   );
 
   const sendUserText = useCallback(() => {
@@ -252,7 +265,7 @@ export function HimachalChatbot({
     setInputPlaceholder("Type your answer...");
     setInputType("text");
     pushMessage("user", text);
-    const q = QUESTIONS[currentIndexRef.current];
+    const q = activeQuestions[currentIndexRef.current];
     if (q && q.inputType === "mobile") {
       userMobileRef.current = text.replace(/\s+/g, "");
       currentIndexRef.current += 1;
@@ -260,12 +273,12 @@ export function HimachalChatbot({
       return;
     }
     currentIndexRef.current += 1;
-    if (currentIndexRef.current < QUESTIONS.length) {
+    if (currentIndexRef.current < activeQuestions.length) {
       schedule(() => askNext(), 400);
     } else {
       sendChatAndThankYou();
     }
-  }, [askNext, inputValue, pushMessage, schedule, sendChatAndThankYou]);
+  }, [activeQuestions, askNext, inputValue, pushMessage, schedule, sendChatAndThankYou]);
 
   useEffect(() => {
     const onLeave = () => sendChatToServer(true);
@@ -280,10 +293,10 @@ export function HimachalChatbot({
 
   return (
     <div className={`hs-chatbot-widget${open ? " open" : ""}`}>
-      <div className="hs-chatbot-panel" role="dialog" aria-label="Himachal Tour chat">
+      <div className="hs-chatbot-panel" role="dialog" aria-label={`${chatTitle} chat`}>
         <div className="hs-chatbot-header">
           <div className="hs-chatbot-header-info">
-            <span className="hs-chatbot-title">Himachal Tour</span>
+            <span className="hs-chatbot-title">{chatTitle}</span>
             <span className="hs-chatbot-subtitle">Typically replies instantly</span>
           </div>
           <button type="button" className="hs-chatbot-close" onClick={closeChat} aria-label="Close chat">

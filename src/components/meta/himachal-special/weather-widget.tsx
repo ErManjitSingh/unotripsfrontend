@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-const MANALI = { lat: 32.24, lon: 77.19 } as const;
+const DEFAULT_PLACE = { name: "Manali", lat: 32.24, lon: 77.19 } as const;
 
 const WEATHER_CODE: Record<number, string> = {
   0: "Clear sky",
@@ -41,14 +41,24 @@ type WeatherState =
       label: string;
     };
 
-export function WeatherWidget() {
+type WeatherWidgetProps = {
+  place?: string;
+  lat?: number;
+  lon?: number;
+};
+
+export function WeatherWidget({
+  place = DEFAULT_PLACE.name,
+  lat = DEFAULT_PLACE.lat,
+  lon = DEFAULT_PLACE.lon,
+}: WeatherWidgetProps = {}) {
   const [state, setState] = useState<WeatherState>({ status: "loading" });
 
   useEffect(() => {
     let cancelled = false;
     const url =
       `https://api.open-meteo.com/v1/forecast` +
-      `?latitude=${MANALI.lat}&longitude=${MANALI.lon}` +
+      `?latitude=${lat}&longitude=${lon}` +
       `&current=temperature_2m,weather_code&timezone=Asia%2FKolkata`;
 
     async function load() {
@@ -84,12 +94,12 @@ export function WeatherWidget() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [lat, lon]);
 
   return (
     <div className="hs1-weather" aria-live="polite">
-      <h3>Live Weather - Manali</h3>
-      <p className="place">Open-Meteo · Lat {MANALI.lat}, Lon {MANALI.lon}</p>
+      <h3>Live Weather - {place}</h3>
+      <p className="place">Open-Meteo · Lat {lat}, Lon {lon}</p>
       {state.status === "loading" ? (
         <p className="desc">Fetching current temperature…</p>
       ) : null}
