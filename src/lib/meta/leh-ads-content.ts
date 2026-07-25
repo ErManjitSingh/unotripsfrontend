@@ -33,25 +33,25 @@ export const LEH_TRUST_CARDS = [
 ] as const;
 
 export const LEH_SAMPLE_ITINERARY = [
-  { day: 1, title: "Arrival Leh", detail: "Airport pickup, hotel check-in & acclimatisation. Evening stroll at Leh market.", image: "/meta/leh_tour_package/hero.jpg" },
-  { day: 2, title: "Sham Valley", detail: "Magnetic Hill, Gurudwara Pathar Sahib, Hall of Fame & Indus confluence viewpoints.", image: "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114" },
-  { day: 3, title: "Nubra Valley", detail: "Cross Khardung La to Diskit / Hunder. Optional camel safari at sand dunes.", image: "https://images.indianexpress.com/2019/01/leh-ladakh-getty-images-759.jpg?w=1200" },
-  { day: 4, title: "Pangong", detail: "Scenic drive to Pangong Tso. Lakeside sunset & overnight near the lake (as plan).", image: "https://images.indianexpress.com/2019/01/leh-ladakh-getty-images-759.jpg?w=1200" },
-  { day: 5, title: "Return Leh", detail: "Drive back via Chang La. Free time for cafes, Shanti Stupa & shopping.", image: "/meta/leh_tour_package/hero.jpg" },
-  { day: 6, title: "Departure", detail: "Hotel checkout & airport drop with trip assistance.", image: "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114" },
+  { day: 1, title: "Arrival Leh", detail: "Airport pickup, hotel check-in & acclimatisation. Evening stroll at Leh market.", image: "/meta/leh_tour_package/hero.webp" },
+  { day: 2, title: "Sham Valley", detail: "Magnetic Hill, Gurudwara Pathar Sahib, Hall of Fame & Indus confluence viewpoints.", image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp" },
+  { day: 3, title: "Nubra Valley", detail: "Cross Khardung La to Diskit / Hunder. Optional camel safari at sand dunes.", image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/20.webp" },
+  { day: 4, title: "Pangong", detail: "Scenic drive to Pangong Tso. Lakeside sunset & overnight near the lake (as plan).", image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/20.webp" },
+  { day: 5, title: "Return Leh", detail: "Drive back via Chang La. Free time for cafes, Shanti Stupa & shopping.", image: "/meta/leh_tour_package/hero.webp" },
+  { day: 6, title: "Departure", detail: "Hotel checkout & airport drop with trip assistance.", image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp" },
 ] as const;
 
 export const LEH_HOTELS = [
-  { name: "Hotel Grand Dragon / Similar", rating: 4.5, room: "Deluxe Double", amenities: ["WiFi", "Heating", "Restaurant", "Parking"], image: "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114" },
-  { name: "Nubra Desert Camp / Similar", rating: 4.3, room: "Swiss Tent", amenities: ["Meals", "Bonfire", "Attached Washroom"], image: "https://www.lehladakhindia.com/wp-content/uploads/2024/07/leh-1.jpg" },
-  { name: "Pangong Lakeside Stay / Similar", rating: 4.4, room: "Cottage / Camp", amenities: ["Lake View", "Meals", "Hot Water"], image: "https://images.indianexpress.com/2019/01/leh-ladakh-getty-images-759.jpg?w=1200" },
+  { name: "Hotel Grand Dragon / Similar", rating: 4.5, room: "Deluxe Double", amenities: ["WiFi", "Heating", "Restaurant", "Parking"], image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp" },
+  { name: "Nubra Desert Camp / Similar", rating: 4.3, room: "Swiss Tent", amenities: ["Meals", "Bonfire", "Attached Washroom"], image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/20.webp" },
+  { name: "Pangong Lakeside Stay / Similar", rating: 4.4, room: "Cottage / Camp", amenities: ["Lake View", "Meals", "Hot Water"], image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/1_converted.webp" },
 ] as const;
 
 export const LEH_CABS = [
-  { name: "Toyota Innova", type: "Private Cab", seats: "6+1", image: "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800&q=80&auto=format&fit=crop" },
-  { name: "Maruti Ertiga", type: "Private Cab", seats: "6+1", image: "https://images.unsplash.com/photo-1550355191-aa8a80b41353?w=800&q=80&auto=format&fit=crop" },
-  { name: "Tempo Traveller", type: "Group", seats: "12+1", image: "https://images.unsplash.com/photo-1544620341-b388bbf9f563?w=800&q=80&auto=format&fit=crop" },
-  { name: "SUV / Xylo", type: "Private Cab", seats: "6+1", image: "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?w=800&q=80&auto=format&fit=crop" },
+  { name: "Toyota Innova", type: "Private Cab", seats: "6+1", image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp" },
+  { name: "Maruti Ertiga", type: "Private Cab", seats: "6+1", image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/20.webp" },
+  { name: "Tempo Traveller", type: "Group", seats: "12+1", image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/1_converted.webp" },
+  { name: "SUV / Xylo", type: "Private Cab", seats: "6+1", image: "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/12_converted.webp" },
 ] as const;
 
 export const LEH_INCLUDED = [
@@ -84,12 +84,12 @@ export const LEH_WHY = [
 ] as const;
 
 export const LEH_GALLERY = [
-  "/meta/leh_tour_package/hero.jpg",
-  "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114",
-  "https://images.indianexpress.com/2019/01/leh-ladakh-getty-images-759.jpg?w=1200",
-  "https://www.lehladakhindia.com/wp-content/uploads/2024/07/leh-1.jpg",
-  "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/30/1d/eb/78/caption.jpg?w=800&h=600&s=1",
-  "https://static.justwravel.com/images/cgnfe1hd/production/8ee77f1eb8257d39a14895b06d7e133a694159a0-938x850.webp?fm=webp",
+  "/meta/leh_tour_package/hero.webp",
+  "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp",
+  "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/20.webp",
+  "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/1_converted.webp",
+  "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/12_converted.webp",
+  "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/7_converted.webp",
 ] as const;
 
 export const LEH_FAQS: { q: string; a: string }[] = [
@@ -156,8 +156,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Leh · 6N / 7D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -213,8 +213,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Leh · 5N / 6D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/20.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -270,8 +270,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Srinagar · 8N / 9D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/9_converted_es9mkhb.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -327,8 +327,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Leh · 4N / 5D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/2_converted_BUyqBWk.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -384,8 +384,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Leh · 6N / 7D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/12_converted.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -441,8 +441,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Leh · 6N / 7D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/7_converted.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -498,8 +498,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Srinagar · 10N / 11D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/10_converted.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -555,8 +555,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Leh · 4N / 5D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/1_converted.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -612,8 +612,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Leh · 5N / 6D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/13_converted_FGInvCY.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -669,8 +669,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Leh · 7N / 8D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/4_converted.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -726,8 +726,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Leh · 5N / 6D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/22_44YRQug.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -783,8 +783,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Srinagar · 7N / 8D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/6_converted.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
@@ -840,8 +840,8 @@ export const LEH_PACKAGES_ENRICHED: EnrichedLehPackage[] = [
     "locationLine": "Ex-Leh · 7N / 8D",
     "galleryImages": [
       "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/21.webp",
-      "/meta/leh_tour_package/hero.jpg",
-      "https://s7ap1.scene7.com/is/image/incredibleindia/leh-palace-leh-ladakh-2-musthead-hero?qlt=82&ts=1726668053114"
+      "/meta/leh_tour_package/hero.webp",
+      "https://glacial-1.s3.ap-south-1.amazonaws.com/media/image/package_image/23.webp"
     ],
     "highlightBullets": [
       "Curated Leh Ladakh experience",
