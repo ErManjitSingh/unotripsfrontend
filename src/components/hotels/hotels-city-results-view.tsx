@@ -18,6 +18,8 @@ import {
 } from "@/components/hotels/hotels-results-search-strip";
 import {
   HOTEL_PRICE_BANDS,
+  distanceKmBetween,
+  findHotelLocality,
   hotelResultsHref,
   type HotelCity,
   type HotelDestinationOption,
@@ -33,6 +35,11 @@ function applyFilters(
   hotels: HotelListing[],
   filters: HotelFiltersState,
 ): HotelListing[] {
+  const matchAny = (haystack: string[], needles: string[]) => {
+    const source = haystack.map((x) => x.trim().toLowerCase()).filter(Boolean);
+    return needles.some((needle) => source.includes(needle.trim().toLowerCase()));
+  };
+
   return hotels.filter((h) => {
     if (filters.bookWithZero && !h.bookWithZero) return false;
     if (filters.freeCancellation && !h.freeCancellation) return false;
@@ -47,6 +54,12 @@ function applyFilters(
         return h.price >= band.min && h.price <= band.max;
       });
       if (!inBand) return false;
+    }
+    if (filters.amenities.length > 0 && !matchAny(h.amenities, filters.amenities)) {
+      return false;
+    }
+    if (filters.propertyTypes.length > 0 && !matchAny(h.tags, filters.propertyTypes)) {
+      return false;
     }
     return true;
   });
@@ -79,6 +92,7 @@ type HotelsCityResultsViewProps = {
   initialGuests?: number;
   initialLastMinute?: boolean;
   initialSort?: HotelSortOption;
+  initialSearchQuery?: string;
 };
 
 export function HotelsCityResultsView({
@@ -91,6 +105,7 @@ export function HotelsCityResultsView({
   initialGuests,
   initialLastMinute = false,
   initialSort = "popularity",
+  initialSearchQuery = "",
 }: HotelsCityResultsViewProps) {
   const [city, setCity] = useState(initialCity);
   const [hotels, setHotels] = useState(initialHotels);
@@ -98,7 +113,7 @@ export function HotelsCityResultsView({
   const [filters, setFilters] =
     useState<HotelFiltersState>(EMPTY_HOTEL_FILTERS);
   const [sort, setSort] = useState<HotelSortOption>(initialSort);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [lastMinuteOnly, setLastMinuteOnly] = useState(initialLastMinute);
 
   const filtered = useMemo(() => {
@@ -109,7 +124,8 @@ export function HotelsCityResultsView({
         (h) =>
           h.name.toLowerCase().includes(q) ||
           h.area.toLowerCase().includes(q) ||
-          h.locationLine.toLowerCase().includes(q),
+          h.locationLine.toLowerCase().includes(q) ||
+          (h.address?.toLowerCase().includes(q) ?? false),
       );
     }
     if (lastMinuteOnly) {
@@ -118,13 +134,33 @@ export function HotelsCityResultsView({
     return sortHotels(list, sort);
   }, [hotels, filters, searchQuery, lastMinuteOnly, sort]);
 
-  const total = filtered.length;
+  const displayHotels = useMemo(() => {
+    const locality = findHotelLocality(searchQuery);
+    if (!locality) return filtered;
+    return filtered
+      .map((hotel) => {
+        if (hotel.latitude == null || hotel.longitude == null) {
+          return { ...hotel, searchLocationLabel: locality.name };
+        }
+        return {
+          ...hotel,
+          searchLocationLabel: locality.name,
+          distanceFromSearchKm: distanceKmBetween(locality, {
+            latitude: hotel.latitude,
+            longitude: hotel.longitude,
+          }),
+        };
+      })
+      .sort((a, b) => (a.distanceFromSearchKm ?? Infinity) - (b.distanceFromSearchKm ?? Infinity));
+  }, [filtered, searchQuery]);
+
+  const total = displayHotels.length;
   const totalPages = Math.max(1, Math.ceil(total / HOTELS_PER_PAGE));
   const [page, setPage] = useState(1);
 
   const listKey = useMemo(
-    () => filtered.map((h) => h.id).join("|"),
-    [filtered],
+    () => displayHotels.map((h) => h.id).join("|"),
+    [displayHotels],
   );
 
   useEffect(() => {
@@ -139,8 +175,8 @@ export function HotelsCityResultsView({
   const start = (safePage - 1) * HOTELS_PER_PAGE;
   const end = Math.min(start + HOTELS_PER_PAGE, total);
   const pageHotels = useMemo(
-    () => filtered.slice(start, start + HOTELS_PER_PAGE),
-    [filtered, start],
+    () => displayHotels.slice(start, start + HOTELS_PER_PAGE),
+    [displayHotels, start],
   );
 
   const scrollToResults = () => {
@@ -160,6 +196,7 @@ export function HotelsCityResultsView({
     try {
       const { hotels: nextHotels } = await searchHotels({
         city: payload.city,
+        q: payload.q,
         check_in: payload.check_in,
         check_out: payload.check_out,
         adults: payload.guests,
@@ -175,7 +212,7 @@ export function HotelsCityResultsView({
       });
       setHotels(nextHotels);
       setFilters(EMPTY_HOTEL_FILTERS);
-      setSearchQuery("");
+      setSearchQuery(payload.q ?? "");
       setLastMinuteOnly(false);
       setPage(1);
 
@@ -187,6 +224,7 @@ export function HotelsCityResultsView({
           check_out: payload.check_out,
           rooms: payload.rooms,
           guests: payload.guests,
+          q: payload.q,
           last_minute: lastMinuteOnly || undefined,
           sort: sort !== "popularity" ? sort : undefined,
         }),
@@ -204,19 +242,17 @@ export function HotelsCityResultsView({
     <>
       <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
         <div className="hidden md:block">
-          <HeroGlassNavbar activeId="hotels" solid />
+          <HeroGlassNavbar activeId="hotels" />
         </div>
         <TravelMobileTopShell activeId="hotels" showGreeting={false} />
-        <div className="md:pt-28">
-          <Suspense fallback={null}>
-            <HotelsResultsSearchStrip
-              city={city}
-              destinations={destinations}
-              searching={searching}
-              onSearch={handleModifySearch}
-            />
-          </Suspense>
-        </div>
+        <Suspense fallback={null}>
+          <HotelsResultsSearchStrip
+            city={city}
+            destinations={destinations}
+            searching={searching}
+            onSearch={handleModifySearch}
+          />
+        </Suspense>
 
         <div className="mx-auto w-full max-w-[1320px] px-3 py-4 sm:px-4 sm:py-5 lg:px-6">
           {/* Breadcrumb + search + sort */}

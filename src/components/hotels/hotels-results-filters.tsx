@@ -1,12 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
-  HOTEL_AMENITY_FILTERS,
   HOTEL_PRICE_BANDS,
-  HOTEL_PROPERTY_TYPES,
-  HOTEL_STAR_FILTERS,
   type HotelListing,
-  countHotelsByStar,
 } from "@/lib/hotels-catalog";
 import { cn } from "@/lib/utils";
 
@@ -101,6 +98,23 @@ function FilterSection({
   );
 }
 
+type FacetOption = { label: string; count: number };
+
+function topFacetCounts(values: Array<string | undefined>, limit = 6): FacetOption[] {
+  const counts = new Map<string, { label: string; count: number }>();
+  for (const value of values) {
+    const label = value?.trim();
+    if (!label) continue;
+    const key = label.toLowerCase();
+    const current = counts.get(key);
+    if (current) current.count += 1;
+    else counts.set(key, { label, count: 1 });
+  }
+  return Array.from(counts.values())
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+    .slice(0, limit);
+}
+
 export function HotelsResultsFilters({
   hotels,
   filters,
@@ -108,15 +122,42 @@ export function HotelsResultsFilters({
   onReset,
   className,
 }: HotelsResultsFiltersProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setMobileOpen(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   const patch = (partial: Partial<HotelFiltersState>) => onChange({ ...filters, ...partial });
 
   const toggleInList = <T extends string | number>(list: T[], item: T): T[] =>
     list.includes(item) ? list.filter((x) => x !== item) : [...list, item];
 
+  const starOptions = [5, 4, 3, 2, 1]
+    .map((stars) => ({ stars, label: `${stars} Star`, count: hotels.filter((h) => h.stars === stars).length }))
+    .filter((option) => option.count > 0);
+
+  const amenityOptions = topFacetCounts(hotels.flatMap((h) => h.amenities));
+  const tagOptions = topFacetCounts(hotels.flatMap((h) => h.tags), 8);
+
   return (
     <aside className={cn("w-full rounded-md border border-[#e0e0e0] bg-white shadow-sm", className)}>
       <div className="flex items-center justify-between border-b border-[#e8e8e8] px-4 py-3">
-        <h2 className="text-[13px] font-bold text-[#212121]">Filters</h2>
+        <button
+          type="button"
+          onClick={() => setMobileOpen((v) => !v)}
+          className="flex items-center gap-2 lg:pointer-events-none"
+          aria-expanded={mobileOpen}
+        >
+          <h2 className="text-[13px] font-bold text-[#212121]">Filters</h2>
+          <span className="text-[#9E9E9E] transition lg:hidden" aria-hidden>
+            {mobileOpen ? "⌃" : "⌄"}
+          </span>
+        </button>
         <button
           type="button"
           onClick={onReset}
@@ -126,7 +167,7 @@ export function HotelsResultsFilters({
         </button>
       </div>
 
-      <div className="px-4 pb-4">
+      <div className={cn("px-4 pb-4", !mobileOpen && "hidden lg:block")}>
         <FilterSection title="Show Properties With">
           <FilterCheckbox
             id="f-zero"
@@ -168,9 +209,7 @@ export function HotelsResultsFilters({
         </FilterSection>
 
         <FilterSection title="Star Rating">
-          {HOTEL_STAR_FILTERS.map(({ stars, label }) => {
-            const count = countHotelsByStar(hotels, stars);
-            if (count === 0) return null;
+          {starOptions.map(({ stars, label, count }) => {
             return (
               <FilterCheckbox
                 key={stars}
@@ -184,26 +223,26 @@ export function HotelsResultsFilters({
         </FilterSection>
 
         <FilterSection title="Amenities" defaultOpen={false}>
-          {HOTEL_AMENITY_FILTERS.map((amenity) => (
+          {amenityOptions.map((amenity) => (
             <FilterCheckbox
-              key={amenity}
-              id={`amenity-${amenity}`}
-              label={amenity}
-              checked={filters.amenities.includes(amenity)}
-              onChange={() => patch({ amenities: toggleInList(filters.amenities, amenity) })}
+              key={amenity.label}
+              id={`amenity-${amenity.label}`}
+              label={`${amenity.label} [${amenity.count}]`}
+              checked={filters.amenities.includes(amenity.label)}
+              onChange={() => patch({ amenities: toggleInList(filters.amenities, amenity.label) })}
             />
           ))}
         </FilterSection>
 
-        <FilterSection title="Property Type" defaultOpen={false}>
-          {HOTEL_PROPERTY_TYPES.map((type) => (
+        <FilterSection title="Popular Tags" defaultOpen={false}>
+          {tagOptions.map((type) => (
             <FilterCheckbox
-              key={type}
-              id={`type-${type}`}
-              label={type}
-              checked={filters.propertyTypes.includes(type)}
+              key={type.label}
+              id={`type-${type.label}`}
+              label={`${type.label} [${type.count}]`}
+              checked={filters.propertyTypes.includes(type.label)}
               onChange={() =>
-                patch({ propertyTypes: toggleInList(filters.propertyTypes, type) })
+                patch({ propertyTypes: toggleInList(filters.propertyTypes, type.label) })
               }
             />
           ))}

@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 import {
   CalendarRange,
   Filter,
@@ -8,6 +11,7 @@ import {
   RotateCcw,
   type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const PRICE_BANDS = [
   "₹ 49,000 - ₹ 80,000",
@@ -64,25 +68,34 @@ function FilterSectionHeader({
 }
 
 export function PackageFilterSidebar() {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
-    <aside className="w-full rounded-md border border-[#e0e0e0] bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between border-b border-[#e8e8e8] pb-3">
+    <aside className="w-full rounded-2xl border border-[#e5e7eb] bg-white p-3 shadow-sm sm:p-4">
+      <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-[13px] font-bold text-slate-900">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary/15 to-primary/5 text-primary ring-1 ring-primary/15">
             <Filter className="h-4 w-4" aria-hidden />
           </span>
           Filter Your Tour
         </h3>
-        <Link
-          href="#"
-          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
-        >
-          <RotateCcw className="h-3 w-3 shrink-0" aria-hidden />
-          Reset
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="#" className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline">
+            <RotateCcw className="h-3 w-3 shrink-0" aria-hidden /> Reset
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMobileOpen((open) => !open)}
+            className="rounded-full bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary sm:hidden"
+            aria-expanded={mobileOpen}
+          >
+            {mobileOpen ? "Hide" : "Show filters"}
+          </button>
+        </div>
       </div>
 
-      <details className="group border-b border-[#e8e8e8] py-4" open>
+      <div className={cn("border-t border-[#e8e8e8]", mobileOpen ? "block" : "hidden sm:block")}>
+      <details className="group border-b border-[#e8e8e8] py-4">
         <summary className="cursor-pointer list-none text-[13px] font-bold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
           <span className="flex items-center justify-between gap-2">
             <FilterSectionHeader icon={IndianRupee} title="Price Range" />
@@ -104,7 +117,7 @@ export function PackageFilterSidebar() {
         </div>
       </details>
 
-      <details className="group border-b border-[#e8e8e8] py-4" open>
+      <details className="group border-b border-[#e8e8e8] py-4">
         <summary className="cursor-pointer list-none text-[13px] font-bold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
           <span className="flex items-center justify-between gap-2">
             <FilterSectionHeader icon={Layers} title="Package type" />
@@ -128,7 +141,7 @@ export function PackageFilterSidebar() {
         </div>
       </details>
 
-      <details className="group border-b border-[#e8e8e8] py-4" open>
+      <details className="group border-b border-[#e8e8e8] py-4">
         <summary className="cursor-pointer list-none text-[13px] font-bold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
           <span className="flex items-center justify-between gap-2">
             <FilterSectionHeader icon={CalendarRange} title="Tour duration" />
@@ -151,7 +164,7 @@ export function PackageFilterSidebar() {
         </div>
       </details>
 
-      <details className="group py-4" open>
+      <details className="group py-4">
         <summary className="cursor-pointer list-none text-[13px] font-bold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
           <span className="flex items-center justify-between gap-2">
             <FilterSectionHeader icon={MapPin} title="Departure City" />
@@ -174,6 +187,7 @@ export function PackageFilterSidebar() {
           ))}
         </div>
       </details>
+      </div>
     </aside>
   );
 }

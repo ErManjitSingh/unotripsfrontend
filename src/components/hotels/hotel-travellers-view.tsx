@@ -4,14 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, CircleCheck, Edit2, Lock, Loader2, MessageCircle, Minus, Phone, Plus, Shield, Star, X } from "lucide-react";
+import { Check, ChevronRight, CircleCheck, Edit2, Lock, Loader2, MessageCircle, Minus, Phone, Plus, Shield, Star, X } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
-import { Navbar } from "@/components/layout/Navbar";
+import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
 import {
   HotelBookingPaymentStep,
 } from "@/components/hotels/hotel-booking-payment-step";
-import { CheckoutGuestAuthPanel } from "@/components/hotels/checkout-guest-auth-panel";
-import { BookingAuthModal } from "@/components/hotels/booking-auth-modal";
 import { HotelTagBadgeList } from "@/components/hotels/hotel-tag-badge";
 import { formatHotelDateFromIso } from "@/components/hotels/hotels-search-fields";
 import { useAuthOptional } from "@/contexts/auth-context";
@@ -45,17 +43,19 @@ function getMealPlanLabel(packageName: string): string {
   return packageName.replace(/\s*\([A-Z]+\)\s*/g, "").trim();
 }
 
-const PLAN_SUFFIX_TO_MEALS: Record<string, string | null> = {
-  ep:  null,
-  cp:  "breakfast",
-  map: "breakfast,dinner",
-  ap:  "breakfast,lunch,dinner",
+// The booking API expects the rate-plan tier code, not the legacy
+// comma-separated meal list that was previously sent here.
+const PLAN_SUFFIX_TO_CODE: Record<string, "ep" | "cp" | "map" | "ap"> = {
+  ep: "ep",
+  cp: "cp",
+  map: "map",
+  ap: "ap",
 };
 
 function mealPlanPayloadFromRatePlan(ratePlan: HotelRoomRatePlan) {
   const suffix = ratePlan.id.split("-").pop() ?? "ep";
   return {
-    meal_plan: PLAN_SUFFIX_TO_MEALS[suffix] ?? null,
+    meal_plan: PLAN_SUFFIX_TO_CODE[suffix] ?? "ep",
     meal_plan_label: ratePlan.packageName,
     meal_plan_price: ratePlan.mealAddOn,
   };
@@ -79,6 +79,7 @@ function todayIso(): string {
 }
 
 type BookingStep = "travellers" | "payment" | "confirmed";
+type PaymentPlan = "full" | "advance_40" | "pay_at_hotel";
 
 // ── Checkout draft — survives auth redirect (sessionStorage) ─────────────────
 
@@ -160,6 +161,10 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     const n = Number.parseInt(searchParams.get("guests") ?? "2", 10);
     return Number.isFinite(n) && n > 0 ? n : 2;
   }, [searchParams]);
+  const requestedChildren = useMemo(() => {
+    const n = Number.parseInt(searchParams.get("children") ?? "0", 10);
+    return Number.isFinite(n) && n > 0 ? Math.min(n, 4) : 0;
+  }, [searchParams]);
 
   const selection = useMemo(
     () => resolveBookingSelectionFromBundle(bundle, roomTypeId, ratePlanId),
@@ -183,6 +188,22 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const [email, setEmail] = useState(draft?.email ?? "");
   const [mobile, setMobile] = useState(draft?.mobile ?? "");
   const [formError, setFormError] = useState<string | null>(null);
+  const [guestValidationAttempted, setGuestValidationAttempted] = useState(false);
+  const [agreementValidationAttempted, setAgreementValidationAttempted] = useState(false);
+  const [guestDetailsShaking, setGuestDetailsShaking] = useState(false);
+  const guestDetailsRef = useRef<HTMLElement>(null);
+  const agreementRef = useRef<HTMLLabelElement>(null);
+
+  const guestDetailsComplete =
+    Boolean(firstName.trim() && lastName.trim()) &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) &&
+    mobile.trim().length >= 10;
+
+  useEffect(() => {
+    if (!guestValidationAttempted || !guestDetailsComplete) return;
+    setGuestValidationAttempted(false);
+    setFormError(null);
+  }, [guestDetailsComplete, guestValidationAttempted]);
 
   const [processing, setProcessing] = useState(false);
   const [bookingRef, setBookingRef] = useState("");
@@ -191,23 +212,46 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     () => searchParams.get("booking_id"),
   );
   const [continuing, setContinuing] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [guestCheckoutToken, setGuestCheckoutToken] = useState<string | null>(null);
+  const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("full");
+
+  // A link from search/results is authoritative. A saved draft belongs to an
+  // older attempt for the same room and must never overwrite dates supplied
+  // in the new URL (otherwise a 19→20 search can incorrectly show 18→18).
+  const hasUrlStay = Boolean(checkInIso && checkOutIso);
 
   // Editable order summary state (restored from draft if available)
-  const [localRooms, setLocalRooms]       = useState(draft?.localRooms ?? rooms);
-  const [localNights, setLocalNights]     = useState<number | null>(draft?.localNights ?? null);
-  const [localAdults, setLocalAdults]     = useState<number | null>(draft?.localAdults ?? null);
-  const [childrenAges, setChildrenAges]   = useState<number[]>(draft?.childrenAges ?? []);
+  const [localRooms, setLocalRooms]       = useState(hasUrlStay ? rooms : (draft?.localRooms ?? rooms));
+  const [localNights, setLocalNights]     = useState<number | null>(hasUrlStay ? null : (draft?.localNights ?? null));
+  const [localAdults, setLocalAdults]     = useState<number | null>(hasUrlStay ? null : (draft?.localAdults ?? null));
+  const [childrenAges, setChildrenAges] = useState<number[]>(
+    hasUrlStay ? Array.from({ length: requestedChildren }, () => 0) : (draft?.childrenAges ?? Array.from({ length: requestedChildren }, () => 0)),
+  );
   const localChildren = childrenAges.length;
   const [editingCheckIn, setEditingCheckIn]   = useState(false);
   const [editingCheckOut, setEditingCheckOut] = useState(false);
-  const [localCheckIn,  setLocalCheckIn]  = useState(draft?.localCheckIn || checkInIso);
-  const [localCheckOut, setLocalCheckOut] = useState(draft?.localCheckOut || checkOutIso);
+  const [localCheckIn,  setLocalCheckIn]  = useState(checkInIso || draft?.localCheckIn || "");
+  const [localCheckOut, setLocalCheckOut] = useState(checkOutIso || draft?.localCheckOut || "");
+
+  // Also handle client-side navigation between room/result links without
+  // relying on this component being remounted by Next.js.
+  useEffect(() => {
+    if (apiBooking || !checkInIso || !checkOutIso) return;
+    setLocalCheckIn(checkInIso);
+    setLocalCheckOut(checkOutIso);
+    setLocalNights(null);
+    setLocalRooms(rooms);
+    setLocalAdults(null);
+    setChildrenAges(Array.from({ length: requestedChildren }, () => 0));
+  }, [apiBooking, checkInIso, checkOutIso, rooms, guests, requestedChildren]);
 
   const displayNights = localNights ?? nights;
   const displayAdults = localAdults ?? guests;
-  const displayRooms  = localRooms;
   const maxOccupancy  = selection?.roomType.maxOccupancy ?? 2;
+  // Never show or price an impossible one-room booking while the effect below
+  // persists the corrected room count. A selected room can override the
+  // default two-adult capacity.
+  const displayRooms  = Math.max(localRooms, Math.ceil(displayAdults / maxOccupancy));
   const maxAdultsAllowed = maxOccupancy * displayRooms;
   const availableRoomCount = selection?.roomType.availableCount ?? 10;
   const resumePayment = searchParams.get("resume") === "1";
@@ -353,6 +397,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       .then((booking) => {
         if (cancelled) return;
         setApiBooking(booking);
+        if (booking.payment_plan === "full" || booking.payment_plan === "advance_40" || booking.payment_plan === "pay_at_hotel") {
+          setPaymentPlan(booking.payment_plan);
+        }
         setBookingRef(booking.confirmation_number);
         if (isConfirmedBookingStatus(booking.status)) {
           setStep("confirmed");
@@ -485,26 +532,56 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const discount = ratePlan.discountAmount * displayNights * displayRooms;
   const estimatedTotal = roomTotal + taxes - discount + estimatedChildCharges;
   const payTotal = apiBooking?.total_amount ?? estimatedTotal;
+  const confirmedPaymentPlan = apiBooking?.payment_plan ?? paymentPlan;
+  const confirmedBalanceDue = apiBooking?.balance_due_amount ?? (
+    confirmedPaymentPlan === "pay_at_hotel" ? payTotal
+    : confirmedPaymentPlan === "advance_40" ? payTotal - Math.round(payTotal * 40) / 100
+    : 0
+  );
+  const confirmedAmountPaid = apiBooking?.amount_paid ?? (
+    confirmedPaymentPlan === "advance_40" ? Math.round(payTotal * 40) / 100
+    : confirmedPaymentPlan === "pay_at_hotel" ? 0
+    : payTotal
+  );
 
   const guestFullName = `${title} ${firstName} ${lastName}`.trim();
 
+  const showGuestDetailsError = (message: string) => {
+    setGuestValidationAttempted(true);
+    setFormError(message);
+    setGuestDetailsShaking(false);
+    window.requestAnimationFrame(() => setGuestDetailsShaking(true));
+    window.setTimeout(() => setGuestDetailsShaking(false), 500);
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+      navigator.vibrate([80, 45, 80]);
+    }
+    guestDetailsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   const validateTravellers = () => {
     if (!firstName.trim() || !lastName.trim()) {
-      setFormError("Please enter guest first and last name.");
+      showGuestDetailsError("Enter the primary guest's first and last name to continue.");
       return false;
     }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setFormError("Please enter a valid email address.");
+      showGuestDetailsError("Enter a valid email address for your booking confirmation.");
       return false;
     }
     if (!mobile.trim() || mobile.trim().length < 10) {
-      setFormError("Please enter a valid mobile number.");
+      showGuestDetailsError("Enter a valid 10-digit mobile number for booking updates.");
       return false;
     }
     if (!agreed) {
-      setFormError("Please accept the terms and conditions.");
+      setGuestValidationAttempted(false);
+      setAgreementValidationAttempted(true);
+      setFormError("Please accept the terms and conditions to continue.");
+      window.requestAnimationFrame(() => {
+        agreementRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
       return false;
     }
+    setGuestValidationAttempted(false);
+    setAgreementValidationAttempted(false);
     setFormError(null);
     return true;
   };
@@ -513,25 +590,19 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
     // Check guest details first
     if (!validateTravellers()) return;
 
-    // If not logged in → open login modal
-    if (!auth?.isAuthenticated) {
-      setAuthModalOpen(true);
-      return;
-    }
-
     setContinuing(true);
     setFormError(null);
 
     try {
-      const token = auth.getAccessToken();
-      if (!token) {
-        setAuthModalOpen(true);
-        setContinuing(false);
-        return;
-      }
+      const token = auth?.getAccessToken();
 
       if (!effectiveCheckIn || !effectiveCheckOut) {
         setFormError("Please select valid check-in and check-out dates.");
+        setContinuing(false);
+        return;
+      }
+      if (effectiveCheckIn < todayIso()) {
+        setFormError("Your selected check-in date has passed. Please choose today or a future date.");
         setContinuing(false);
         return;
       }
@@ -555,20 +626,28 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
           phone: mobile.replace(/\D/g, "").slice(-10),
           country_code: "+91",
         },
+        payment_plan: paymentPlan,
         ...mealPlanPayloadFromRatePlan(ratePlan),
       }, { "X-Idempotency-Key": idempotencyKeyRef.current });
 
       // Reset idempotency key so a back-and-retry creates a fresh booking
       idempotencyKeyRef.current = crypto.randomUUID();
 
-      if (auth.user?.id) {
+      if (auth?.user?.id) {
         upsertCachedBooking(auth.user.id, created);
       }
 
       setApiBooking(created);
+      setGuestCheckoutToken(created.guest_checkout_token ?? null);
       setApiBookingId(created.id);
       setBookingRef(created.confirmation_number);
       persistPendingCheckout(created.id);
+
+      if (paymentPlan === "pay_at_hotel") {
+        setStep("confirmed");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
 
       // ── Open Razorpay directly — no separate payment step ────────────────
       const keyId   = created.razorpay_key_id ?? getRazorpayKeyId();
@@ -591,7 +670,10 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       }
 
       const confirmedAmount = created.total_amount;
-      const amountPaise = Math.round(confirmedAmount * 100);
+      const amountDueNow = paymentPlan === "advance_40"
+        ? Math.round(confirmedAmount * 40) / 100
+        : confirmedAmount;
+      const amountPaise = Math.round(amountDueNow * 100);
 
       try {
         await openRazorpayCheckout({
@@ -600,7 +682,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
           amountPaise,
           currency: "INR",
           name: hotel.name,
-          description: `Full payment — ₹${confirmedAmount.toLocaleString("en-IN")}`,
+          description: paymentPlan === "advance_40"
+            ? `40% advance — ₹${amountDueNow.toLocaleString("en-IN")}`
+            : `Full payment — ₹${confirmedAmount.toLocaleString("en-IN")}`,
           prefill: {
             name:    `${firstName.trim()} ${lastName.trim()}`.trim(),
             email:   email.trim(),
@@ -608,10 +692,14 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
           },
           onSuccess: async (response) => {
             try {
-              const tkn = auth?.getAccessToken();
-              if (tkn) {
-                await verifyHotelBookingPayment(tkn, created.id, response);
-              }
+              const verified = await verifyHotelBookingPayment(
+                token ?? created.guest_checkout_token,
+                created.id,
+                response,
+              );
+              const confirmed = verified as unknown as BookingWithOrder;
+              setApiBooking(confirmed);
+              if (auth?.user?.id) upsertCachedBooking(auth.user.id, confirmed);
               setStep("confirmed");
             } catch {
               setStep("payment");
@@ -636,13 +724,14 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   };
 
   const handlePay = async () => {
-    const token = auth?.getAccessToken();
+    const token = auth?.getAccessToken() ?? guestCheckoutToken;
     const keyId = apiBooking?.razorpay_key_id ?? getRazorpayKeyId();
     const orderId = apiBooking?.razorpay_order_id;
     const bookingId = apiBookingId;
+    const activePaymentPlan = apiBooking?.payment_plan === "advance_40" ? "advance_40" : paymentPlan;
 
-    if (!token || !bookingId) {
-      setFormError("Session expired. Please go back and create the booking again.");
+    if (!bookingId) {
+      setFormError("Booking session expired. Please go back and create the booking again.");
       return;
     }
     if (!keyId) {
@@ -713,7 +802,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
       await openRazorpayCheckout({
         keyId,
         orderId,
-        amountPaise: Math.round(payTotal * 100),
+        amountPaise: Math.round((activePaymentPlan === "advance_40" ? Math.round(payTotal * 40) / 100 : payTotal) * 100),
         name: "UNO Trips",
         description: `${hotel.name} — ${roomType.name}`,
         prefill: {
@@ -780,6 +869,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   const handleRetryBooking = useCallback(async () => {
     setApiBooking(null);
     setApiBookingId(null);
+    setGuestCheckoutToken(null);
     setBookingRef("");
     setFormError(null);
     setHoldSec(null);
@@ -797,10 +887,10 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
   return (
     <>
       <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
-        <Navbar variant="ease" easeActiveNavId="hotels" />
+        <HeroGlassNavbar activeId="hotels" solid flushDetailShell />
 
-        <div className="border-b border-[#e0e0e0] bg-white">
-          <div className="mx-auto flex w-full max-w-[1320px] items-center gap-6 px-3 py-4 sm:px-4 lg:px-6">
+        <div className="border-b border-[#e0e0e0] bg-white pt-[92px]">
+          <div className="mx-auto flex w-full max-w-[1320px] items-center gap-5 px-3 py-2.5 sm:px-4 lg:px-6">
             <div
               className={cn(
                 "flex items-center gap-2 text-[13px]",
@@ -809,7 +899,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
             >
               <span
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold",
+                  "flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold",
                   step === "travellers" || step === "payment" || step === "confirmed"
                     ? "bg-[#212121] text-white"
                     : "border border-[#e0e0e0]",
@@ -827,7 +917,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
             >
               <span
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold",
+                  "flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold",
                   step === "payment" || step === "confirmed"
                     ? "bg-[#212121] text-white"
                     : "border border-[#e0e0e0]",
@@ -839,14 +929,14 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
             </div>
             {step === "confirmed" ? (
               <div className="flex items-center gap-2 text-[13px] font-bold text-[#2E7D32]">
-                <CircleCheck className="h-7 w-7" strokeWidth={1.75} aria-hidden />
+                <CircleCheck className="h-6 w-6" strokeWidth={1.75} aria-hidden />
                 <span>Confirmed</span>
               </div>
             ) : null}
           </div>
         </div>
 
-        <div className="mx-auto w-full max-w-[1320px] px-3 py-5 sm:px-4 lg:px-6">
+        <div className="mx-auto w-full max-w-[1320px] px-3 py-3 pb-24 sm:px-4 lg:pb-3 lg:px-6">
           {step === "confirmed" ? (
             <div className="mx-auto max-w-2xl space-y-4">
 
@@ -935,14 +1025,24 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   ))}
                 </div>
 
-                {/* ── Amount paid strip ── */}
+                {/* ── Payment / balance strip ── */}
                 <div className="flex items-center justify-between border-t border-[#f0f0f0] bg-[#FFF8F3] px-5 py-4">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-[#9E9E9E]">Amount Paid</p>
-                    <p className="text-[10px] text-[#757575]">Incl. all taxes &amp; fees</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-[#9E9E9E]">
+                      {confirmedPaymentPlan === "pay_at_hotel"
+                        ? "Pay at hotel"
+                        : confirmedBalanceDue > 0 ? "Balance due at hotel" : "Amount paid"}
+                    </p>
+                    <p className="text-[10px] text-[#757575]">
+                      {confirmedPaymentPlan === "pay_at_hotel"
+                        ? "Due on arrival · incl. all taxes & fees"
+                        : confirmedBalanceDue > 0
+                          ? `₹ ${formatInrAmount(confirmedAmountPaid)} paid online · due at check-in`
+                          : "Incl. all taxes & fees"}
+                    </p>
                   </div>
                   <p className="text-2xl font-extrabold text-[#EF6614]">
-                    ₹ {formatInrAmount(apiBooking?.total_amount ?? payTotal)}
+                    ₹ {formatInrAmount(confirmedBalanceDue > 0 ? confirmedBalanceDue : confirmedAmountPaid)}
                   </p>
                 </div>
               </div>
@@ -954,7 +1054,11 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   {[
                     "This booking confirmation (screenshot or printout)",
                     "A valid government-issued photo ID (Aadhaar / Passport / Driving Licence)",
-                    "Original credit/debit card used for payment (if requested)",
+                    confirmedPaymentPlan === "pay_at_hotel"
+                      ? `₹ ${formatInrAmount(confirmedBalanceDue)} to pay at the hotel on arrival`
+                      : confirmedBalanceDue > 0
+                        ? `₹ ${formatInrAmount(confirmedBalanceDue)} balance to pay at the hotel on arrival`
+                        : "Original credit/debit card used for payment (if requested)",
                   ].map((tip) => (
                     <li key={tip} className="flex items-start gap-2 text-[12px] text-[#616161]">
                       <span className="mt-0.5 text-[#EF6614]">•</span>
@@ -1018,6 +1122,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   rooms={rooms}
                   guests={guests}
                   grandTotal={payTotal}
+                  payNow={(apiBooking?.payment_plan ?? paymentPlan) === "advance_40" ? Math.round(payTotal * 40) / 100 : payTotal}
+                  balanceDue={(apiBooking?.payment_plan ?? paymentPlan) === "advance_40" ? payTotal - Math.round(payTotal * 40) / 100 : 0}
+                  paymentPlan={(apiBooking?.payment_plan ?? paymentPlan) === "advance_40" ? "advance_40" : "full"}
                   guestName={guestFullName}
                   email={email}
                   mobile={mobile}
@@ -1030,112 +1137,69 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
               )}
             </>
           ) : (
-            <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+            <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
 
               {/* ── LEFT COLUMN ── */}
-              <div className="order-2 space-y-5 lg:order-1">
+              <div className="order-1 space-y-3">
 
-                {/* ── 1. Hotel & Stay Card ── */}
+                {/* ── Compact stay summary ── */}
                 <section className="overflow-hidden rounded-xl border border-[#e8e8e8] bg-white shadow-sm">
-                  {/* Hotel identity row */}
-                  <div className="flex items-center gap-4 px-5 py-4">
-                    <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg">
-                      <Image src={hotel.images[0] ?? ""} alt={hotel.name} fill unoptimized className="object-cover" sizes="80px" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h1 className="text-[16px] font-bold leading-tight text-[#1a1a1a]">{hotel.name}</h1>
-                          <div className="mt-1 flex items-center gap-1.5">
-                            <span className="flex items-center gap-0.5">
-                              {Array.from({ length: hotel.stars }).map((_, i) => (
-                                <Star key={i} className="h-3 w-3 fill-[#FFC107] text-[#FFC107]" aria-hidden />
-                              ))}
-                            </span>
-                            <span className="text-[#d0d0d0]">·</span>
-                            <p className="text-[12px] text-[#757575]">{hotel.address ?? `${hotel.area}, ${city.name}`}</p>
+                  <div className="grid divide-y divide-[#eef0f2] lg:grid-cols-[minmax(330px,1.45fr)_minmax(380px,1fr)] lg:divide-x lg:divide-y-0">
+                    <div className="flex min-w-0 items-center gap-3 px-4 py-3">
+                      <div className="relative h-14 w-[72px] shrink-0 overflow-hidden rounded-lg bg-neutral-100">
+                        <Image src={hotel.images[0] ?? ""} alt={hotel.name} fill unoptimized className="object-cover" sizes="72px" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h1 className="truncate text-[14px] font-bold text-[#1a1a1a]">{hotel.name}</h1>
+                            <p className="mt-0.5 truncate text-[11px] text-[#757575]">{hotel.address ?? `${hotel.area}, ${city.name}`}</p>
                           </div>
+                          <Link href={detailHref} className="shrink-0 text-[10px] font-semibold text-[#EF6614] hover:underline">Change</Link>
                         </div>
-                        <Link href={detailHref} className="shrink-0 rounded-lg border border-[#e8e8e8] px-3 py-1.5 text-[11px] font-semibold text-[#616161] transition hover:border-[#EF6614] hover:text-[#EF6614]">
-                          Change
-                        </Link>
+                        <span className="mt-1 inline-flex items-center gap-1 text-[10px] text-[#f59e0b]">
+                          {Array.from({ length: hotel.stars }).map((_, i) => <Star key={i} className="h-3 w-3 fill-current" aria-hidden />)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 divide-x divide-[#eef0f2]">
+                      <div className="px-4 py-3">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-[#9E9E9E]">Check-in</p>
+                        <p className="mt-1 text-[13px] font-extrabold text-[#1a1a1a]">{checkInLabel.main || "—"}</p>
+                        <p className="text-[10px] text-[#9E9E9E]">{checkInLabel.sub || "From 2:00 PM"}</p>
+                      </div>
+                      <div className="px-4 py-3">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-[#9E9E9E]">Check-out</p>
+                        <p className="mt-1 text-[13px] font-extrabold text-[#1a1a1a]">{checkOutLabel.main || "—"}</p>
+                        <p className="text-[10px] text-[#9E9E9E]">{checkOutLabel.sub || "Until 12:00 PM"}</p>
+                      </div>
+                      <div className="px-4 py-3">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-[#9E9E9E]">Stay</p>
+                        <p className="mt-1 text-[13px] font-extrabold text-[#1a1a1a]">{displayNights} night{displayNights !== 1 ? "s" : ""}</p>
+                        <p className="text-[10px] text-[#9E9E9E]">{displayAdults} adult{displayAdults !== 1 ? "s" : ""} · {displayRooms} room</p>
                       </div>
                     </div>
                   </div>
-
-                  {/* Stay timeline — full width divider row */}
-                  <div className="border-t border-[#f0f0f0] bg-[#fafafa] px-5 py-4">
-                    <div className="flex items-center">
-                      {/* Check-in */}
-                      <div className="flex-1">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E]">Check-In</p>
-                        <p className="mt-1 text-[14px] font-extrabold text-[#1a1a1a]">{checkInLabel.main || "—"}</p>
-                        <p className="text-[11px] text-[#9E9E9E]">{checkInLabel.sub || "From 2:00 PM"}</p>
-                      </div>
-
-                      {/* Nights connector — centred between both date columns */}
-                      <div className="flex shrink-0 flex-col items-center gap-1">
-                        <div className="h-px w-10 bg-[#e0e0e0]" />
-                        <span className="rounded-full bg-[#EF6614] px-2.5 py-0.5 text-[11px] font-extrabold text-white shadow-sm">
-                          {displayNights}N
-                        </span>
-                        <div className="h-px w-10 bg-[#e0e0e0]" />
-                      </div>
-
-                      {/* Check-out */}
-                      <div className="flex-1 pl-4">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E]">Check-Out</p>
-                        <p className="mt-1 text-[14px] font-extrabold text-[#1a1a1a]">{checkOutLabel.main || "—"}</p>
-                        <p className="text-[11px] text-[#9E9E9E]">{checkOutLabel.sub || "Until 12:00 PM"}</p>
-                      </div>
-
-                      {/* Divider */}
-                      <div className="mx-4 h-10 w-px bg-[#e8e8e8]" />
-
-                      {/* Guests */}
-                      <div className="shrink-0 text-right">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E]">Guests</p>
-                        <p className="mt-1 text-[14px] font-extrabold text-[#1a1a1a]">{displayAdults} Adult{displayAdults !== 1 ? "s" : ""}</p>
-                        <p className="text-[11px] text-[#9E9E9E]">{displayRooms} room{displayRooms !== 1 ? "s" : ""}{localChildren > 0 ? ` · ${localChildren} child` : ""}</p>
-                      </div>
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-[#eef0f2] bg-[#fafafa] px-4 py-2 text-[11px]">
+                    <div className="flex min-w-0 items-center gap-2 text-[#4b5563]">
+                      <span className="font-bold text-[#1a1a1a]">{roomType.name}</span>
+                      <span className="text-[#c7ccd2]">·</span>
+                      <span className="truncate">{mealLabel} · ₹{formatInrAmount(ratePlan.price)}/night</span>
+                      <span className={cn("font-semibold", ratePlan.nonRefundable ? "text-[#c62828]" : "text-[#2E7D32]")}>{ratePlan.nonRefundable ? "Non-refundable" : "Free cancellation"}</span>
                     </div>
-                  </div>
-                </section>
-
-                {/* ── 2. Room Selection ── */}
-                <section className="overflow-hidden rounded-xl border border-[#e8e8e8] bg-white shadow-sm">
-                  <div className="flex items-center gap-3 p-4">
-                    {/* Room thumbnail */}
-                    <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
-                      <Image src={roomType.image} alt={roomType.name} fill unoptimized className="object-cover" sizes="80px" />
-                    </div>
-
-                    {/* Room details */}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-[14px] font-bold text-[#1a1a1a]">{roomType.name}</p>
-                        <Link href={changeRoomHref} className="shrink-0 text-[11px] font-semibold text-[#EF6614] hover:underline">
-                          Change
-                        </Link>
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#757575]">
-                        {roomType.tags.slice(0, 3).map(t => <span key={t}>{t}</span>)}
-                        <span>Sleeps {roomType.maxOccupancy}</span>
-                        <span className="rounded border border-[#ffe0cc] bg-[#fff8f3] px-1.5 py-0.5 text-[11px] font-semibold text-[#EF6614]">{mealLabel}</span>
-                      </div>
-                      <div className="mt-1.5 flex items-center gap-3 text-[11px]">
-                        <span className={cn("font-medium", ratePlan.nonRefundable ? "text-[#c62828]" : "text-[#2E7D32]")}>
-                          {ratePlan.nonRefundable ? "⚠ Non-refundable" : "✓ Free cancellation"}
-                        </span>
-                        <span className="text-[#bdbdbd]">·</span>
-                        <span className="text-[#9E9E9E]">₹{formatInrAmount(ratePlan.price)}/night · {displayNights}N · {displayRooms} room{displayRooms !== 1 ? "s" : ""}</span>
-                      </div>
-                    </div>
+                    <Link href={changeRoomHref} className="shrink-0 font-semibold text-[#EF6614] hover:underline">Change room</Link>
                   </div>
                 </section>
 
                 {/* ── 3. Guest Details ── */}
-                <section className="overflow-hidden rounded-xl border border-[#e8e8e8] bg-white shadow-sm">
+                <section
+                  ref={guestDetailsRef}
+                  className={cn(
+                    "overflow-hidden rounded-xl border bg-white shadow-sm transition-colors",
+                    guestValidationAttempted && formError ? "border-[#ef5350] shadow-[0_0_0_3px_rgba(239,83,80,0.12)]" : "border-[#e8e8e8]",
+                    guestDetailsShaking && "animate-guest-details-shake",
+                  )}
+                >
                   <div className="border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-4">
                     <div className="flex items-center gap-2">
                       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-[#EF6614] text-[11px] font-extrabold text-[#EF6614]">2</div>
@@ -1146,6 +1210,12 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                     </div>
                   </div>
                   <div className="p-5">
+                    {guestValidationAttempted && formError ? (
+                      <div role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-[#ffcdd2] bg-[#fff5f5] px-3.5 py-2.5 text-[12px] font-medium text-[#c62828]">
+                        <span className="text-base" aria-hidden>⚠️</span>
+                        {formError}
+                      </div>
+                    ) : null}
                     <div className="mb-5 flex items-center gap-2 rounded-lg border border-[#e3f2fd] bg-[#f3f9ff] px-3.5 py-2.5 text-[12px] text-[#1565C0]">
                       <span className="text-base">ℹ️</span>
                       Booking confirmation and e-voucher will be sent to your email and mobile number.
@@ -1172,7 +1242,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                           value={firstName}
                           onChange={(e) => setFirstName(e.target.value)}
                           placeholder="As on ID proof"
-                          className="h-11 w-full rounded-lg border border-[#e0e0e0] px-3 text-[13px] text-[#1a1a1a] outline-none transition placeholder:text-[#bdbdbd] focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10"
+                          className={cn("h-11 w-full rounded-lg border px-3 text-[13px] text-[#1a1a1a] outline-none transition placeholder:text-[#bdbdbd] focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10", guestValidationAttempted && !firstName.trim() ? "border-[#ef5350] bg-[#fffafb]" : "border-[#e0e0e0]")}
                         />
                       </label>
                       <label className="block">
@@ -1181,7 +1251,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                           value={lastName}
                           onChange={(e) => setLastName(e.target.value)}
                           placeholder="As on ID proof"
-                          className="h-11 w-full rounded-lg border border-[#e0e0e0] px-3 text-[13px] text-[#1a1a1a] outline-none transition placeholder:text-[#bdbdbd] focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10"
+                          className={cn("h-11 w-full rounded-lg border px-3 text-[13px] text-[#1a1a1a] outline-none transition placeholder:text-[#bdbdbd] focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10", guestValidationAttempted && !lastName.trim() ? "border-[#ef5350] bg-[#fffafb]" : "border-[#e0e0e0]")}
                         />
                       </label>
                     </div>
@@ -1195,7 +1265,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="e.g. name@email.com"
-                          className="h-11 w-full rounded-lg border border-[#e0e0e0] px-3 text-[13px] text-[#1a1a1a] outline-none transition placeholder:text-[#bdbdbd] focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10"
+                          className={cn("h-11 w-full rounded-lg border px-3 text-[13px] text-[#1a1a1a] outline-none transition placeholder:text-[#bdbdbd] focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10", guestValidationAttempted && (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) ? "border-[#ef5350] bg-[#fffafb]" : "border-[#e0e0e0]")}
                         />
                         <p className="mt-1 text-[10px] text-[#9E9E9E]">Booking confirmation sent here</p>
                       </label>
@@ -1210,10 +1280,10 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                             value={mobile}
                             onChange={(e) => setMobile(e.target.value)}
                             placeholder="10-digit mobile"
-                            className="h-11 min-w-0 flex-1 rounded-lg border border-[#e0e0e0] px-3 text-[13px] text-[#1a1a1a] outline-none transition placeholder:text-[#bdbdbd] focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10"
+                            className={cn("h-11 min-w-0 flex-1 rounded-lg border px-3 text-[13px] text-[#1a1a1a] outline-none transition placeholder:text-[#bdbdbd] focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10", guestValidationAttempted && (!mobile.trim() || mobile.trim().length < 10) ? "border-[#ef5350] bg-[#fffafb]" : "border-[#e0e0e0]")}
                           />
                         </div>
-                        <p className="mt-1 text-[10px] text-[#9E9E9E]">OTP for booking confirmation</p>
+                        <p className="mt-1 text-[10px] text-[#9E9E9E]">Used for booking updates</p>
                       </label>
                     </div>
                   </div>
@@ -1268,20 +1338,21 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                   </div>
                 </section>
 
-                {/* Error */}
-                {formError && (
-                  <div className="flex items-center gap-3 rounded-xl border border-[#ffcdd2] bg-[#fff5f5] px-4 py-3">
-                    <span className="text-[18px]">⚠️</span>
-                    <p className="text-[13px] font-medium text-[#c62828]">{formError}</p>
-                  </div>
-                )}
-
                 {/* Terms */}
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#e8e8e8] bg-white p-4 shadow-sm transition hover:border-[#EF6614]/30 hover:bg-[#fffaf7]">
+                <label ref={agreementRef} className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-xl border bg-white p-4 shadow-sm transition hover:border-[#EF6614]/30 hover:bg-[#fffaf7]",
+                  agreementValidationAttempted ? "border-[#ef5350] bg-[#fffafb] shadow-[0_0_0_3px_rgba(239,83,80,0.1)]" : "border-[#e8e8e8]",
+                )}>
                   <input
                     type="checkbox"
                     checked={agreed}
-                    onChange={(e) => setAgreed(e.target.checked)}
+                    onChange={(e) => {
+                      setAgreed(e.target.checked);
+                      if (e.target.checked) {
+                        setAgreementValidationAttempted(false);
+                        setFormError(null);
+                      }
+                    }}
                     className="mt-0.5 h-4 w-4 shrink-0 accent-[#EF6614]"
                   />
                   <span className="text-[12px] leading-relaxed text-[#616161]">
@@ -1291,6 +1362,9 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                     <span className="font-semibold text-[#EF6614]">Terms &amp; Conditions</span>.
                     By proceeding, I confirm that all guest details are accurate.
                   </span>
+                  {agreementValidationAttempted ? (
+                    <span className="ml-auto shrink-0 text-[11px] font-semibold text-[#c62828]">Required</span>
+                  ) : null}
                 </label>
 
                 {/* Support */}
@@ -1321,7 +1395,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
               </div>
 
               {/* ── RIGHT SIDEBAR ── */}
-              <aside className="order-1 lg:order-2 lg:sticky lg:top-24 lg:self-start">
+              <aside className="order-2 lg:sticky lg:top-24 lg:self-start">
                 <div className="overflow-hidden rounded-xl border border-[#e8e8e8] bg-white shadow-sm">
 
                   {/* Sidebar hotel identity + summary header combined */}
@@ -1515,6 +1589,25 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                       </div>
                     )}
 
+                    {!apiBooking ? (
+                      <fieldset className="mt-4 space-y-2" aria-label="Payment option">
+                        <legend className="text-[12px] font-bold text-[#1a1a1a]">Choose payment option</legend>
+                        {([
+                          { value: "full", title: "Pay full amount online", note: `₹${formatInrAmount(payTotal)} via Razorpay` },
+                          { value: "advance_40", title: "Pay 40% advance", note: `₹${formatInrAmount(Math.round(payTotal * 40) / 100)} now · 60% at hotel` },
+                          { value: "pay_at_hotel", title: "Pay at hotel", note: `₹${formatInrAmount(payTotal)} due at check-in` },
+                        ] as const).map((option) => (
+                          <label key={option.value} className={cn(
+                            "flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2 transition",
+                            paymentPlan === option.value ? "border-[#EF6614] bg-[#FFF7F2]" : "border-[#e8e8e8] hover:border-[#f1b58e]",
+                          )}>
+                            <input type="radio" name="payment-plan" value={option.value} checked={paymentPlan === option.value} onChange={() => setPaymentPlan(option.value)} className="mt-0.5 accent-[#EF6614]" />
+                            <span><span className="block text-[12px] font-bold text-[#1a1a1a]">{option.title}</span><span className="block text-[10px] text-[#757575]">{option.note}</span></span>
+                          </label>
+                        ))}
+                      </fieldset>
+                    ) : null}
+
                     {/* CTA */}
                     {holdExpired ? (
                       <button
@@ -1537,10 +1630,8 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                           "Reduce guests or add rooms"
                         ) : !firstName.trim() || !lastName.trim() || !email.trim() || !mobile.trim() ? (
                           "Fill Details to Continue"
-                        ) : !auth?.isAuthenticated ? (
-                          "Login to Continue"
                         ) : (
-                          "Confirm & Proceed to Pay →"
+                          paymentPlan === "pay_at_hotel" ? "Confirm Booking →" : "Confirm & Proceed to Pay →"
                         )}
                       </button>
                     )}
@@ -1549,7 +1640,7 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
                     <div className="mt-3 space-y-1.5">
                       <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#9E9E9E]">
                         <Lock className="h-3 w-3" aria-hidden />
-                        No payment charged at this step
+                        {paymentPlan === "pay_at_hotel" ? "No payment charged online" : "No payment charged at this step"}
                       </div>
                       <div className="flex items-center justify-center gap-4 text-[10px] text-[#b0b0b0]">
                         <span>🔒 SSL Secured</span>
@@ -1566,24 +1657,29 @@ export function HotelTravellersView({ pathSlug, hotelId, bundle }: HotelTravelle
               </aside>
             </div>
           )}
+          {step === "travellers" ? (
+            <div className="fixed inset-x-0 bottom-0 z-50 border-t border-[#e8e8e8] bg-white/95 px-3 py-2.5 shadow-[0_-8px_28px_rgba(15,23,42,0.12)] backdrop-blur lg:hidden">
+              <div className="mx-auto flex max-w-md items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-medium text-[#7a8491]">Total for {displayNights} night{displayNights !== 1 ? "s" : ""}</p>
+                  <p className="text-[18px] font-extrabold leading-tight text-[#1a1a1a]">₹{formatInrAmount(payTotal)}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleContinueBooking()}
+                  disabled={continuing || occupancyExceeded}
+                  className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-b from-[#f06a1c] to-[#d94d04] px-4 py-3 text-[13px] font-extrabold text-white shadow-[0_4px_14px_rgba(201,78,10,0.35)] disabled:opacity-60"
+                >
+                  {continuing ? <Loader2 className="h-4 w-4 animate-spin" /> : occupancyExceeded ? "Update stay" : "Continue"}
+                  {!continuing && !occupancyExceeded ? <ChevronRight className="h-4 w-4" aria-hidden /> : null}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </main>
       <Footer />
 
-      {/* Auth modal — opens when user clicks Proceed to Pay without being logged in */}
-      <BookingAuthModal
-        open={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        onSuccess={() => {
-          setAuthModalOpen(false);
-          setTimeout(() => void handleContinueBooking(), 50);
-        }}
-        prefill={{
-          name: `${firstName.trim()} ${lastName.trim()}`.trim(),
-          email: email.trim(),
-          phone: mobile.replace(/\D/g, "").slice(-10),
-        }}
-      />
     </>
   );
 }

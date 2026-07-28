@@ -116,7 +116,6 @@ export default async function HotelDetailPage({ params, searchParams }: PageProp
         roomTypes={bundle.roomTypes}
         policies={bundle.policies}
         apiReviews={bundle.reviews}
-        similarHotels={bundle.similarHotels}
         nearbyAttractions={bundle.nearbyAttractions}
         photoCategories={bundle.photoCategories}
       />

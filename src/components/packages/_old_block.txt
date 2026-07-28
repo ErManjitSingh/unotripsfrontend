@@ -1,0 +1,96 @@
+                          {mode === "hotel" && isSelectedHotel && (
+                            <div className="border-t border-[#eef2f6] bg-[#fbfcfe] px-4 py-3">
+                              {stayRoomsQuery.isLoading ? (
+                                <p className="text-xs font-semibold text-[#667085]">
+                                  Loading rooms…
+                                </p>
+                              ) : stayRooms.length === 0 ? (
+                                <p className="text-xs font-semibold text-[#667085]">
+                                  Room details unavailable — the cheapest room will be applied.
+                                </p>
+                              ) : (
+                                <>
+                                  <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.14em] text-[#667085]">
+                                    Choose your room
+                                  </p>
+                                  <div className="space-y-1.5">
+                                    {[...stayRooms]
+                                      .sort((a, b) => Number(a.price) - Number(b.price))
+                                      .map((stayRoom) => {
+                                        // Room impact = this hotel's own upgrade
+                                        // plus whatever this room costs over the
+                                        // hotel's cheapest room.
+                                        const roomImpact =
+                                          room.extra +
+                                          (Number(stayRoom.price) - Number(cheapestRoomPrice ?? 0)) -
+                                          selectedExtra;
+                                        const isRoomSelected =
+                                          pendingRoomTypeId === stayRoom.room_type_id;
+                                        return (
+                                          <button
+                                            key={stayRoom.room_type_id}
+                                            type="button"
+                                            onClick={() => {
+                                              setPendingIndex(activeRoom.index);
+                                              setPendingRoomTypeId(stayRoom.room_type_id);
+                                            }}
+                                            className={cn(
+                                              "flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left transition",
+                                              isRoomSelected
+                                                ? "border-primary bg-white ring-1 ring-primary/15"
+                                                : "border-transparent bg-white/60 hover:border-[#e5eaf0]",
+                                            )}
+                                          >
+                                            <span className="flex min-w-0 items-center gap-2">
+                                              <span
+                                                className={cn(
+                                                  "grid h-4 w-4 shrink-0 place-items-center rounded-full border-2",
+                                                  isRoomSelected
+                                                    ? "border-primary bg-primary"
+                                                    : "border-slate-300 bg-white",
+                                                )}
+                                              >
+                                                {isRoomSelected && (
+                                                  <Check className="h-2.5 w-2.5 text-white" />
+                                                )}
+                                              </span>
+                                              <span className="min-w-0">
+                                                <span className="block truncate text-xs font-bold text-[#172033]">
+                                                  {stayRoom.name}
+                                                </span>
+                                                {stayRoom.max_occupancy ? (
+                                                  <span className="block text-[10px] font-medium text-[#98a2b3]">
+                                                    Sleeps {stayRoom.max_occupancy}
+                                                  </span>
+                                                ) : null}
+                                              </span>
+                                            </span>
+                                            <span className="shrink-0 text-right">
+                                              <span className="block text-xs font-bold text-[#344054]">
+                                                ₹{fmtINR(Number(stayRoom.price))}
+                                              </span>
+                                              <span
+                                                className={cn(
+                                                  "block text-[10px] font-extrabold",
+                                                  roomImpact > 0
+                                                    ? "text-primary"
+                                                    : roomImpact < 0
+                                                      ? "text-[#1b9c5a]"
+                                                      : "text-[#98a2b3]",
+                                                )}
+                                              >
+                                                {roomImpact === 0
+                                                  ? "No change"
+                                                  : roomImpact > 0
+                                                    ? `+₹${fmtINR(roomImpact)}`
+                                                    : `Save ₹${fmtINR(Math.abs(roomImpact))}`}
+                                              </span>
+                                            </span>
+                                          </button>
+                                        );
+                                      })}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}

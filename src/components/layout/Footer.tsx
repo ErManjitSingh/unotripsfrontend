@@ -1,6 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone } from "lucide-react";
+import {
+  Facebook,
+  Instagram,
+  Linkedin,
+  Mail,
+  MapPin,
+  Phone,
+  Youtube,
+} from "lucide-react";
 import { FOOTER_COLUMNS, SITE } from "@/lib/constants";
 import { siteTelHref } from "@/lib/site-contact";
 import { cn } from "@/lib/utils";
@@ -10,9 +18,26 @@ export type FooterProps = {
 };
 
 const SOCIAL = [
-  { href: "https://www.instagram.com/", icon: Instagram, label: "Instagram" },
-  { href: "https://www.facebook.com/",  icon: Facebook,  label: "Facebook"  },
-  { href: "https://www.linkedin.com/",  icon: Linkedin,  label: "LinkedIn"  },
+  {
+    href: "https://www.instagram.com/uno_trips/",
+    icon: Instagram,
+    label: "Instagram",
+  },
+  {
+    href: "https://www.youtube.com/@UnoTrips",
+    icon: Youtube,
+    label: "YouTube",
+  },
+  {
+    href: "https://www.facebook.com/profile.php?id=61585094895115",
+    icon: Facebook,
+    label: "Facebook",
+  },
+  {
+    href: "https://www.linkedin.com/in/uno-trips-4b05833b1",
+    icon: Linkedin,
+    label: "LinkedIn",
+  },
 ] as const;
 
 export function Footer({ className }: FooterProps) {
@@ -32,7 +57,7 @@ export function Footer({ className }: FooterProps) {
             {/* Logo — sits naturally on white */}
             <Link href="/">
               <Image
-                src="/images/homelogo.webp"
+                src="/images/homelogo-transparent.png"
                 alt="UNO Trips"
                 width={180}
                 height={56}
@@ -135,7 +160,7 @@ export function Footer({ className }: FooterProps) {
         <div className="flex flex-col gap-3 border-t border-slate-100 py-4 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/">
             <Image
-              src="/images/homelogo.webp"
+              src="/images/homelogo-transparent.png"
               alt="UNO Trips"
               width={80}
               height={26}

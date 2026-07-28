@@ -14,6 +14,7 @@ export type PopularDestinationCard = {
   description: string;
   href: string;
   image: string;
+  fallbackImage?: string;
   featured: boolean;
   hotelCount?: number;
   startingPrice?: number;
@@ -27,6 +28,8 @@ function DestinationCard({
   showTopPick?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const [src, setSrc] = useState(destination.image);
+  const fallbackSrc = destination.fallbackImage || "/images/hotels/hero-banner.webp";
 
   return (
     <Link
@@ -42,7 +45,7 @@ function DestinationCard({
       <div className="relative aspect-[16/9] w-full">
         {!loaded ? <Skeleton className="absolute inset-0 z-[1]" /> : null}
         <Image
-          src={destination.image}
+          src={src}
           alt={destination.name}
           fill
           className={cn(
@@ -51,6 +54,12 @@ function DestinationCard({
           )}
           sizes="340px"
           onLoad={() => setLoaded(true)}
+          onError={() => {
+            if (src !== fallbackSrc) {
+              setLoaded(false);
+              setSrc(fallbackSrc);
+            }
+          }}
           unoptimized
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/35 to-transparent" aria-hidden />

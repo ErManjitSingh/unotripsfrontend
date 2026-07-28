@@ -36,7 +36,7 @@ const LIST_PROPERTY_CTA = {
 const SOON_NAV_IDS = new Set<string>(["flights", "trains", "bus", "cabs"]);
 
 const EASE_MAIN_NAV: EaseNavItem[] = [
-  { id: "holidays",   label: "HOLIDAYS",   href: "/"           },
+  { id: "holidays",   label: "HOLIDAYS",   href: "/packages"   },
   { id: "hotels",     label: "HOTELS",     href: "/hotels"     },
   { id: "activities", label: "ACTIVITIES", href: "/activities" },
   { id: "flights",    label: "FLIGHTS",    href: "/flights"    },
@@ -109,7 +109,7 @@ export function Navbar({
                   className="object-contain object-left"
                   sizes="(max-width: 640px) 108px, 124px"
                   priority
-                  onError={() => setEaseLogoSrc("/images/homelogo.webp")}
+                  onError={() => setEaseLogoSrc("/images/homelogo-transparent.png")}
                 />
               </span>
             </Link>

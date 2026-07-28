@@ -74,6 +74,11 @@ const nextConfig: NextConfig = {
         hostname: "www.unotrips.com",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "storage.unotrips.com",
+        pathname: "/**",
+      },
 
       // ── Stock / marketing images ──────────────────────────────────────────
       {

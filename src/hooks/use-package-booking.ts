@@ -17,7 +17,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import {
   openRazorpayCheckout,
-  getRazorpayKeyId,
   type RazorpaySuccessResponse,
 } from "@/lib/razorpay-checkout";
 import { apiData } from "@/lib/api";
@@ -40,7 +39,10 @@ export type PackageBookingPayload = {
   rooms:                      RoomConfig[];
   travel_date:                string | null;
   special_requests:           string | null;
-  selected_hotel_option_ids:  string[];
+  /** Typed hotel+room selections — each entry has option_id + room_type_id. */
+  selected_hotels:            Array<{ option_id: string; room_type_id: string | null }>;
+  /** Chosen advance %. Server clamps to the package minimum. */
+  token_percent?:             number | null;
   selected_cab_option_id:     string | null;
   selected_sightseeing_ids:   string[];
   selected_activity_link_ids: string[];
@@ -175,13 +177,17 @@ export function usePackageBooking(slug: string) {
     try {
       setState({ phase: "awaiting_payment", message: "Resuming payment…" });
 
+      if (!recoveryData.razorpay_key_id || !recoveryData.razorpay_order_id) {
+        throw new Error("This payment session is incomplete. Please create a new booking.");
+      }
+
       const payDesc =
         recoveryData.payment_type === "token"
           ? `Token payment (40%) — ₹${recoveryData.token_amount.toLocaleString("en-IN")}`
           : `Full payment — ₹${recoveryData.total_amount.toLocaleString("en-IN")}`;
 
       await openRazorpayCheckout({
-        keyId:       recoveryData.razorpay_key_id || getRazorpayKeyId(),
+        keyId:       recoveryData.razorpay_key_id,
         orderId:     recoveryData.razorpay_order_id,
         amountPaise: recoveryData.amount_paise,
         currency:    recoveryData.currency,
@@ -251,7 +257,7 @@ export function usePackageBooking(slug: string) {
           rooms:                      payload.rooms,
           travel_date:                payload.travel_date,
           special_requests:           payload.special_requests,
-          selected_hotel_option_ids:  payload.selected_hotel_option_ids,
+          selected_hotels:            payload.selected_hotels,
           selected_cab_option_id:     payload.selected_cab_option_id,
           selected_sightseeing_ids:   payload.selected_sightseeing_ids,
           selected_activity_link_ids: payload.selected_activity_link_ids,
@@ -287,6 +293,13 @@ export function usePackageBooking(slug: string) {
           return;
         }
 
+        // The backend creates the Razorpay order and owns the key that is
+        // authorised for it. Falling back to a browser environment key can
+        // pair an order with a different account and make checkout fail.
+        if (!orderData.razorpay_key_id || !orderData.razorpay_order_id) {
+          throw new Error("Payment service did not return a valid Razorpay order. Please try again.");
+        }
+
         // ── Save recovery data ──────────────────────────────────────────
         saveRecovery(slug, {
           booking_id:        orderData.booking_id,
@@ -312,7 +325,7 @@ export function usePackageBooking(slug: string) {
             : `Full payment — ₹${orderData.total_amount.toLocaleString("en-IN")}`;
 
         await openRazorpayCheckout({
-          keyId:       orderData.razorpay_key_id || getRazorpayKeyId(),
+          keyId:       orderData.razorpay_key_id,
           orderId:     orderData.razorpay_order_id,
           amountPaise: orderData.amount_paise,
           currency:    orderData.currency,
@@ -399,10 +412,14 @@ export function usePackageBooking(slug: string) {
           body:    JSON.stringify({ booking_id: bookingId }),
         });
 
+        if (!orderData.razorpay_key_id || !orderData.razorpay_order_id) {
+          throw new Error("Payment service did not return a valid Razorpay balance order. Please try again.");
+        }
+
         setState({ phase: "awaiting_payment", message: "Opening payment window…" });
 
         await openRazorpayCheckout({
-          keyId:       orderData.razorpay_key_id || getRazorpayKeyId(),
+          keyId:       orderData.razorpay_key_id,
           orderId:     orderData.razorpay_order_id,
           amountPaise: orderData.amount_paise,
           currency:    orderData.currency,

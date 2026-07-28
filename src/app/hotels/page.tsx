@@ -6,11 +6,9 @@ import { TravelMobileTopShell } from "@/components/home/HeroSection";
 import { HotelsSearchHero } from "@/components/hotels/hotels-search-hero";
 import { HotelsFeaturedDestinations } from "@/components/hotels/hotels-featured-destinations";
 import { HotelsExclusiveOffers } from "@/components/hotels/hotels-exclusive-offers";
-import { HotelsPopularDestinationsSection } from "@/components/hotels/hotels-popular-destinations-section";
 import { HotelsPopularHotelsSection } from "@/components/hotels/hotels-popular-hotels-section";
 import { HotelsPageCta } from "@/components/hotels/hotels-page-cta";
-import { fetchFeaturedHotels, fetchHotelDestinations } from "@/lib/hotels-api";
-import { hotelHref } from "@/lib/hotels-catalog";
+import { fetchAllHotels } from "@/lib/hotels-api";
 import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
 import {
   HotelsExclusiveOffersSkeleton,
@@ -29,21 +27,18 @@ export const metadata: Metadata = {
     "Search hotels by city, check-in dates, and guests. Exclusive offers and lowest price guarantee with UNO Trips.",
 };
 
-async function HotelsDynamicSections() {
-  const [destinations, featuredHotels] = await Promise.all([
-    fetchHotelDestinations(),
-    fetchFeaturedHotels(),
-  ]);
+async function HotelsDynamicSections({
+  featuredHotels,
+}: {
+  featuredHotels: Awaited<ReturnType<typeof fetchAllHotels>>["hotels"];
+}) {
   const ctaHotel = featuredHotels[0] ?? null;
 
   return (
     <div className="bg-gradient-to-b from-slate-50 via-white to-slate-50">
-      <HotelsPopularDestinationsSection destinations={destinations} />
       <HotelsPopularHotelsSection
         hotels={featuredHotels}
-        viewMoreHref={
-          destinations[0]?.slug ? hotelHref(destinations[0].slug) : "/hotels#popular-destinations"
-        }
+        viewMoreHref="/hotels#popular-destinations"
       />
       <HotelsExclusiveOffers />
       <HotelsPageCta hotel={ctaHotel} />
@@ -60,7 +55,9 @@ function HotelsSectionsFallback() {
   );
 }
 
-export default function HotelsPage() {
+export default async function HotelsPage() {
+  const { hotels: featuredDestinationHotels } = await fetchAllHotels(80);
+
   return (
     <>
       <main className="min-h-screen bg-slate-50">
@@ -73,9 +70,9 @@ export default function HotelsPage() {
           defaultCountry="India"
           defaultSlug="shimla"
         />
-        <HotelsFeaturedDestinations />
+        <HotelsFeaturedDestinations hotels={featuredDestinationHotels} />
         <Suspense fallback={<HotelsSectionsFallback />}>
-          <HotelsDynamicSections />
+          <HotelsDynamicSections featuredHotels={featuredDestinationHotels} />
         </Suspense>
       </main>
       <Footer />

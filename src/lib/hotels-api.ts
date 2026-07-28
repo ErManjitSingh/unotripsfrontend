@@ -13,17 +13,17 @@
  *   5. fetchRelatedHotels()       → waits for step 4
  *   Total: 5 DB connections, fully serial, ~1-2s waterfall
  *
- * AFTER (2 parallel API calls):
- *   Step A: fetchHotelDetail() + fetchRelatedHotels() → Promise.all (parallel)
- *   Step B: city extracted from detail response       → zero extra API call
- *   Total: 2 DB connections, parallel, ~200-400ms
+ * AFTER (one critical API call):
+ *   Step A: fetchHotelDetail() → city extracted from response
+ *   Step B: related hotels load client-side only after the visitor scrolls
+ *   Total: one DB connection before the hotel detail page can render
  *
  * WHY THIS WORKS:
  *   The hotel detail response (ApiHotelDetail) already contains:
  *     - city, state, country    → build HotelCity directly, no destination fetch
  *     - rooms, reviews          → no separate endpoints needed
  *     - policies, attractions   → all in one response
- *     - hotel.id                → pass to fetchRelatedHotels() in parallel
+ *     - hotel.id                → used later for the deferred related-hotels request
  *
  *   fetchHotelSlugs() was used only to look up the city for a slug, then pass
  *   it to fetchHotelDetail(city, slug). But our URL already contains the slug,
@@ -39,7 +39,8 @@
  *   Next.js deduplicates fetch() calls with the same URL within a single
  *   request lifecycle via its built-in request memoisation. This works because
  *   apiFetch() uses native fetch() under the hood via apiJson().
- *   Net result: 2 calls to getHotelDetailBundle() = 2 API calls total (not 4).
+ *   Net result: metadata/page rendering share the same detail request where
+ *   the URL parameters match.
  *
  * OTHER FUNCTIONS UNCHANGED:
  *   fetchHotelSlugs, fetchPopularDestinations, fetchHotelDestinations,
@@ -54,6 +55,7 @@ import {
   type HotelBookingSelection,
   type HotelCity,
   type HotelListing,
+  type HotelLocalityOption,
   type HotelPhotoCategory,
   type HotelRoomRatePlan,
   type HotelRoomType,
@@ -107,6 +109,10 @@ export type ApiHotel = {
   is_verified: boolean;
   collection_type: string | null;
   photo_categories?: ApiPhotoCategory[];
+  locality_name?: string | null;
+  locality_slug?: string | null;
+  distance_from_search_km?: number | null;
+  search_location_label?: string | null;
 };
 
 type ApiRatePlanPrices = {
@@ -144,6 +150,13 @@ export type ApiRoomType = {
   available_count: number;
   meal_plans?: ApiMealPlans;
   rates?: ApiRates | null;
+  rate_plan_prices?: Record<string, {
+    price: number;
+    gst: number;
+    tcs: number;
+    taxes: number;
+    total: number;
+  }>;
   price_is_for_dates?: boolean;
   total_price?: number | null;
   nightly_breakdown?: { date: string; price: number }[];
@@ -174,6 +187,10 @@ export type ApiReview = {
 };
 
 export type ApiHotelDetail = ApiHotel & {
+  starting_price_summary: {
+    price: number; nights: number; rooms: number; subtotal: number;
+    gst: number; tcs: number; taxes: number; total: number;
+  };
   rooms: ApiRoomType[];
   policies: ApiHotelPolicies;
   reviews: ApiReview[];
@@ -206,8 +223,24 @@ export type ApiHotelSlug = {
   updated_at: string;
 };
 
+export type ApiHotelLocality = {
+  id: string;
+  slug: string;
+  city: string;
+  city_slug: string;
+  name: string;
+  state?: string | null;
+  country: string;
+  description?: string | null;
+  latitude: number;
+  longitude: number;
+  aliases: string[];
+};
+
 export type HotelSearchParams = {
   city?: string;
+  q?: string;
+  locality_slug?: string;
   check_in?: string;
   check_out?: string;
   adults?: number;
@@ -231,7 +264,6 @@ export type HotelDetailBundle = {
   reviews: ApiReview[];
   nearbyAttractions: string[];
   photoCategories: HotelPhotoCategory[];
-  similarHotels: HotelListing[];
 };
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -260,6 +292,24 @@ function roomTaxes(pricePerNight: number): number {
 
 function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
   const web = room.rates?.website;
+  // The backend's `rate_plan_prices` amounts are for the complete selected
+  // stay (one room). The room UI and checkout multiply its plan figures by
+  // nights/rooms, so normalize those authoritative amounts back to one night
+  // here. This also makes the displayed pre-tax price match PricingEngine
+  // instead of the raw admin rate card.
+  const stayNights = Math.max(1, room.nightly_breakdown?.length ?? 1);
+  const livePlanPrice = (suffix: string, fallback: number) => {
+    const live = room.rate_plan_prices?.[suffix];
+    return live ? live.price / stayNights : fallback;
+  };
+  const livePlanTaxes = (suffix: string, fallbackPrice: number) => {
+    const live = room.rate_plan_prices?.[suffix];
+    return live ? live.taxes / stayNights : roomTaxes(fallbackPrice);
+  };
+  const livePlanTotal = (suffix: string, fallbackPrice: number) => {
+    const live = room.rate_plan_prices?.[suffix];
+    return live ? live.total / stayNights : fallbackPrice + roomTaxes(fallbackPrice);
+  };
 
   // ── New per-plan pricing (rates.website) ─────────────────────────────────
   if (web?.room?.ep) {
@@ -269,6 +319,13 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
     const ap  = web.room.ap  ? Math.round(web.room.ap)  : null;
 
     const originalBase = room.original_price != null ? Math.round(room.original_price) : null;
+    // When dates are not in the URL, the API returns the configured website
+    // rates but no per-plan tax breakdown. `price_per_night` already includes
+    // the applicable weekday/weekend adjustment for EP, so apply that same
+    // multiplier to every meal plan before calculating its tax-inclusive total.
+    const rateMultiplier = ep > 0 && room.price_per_night > 0
+      ? room.price_per_night / ep
+      : 1;
 
     const makePlan = (
       suffix:       string,
@@ -277,17 +334,20 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
       planPrice:    number,
       showBestValueBadge?: boolean,
     ): HotelRoomRatePlan => {
-      const originalPrice = originalBase != null ? originalBase + (planPrice - ep) : planPrice;
+      const adjustedPlanPrice = Math.round(planPrice * rateMultiplier);
+      const livePrice = livePlanPrice(suffix, adjustedPlanPrice);
+      const originalPrice = originalBase != null ? originalBase + (livePrice - ep) : livePrice;
       return {
         id: `${room.id}-${suffix}`,
         packageName,
         benefits,
         roomBasePrice: ep,
-        mealAddOn: planPrice - ep,
+        mealAddOn: livePrice - ep,
         originalPrice,
-        price: planPrice,
-        taxes: roomTaxes(planPrice),
-        discountAmount: originalBase != null ? Math.max(0, originalPrice - planPrice) : 0,
+        price: livePrice,
+        taxes: livePlanTaxes(suffix, livePrice),
+        total: livePlanTotal(suffix, livePrice),
+        discountAmount: originalBase != null ? Math.max(0, originalPrice - livePrice) : 0,
         nonRefundable: false,
         couponCode: "",
         showBestValueBadge,
@@ -314,7 +374,7 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
     mealCost:         number,
     showBestValueBadge?: boolean,
   ): HotelRoomRatePlan => {
-    const price         = basePrice + mealCost;
+    const price         = livePlanPrice(suffix, basePrice + mealCost);
     const originalPrice = originalBase != null ? originalBase + mealCost : price;
     return {
       id: `${room.id}-${suffix}`,
@@ -324,7 +384,8 @@ function buildRoomRatePlans(room: ApiRoomType): HotelRoomRatePlan[] {
       mealAddOn: mealCost,
       originalPrice,
       price,
-      taxes: roomTaxes(price),
+      taxes: livePlanTaxes(suffix, price),
+      total: livePlanTotal(suffix, price),
       discountAmount: originalBase != null ? Math.max(0, originalPrice - price) : 0,
       nonRefundable: false,
       couponCode: "",
@@ -369,6 +430,30 @@ export function citySlugFromName(city: string): string {
   return city.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
+function cleanAddressPart(part: string): string {
+  return part.trim().replace(/\s+/g, " ");
+}
+
+function hotelAreaFromAddress(address: string, city: string): string {
+  const cityLower = city.trim().toLowerCase();
+  const parts = address
+    .split(",")
+    .map(cleanAddressPart)
+    .filter(Boolean)
+    .filter((part) => {
+      const lower = part.toLowerCase();
+      return (
+        lower !== cityLower &&
+        !/^\d{5,6}$/.test(lower) &&
+        !lower.includes("himachal pradesh") &&
+        lower !== "india"
+      );
+    });
+
+  const locality = parts.find((part) => !/\d/.test(part)) ?? parts[0];
+  return locality || city;
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit & { next?: { revalidate?: number; tags?: string[] } }): Promise<T | null> {
   const result = await apiJson<T>(path, {
     ...init,
@@ -398,6 +483,7 @@ export function mapApiHotelToListing(h: ApiHotel): HotelListing {
   const original  = Math.round(price * 1.15);
   const images    = collectHotelImages(h);
   const tagLower  = h.tags.map((t) => t.toLowerCase());
+  const area      = h.locality_name?.trim() || hotelAreaFromAddress(h.address, h.city);
 
   return {
     id:           h.id,
@@ -405,8 +491,8 @@ export function mapApiHotelToListing(h: ApiHotel): HotelListing {
     citySlug,
     name:         h.name,
     stars:        h.star_category,
-    area:         h.address.split(",")[0]?.trim() || h.city,
-    locationLine: formatHotelCardLocation(h.city, h.state),
+    area,
+    locationLine: area ? `${area} | In ${h.city}` : formatHotelCardLocation(h.city, h.state),
     tags:         h.tags,
     amenities:    h.amenities.map((a) => a.toLowerCase()),
     amenityMoreCount: Math.max(0, h.amenities.length - 4),
@@ -443,6 +529,8 @@ export function mapApiHotelToListing(h: ApiHotel): HotelListing {
     address:    h.address,
     state:      h.state,
     country:    h.country,
+    distanceFromSearchKm: h.distance_from_search_km ?? undefined,
+    searchLocationLabel:  h.search_location_label ?? undefined,
   };
 }
 
@@ -521,6 +609,8 @@ export async function searchHotels(
     const apiCity = await resolveApiCityName(params.city);
     q.set("city", apiCity);
   }
+  if (params.q) q.set("q", params.q);
+  if (params.locality_slug) q.set("locality_slug", params.locality_slug);
   if (params.check_in)       q.set("check_in",      params.check_in);
   if (params.check_out)      q.set("check_out",     params.check_out);
   if (params.adults   != null) q.set("adults",     String(params.adults));
@@ -549,6 +639,28 @@ export async function fetchFeaturedHotels(): Promise<HotelListing[]> {
   const raw = await apiFetch<ApiHotel[]>("/v1/hotels/featured", { next: { revalidate: 300 } });
   if (raw?.length) return raw.map(mapApiHotelToListing);
   return [];
+}
+
+export async function fetchHotelLocalities(city?: string, q?: string): Promise<HotelLocalityOption[]> {
+  const params = new URLSearchParams();
+  if (city) params.set("city", city);
+  if (q) params.set("q", q);
+  params.set("limit", "100");
+  const qs = params.toString();
+  const raw = await apiFetch<ApiHotelLocality[]>(`/v1/hotels/localities${qs ? `?${qs}` : ""}`, {
+    next: { revalidate: 600 },
+  });
+  return (raw ?? []).map((item) => ({
+    slug: item.slug,
+    citySlug: item.city_slug,
+    city: item.city,
+    name: item.name,
+    state: item.state ?? undefined,
+    country: item.country,
+    description: item.description ?? "",
+    latitude: item.latitude,
+    longitude: item.longitude,
+  }));
 }
 
 /** Every hotel from search API (featured endpoint only returns a subset). */
@@ -872,8 +984,8 @@ async function _fetchDetailWithCityFallback(
 /**
  * getHotelDetailBundle
  *
- * Returns everything the hotel detail page and booking page need in one call.
- * Internally fires exactly 2 parallel API requests for 99.9% of traffic.
+ * Returns the data required for the initial hotel detail page in one request.
+ * Similar hotels are intentionally fetched client-side after the first fold.
  *
  * @param cityParam   - City slug from the URL (e.g. "shimla", "dharamshala")
  * @param hotelSlugOrId - Hotel slug from the URL (e.g. "hotel-willow-banks")
@@ -888,44 +1000,28 @@ export async function getHotelDetailBundle(
 ): Promise<HotelDetailBundle | null> {
   const hotelSlug = decodeURIComponent(hotelSlugOrId).trim();
 
-  // ── STEP 1: Fire both API calls in parallel ───────────────────────────────
-  //
-  // detail: the main hotel data — rooms, reviews, policies, attractions, photos
-  // related: similar hotels in the same city (small list, quick query)
-  //
-  // We don't need to wait for `detail` to start `related` because we know
-  // the hotel ID from the slug — the related endpoint accepts hotel_id, but
-  // we need the ID from the detail response. So we actually need to run
-  // detail first, then related.
-  //
-  // HOWEVER: We can still save 3 calls vs the old code (slug lookup,
-  // destination lookup, popular destinations lookup) by eliminating them all.
-  // Those 3 were the real bottleneck. detail → related is only 2 calls total.
-  //
-  // To truly parallelise detail + related we would need the hotel ID in the URL,
-  // which it is — `hotelId` param in the page is the hotel slug, not UUID.
-  // The related endpoint takes hotel_id (UUID), which we only get from detail.
-  // So: detail runs first, related runs immediately after using detail.id.
-  // This is still 2x faster than the old 5-call waterfall.
+  // The primary detail payload contains everything needed above the fold.
+  // Keep the server render to this request so ad landings do not wait for
+  // content that is only visible after the visitor scrolls.
 
-  const detail = await _fetchDetailWithCityFallback(
+  let detail = await _fetchDetailWithCityFallback(
     cityParam,
     hotelSlug,
     checkIn,
     checkOut,
   );
+
+  // A date-aware detail request includes availability and all board-rate
+  // calculations. If that optional enrichment fails upstream, do not turn a
+  // real hotel into a fake Next.js 404. Fall back to its normal detail payload;
+  // the booking submission still performs the authoritative live availability
+  // check before payment.
+  if (!detail && (checkIn || checkOut)) {
+    detail = await _fetchDetailWithCityFallback(cityParam, hotelSlug);
+  }
   if (!detail) return null;
 
-  // ── STEP 2: Fire related hotels in parallel with data mapping ────────────
-  //
-  // While we map the detail response (pure CPU, no I/O), the related hotels
-  // query is already in flight. By the time mapping finishes, related is ready.
-
-  const [similarHotels] = await Promise.all([
-    fetchRelatedHotels(detail.id, 4),
-  ]);
-
-  // ── STEP 3: Build the bundle from the detail response — no extra calls ────
+  // Build the bundle from the detail response — no extra network calls.
 
   let hotel        = mapApiHotelToListing(detail);
   const city       = buildCityFromDetail(detail);   // ← extracted from detail, zero API call
@@ -958,6 +1054,7 @@ export async function getHotelDetailBundle(
     city,
     hotel: {
       ...hotel,
+      startingPriceSummary: detail.starting_price_summary,
       roomOptionsCount: roomTypes.length,
       defaultRoomType:  roomTypes[0]?.name ?? hotel.defaultRoomType,
       nearbyLandmark:   detail.nearby_attractions?.[0] ?? hotel.nearbyLandmark,
@@ -969,7 +1066,6 @@ export async function getHotelDetailBundle(
     reviews:          detail.reviews           ?? [],
     nearbyAttractions: detail.nearby_attractions ?? [],
     photoCategories,
-    similarHotels,
   };
 }
 
