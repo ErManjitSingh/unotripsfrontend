@@ -1087,18 +1087,6 @@ export function CabsBookingExperience() {
         </div>
       </main>
 
-      <div className="fixed inset-x-3 bottom-3 z-30 sm:hidden">
-        {routeReady && !routeDetailsUnlocked ? (
-          <button type="button" onClick={() => { setAuthModalIntent("quotes"); setAuthModalOpen(true); }} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-5 py-3 text-base font-extrabold text-white shadow-[0_12px_28px_-10px_rgba(239,102,20,0.85)]">
-            Sign in to add trip details <ArrowRight className="h-5 w-5" />
-          </button>
-        ) : (
-          <button type="submit" form="cab-booking-form" disabled={postingRequest || !canSubmit} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-5 py-3 text-base font-extrabold text-white shadow-[0_12px_28px_-10px_rgba(239,102,20,0.85)] disabled:cursor-not-allowed disabled:opacity-45">
-            {postingRequest ? "Posting your request…" : !routeReady ? "Choose pickup and destination" : "Get free quotes"} <ArrowRight className="h-5 w-5" />
-          </button>
-        )}
-      </div>
-
       <footer className="bg-[#211b21] text-white"><div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.2fr_0.7fr_0.7fr_1fr]"><div><Image src="/images/homelogo-transparent.png" alt="UNO Trips" width={180} height={56} className="h-11 w-auto brightness-0 invert" /><p className="mt-4 max-w-xs text-sm leading-6 text-white/60">UNO Cabs connects travellers with verified cab partners for more transparent trip choices.</p><div className="mt-5 flex items-center gap-2 text-sm font-semibold text-orange-200"><UserRoundCheck className="h-4 w-4" /> Partner-first trip matching</div></div><div><h2 className="text-sm font-extrabold">Ride types</h2><ul className="mt-4 space-y-3 text-sm text-white/60"><li>Outstation trips</li><li>Hourly rentals</li><li>Airport transfers</li></ul></div><div><h2 className="text-sm font-extrabold">UNO Cabs</h2><ul className="mt-4 space-y-3 text-sm text-white/60"><li><a href="#cab-booking-form" className="hover:text-orange-200">Post a trip</a></li><li><Link href="/cabs/list-your-cab" className="hover:text-orange-200">List your cab</Link></li><li><a href="#" className="hover:text-orange-200">How it works</a></li><li><a href="#" className="hover:text-orange-200">Support</a></li></ul></div><div><h2 className="text-sm font-extrabold">Need help?</h2><p className="mt-4 text-sm leading-6 text-white/60">Questions about a route or partner quote? Our trip support team is here to help.</p><a href="tel:+919999999999" className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-orange-200 hover:text-orange-100"><PhoneCall className="h-4 w-4" /> Contact support</a></div></div><div className="border-t border-white/10"><div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-5 text-xs text-white/45 sm:flex-row sm:items-center sm:justify-between sm:px-6"><span>© {new Date().getFullYear()} UNO Trips. All rights reserved.</span><span>UNO Cabs · Compare partner quotes with confidence</span></div></div></footer>
     </div>
   );
