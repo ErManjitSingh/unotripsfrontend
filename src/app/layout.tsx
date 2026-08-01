@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { Dancing_Script, Playfair_Display, Roboto } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import { TopBanner } from "@/components/layout/top-banner";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { MarketingTracking } from "@/components/marketing/MarketingTracking";
+import { CookieConsentBanner } from "@/components/marketing/CookieConsentBanner";
 import { HERO_SLIDES, SITE } from "@/lib/constants";
 import "./globals.css";
 
@@ -116,34 +117,13 @@ export default function RootLayout({
       className={`${dancingScript.variable} ${roboto.variable} ${playfairDisplay.variable}`}
     >
       <body className="min-h-screen font-sans" suppressHydrationWarning>
-        <Script id="meta-pixel" strategy="afterInteractive">
-          {`
-            !function(f,b,e,v,n,t,s)
-            {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-            n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-            if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-            n.queue=[];t=b.createElement(e);t.async=!0;
-            t.src=v;s=b.getElementsByTagName(e)[0];
-            s.parentNode.insertBefore(t,s)}(window, document,'script',
-            'https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', '1749891646008468');
-            fbq('track', 'PageView');
-          `}
-        </Script>
-        <noscript>
-          <img
-            height="1"
-            width="1"
-            style={{ display: "none" }}
-            src="https://www.facebook.com/tr?id=1749891646008468&ev=PageView&noscript=1"
-            alt=""
-          />
-        </noscript>
+        <MarketingTracking />
         <JsonLd />
         <AppProviders>
           <TopBanner />
           {children}
         </AppProviders>
+        <CookieConsentBanner />
       </body>
     </html>
   );

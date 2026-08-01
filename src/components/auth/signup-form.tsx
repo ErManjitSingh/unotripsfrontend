@@ -10,11 +10,9 @@ import { cn } from "@/lib/utils";
 
 type SignupFormProps = {
   redirectTo?: string;
-  /** When provided, pre-fills name/email/phone from the booking form. */
   initialName?: string;
   initialEmail?: string;
   initialPhone?: string;
-  /** When provided, called instead of navigateAfterAuth — prevents full page reload inside modals. */
   onAuthComplete?: () => void;
 };
 
@@ -75,120 +73,126 @@ export function SignupForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <p className="rounded-md bg-[#FFF3E0] px-3 py-1.5 text-[11px] leading-relaxed text-[#E65100]">
-        Your account will be created as a <strong>Guest</strong> — book hotels and manage trips easily.
+      <p className="text-[12px] leading-snug text-[#7a7178]">
+        Book hotels, holidays, and cab quotes with one account.
       </p>
 
-      <div>
-        <label htmlFor="signup-name" className="mb-1 block text-[13px] font-medium text-[#424242]">
-          Full name
-        </label>
-        <Input
-          id="signup-name"
-          type="text"
-          autoComplete="name"
-          required
-          minLength={2}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="rounded-lg border-[#e0e0e0]"
-          disabled={loading}
-        />
-      </div>
-
-      <div>
-        <label htmlFor="signup-email" className="mb-1 block text-[13px] font-medium text-[#424242]">
-          Email
-        </label>
-        <Input
-          id="signup-email"
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded-lg border-[#e0e0e0]"
-          disabled={loading}
-        />
-      </div>
-
-      <div>
-        <label htmlFor="signup-phone" className="mb-1 block text-[13px] font-medium text-[#424242]">
-          Mobile
-        </label>
-        <div className="flex gap-2">
-          <span className="flex h-10 items-center rounded-xl border border-slate-200/80 bg-slate-50 px-3 text-sm text-[#616161]">
-            +91
-          </span>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor="signup-name" className="mb-1 block text-[12px] font-semibold text-[#403842]">
+            Full name
+          </label>
           <Input
-            id="signup-phone"
-            type="tel"
-            inputMode="numeric"
-            autoComplete="tel"
-            placeholder="10-digit number"
-            maxLength={10}
+            id="signup-name"
+            type="text"
+            autoComplete="name"
             required
-            value={phone}
-            onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-            className="rounded-lg border-[#e0e0e0]"
+            minLength={2}
+            placeholder="Your full name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="h-10 rounded-xl border-[#e4dbd5]"
+            disabled={loading}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="signup-email" className="mb-1 block text-[12px] font-semibold text-[#403842]">
+            Email
+          </label>
+          <Input
+            id="signup-email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="h-10 rounded-xl border-[#e4dbd5]"
+            disabled={loading}
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <label htmlFor="signup-phone" className="mb-1 block text-[12px] font-semibold text-[#403842]">
+            Mobile
+          </label>
+          <div className="flex gap-2">
+            <span className="flex h-10 items-center rounded-xl border border-[#e4dbd5] bg-[#faf7f5] px-3 text-sm font-semibold text-[#616161]">
+              +91
+            </span>
+            <Input
+              id="signup-phone"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              placeholder="10-digit number"
+              maxLength={10}
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              className="h-10 rounded-xl border-[#e4dbd5]"
+              disabled={loading}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="signup-password" className="mb-1 block text-[12px] font-semibold text-[#403842]">
+            Password
+          </label>
+          <Input
+            id="signup-password"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            placeholder="Min. 8 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="h-10 rounded-xl border-[#e4dbd5]"
+            disabled={loading}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="signup-confirm" className="mb-1 block text-[12px] font-semibold text-[#403842]">
+            Confirm password
+          </label>
+          <Input
+            id="signup-confirm"
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            placeholder="Re-enter password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            className="h-10 rounded-xl border-[#e4dbd5]"
             disabled={loading}
           />
         </div>
       </div>
 
-      <div>
-        <label htmlFor="signup-password" className="mb-1 block text-[13px] font-medium text-[#424242]">
-          Password
-        </label>
-        <Input
-          id="signup-password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="rounded-lg border-[#e0e0e0]"
-          disabled={loading}
-        />
-      </div>
-
-      <div>
-        <label htmlFor="signup-confirm" className="mb-1 block text-[13px] font-medium text-[#424242]">
-          Confirm password
-        </label>
-        <Input
-          id="signup-confirm"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          className="rounded-lg border-[#e0e0e0]"
-          disabled={loading}
-        />
-      </div>
-
-      {error ? <p className="text-[12px] text-red-600">{error}</p> : null}
+      {error ? <p className="text-[12px] font-medium text-red-600">{error}</p> : null}
 
       <Button
         type="submit"
         disabled={loading}
         className={cn(
-          "h-10 w-full rounded-md bg-[#EF6614] text-sm font-bold uppercase tracking-wide text-white hover:bg-[#E65100]",
+          "h-10 w-full rounded-xl border-0 bg-[#EF6614] bg-none text-sm font-bold text-white shadow-[0_12px_24px_-12px_rgba(239,102,20,0.9)] hover:bg-[#E65100] hover:brightness-100",
         )}
       >
-        {loading ? "Connecting… first signup may take up to 60 sec" : "Sign up as Guest"}
+        {loading ? "Creating account…" : "Create account"}
       </Button>
 
       <p className="text-center text-[12px] text-[#757575]">
         Already have an account?{" "}
         <Link
           href={`/login${redirectTo !== "/account" ? `?redirect=${encodeURIComponent(redirectTo)}` : ""}`}
-          className="font-semibold text-[#2196F3] hover:underline"
+          className="font-bold text-[#ef6614] hover:underline"
         >
-          Login
+          Sign in
         </Link>
       </p>
     </form>

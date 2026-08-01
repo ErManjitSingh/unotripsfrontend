@@ -1,111 +1,28 @@
-/**
- * src/app/cabs/page.tsx
- */
 import type { Metadata } from "next";
-import { Navbar }            from "@/components/layout/Navbar";
-import { Footer }            from "@/components/layout/Footer";
-import { CabsSearchSection } from "@/components/cabs/CabsSearchSection";
-import { CabOffersSection }  from "@/components/cabs/CabOffersSection";
+import Image from "next/image";
+import { CabsBookingExperience } from "@/components/cabs/CabsBookingExperience";
+
+// Set false before release to keep the cab landing page in its coming-soon state.
+const CAB_DEVELOPMENT_ENABLED = true;
 
 export const metadata: Metadata = {
-  title: "Outstation Cab Booking | UNO Trips",
-  description:
-    "Book reliable outstation cabs across India — one-way, round trip, and full-day rentals at transparent fares. Verified drivers, AC vehicles.",
+  title: "UNO Cabs | UNO Trips",
+  description: "Book local city rides, hourly rentals and airport transfers with UNO Cabs.",
 };
 
-export default function CabsPage() {
+function ComingSoon() {
   return (
-    <>
-      <Navbar variant="ease" easeActiveNavId="cabs" />
-      <main>
-
-        {/* 1. Search banner */}
-        <CabsSearchSection />
-
-        {/* 2. Offers section — tabbed grid exactly like the screenshot */}
-        <CabOffersSection />
-
-        {/* 3. Why choose us — quick trust signals */}
-        <section className="border-t border-[#EEEEEE] bg-[#FAFAFA] py-8 sm:py-10">
-          <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
-            <h2 className="mb-6 text-center text-xl font-bold text-[#212121] sm:text-2xl">
-              Why Book Cabs with UNO Trips?
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                {
-                  emoji: "✅",
-                  title: "Verified Drivers",
-                  desc: "Every driver is background-verified and trained for outstation routes.",
-                },
-                {
-                  emoji: "💰",
-                  title: "No Hidden Charges",
-                  desc: "Fare breakdown shown upfront — tolls, GST, driver allowance included.",
-                },
-                {
-                  emoji: "🚗",
-                  title: "Wide Fleet",
-                  desc: "Sedans, SUVs, Tempo Travellers — AC vehicles for every group size.",
-                },
-                {
-                  emoji: "📞",
-                  title: "24×7 Support",
-                  desc: "Our team is available round the clock for any trip assistance.",
-                },
-              ].map(({ emoji, title, desc }) => (
-                <div
-                  key={title}
-                  className="flex flex-col items-center rounded-xl border border-[#EEEEEE] bg-white p-5 text-center shadow-sm"
-                >
-                  <div className="mb-3 text-3xl">{emoji}</div>
-                  <h3 className="mb-1 text-[14px] font-bold text-[#212121]">{title}</h3>
-                  <p className="text-[12px] leading-relaxed text-[#757575]">{desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* 4. Popular routes */}
-        <section className="bg-white py-8 sm:py-10">
-          <div className="mx-auto w-full max-w-[1320px] px-3 sm:px-4 lg:px-6">
-            <h2 className="mb-5 text-xl font-bold text-[#212121] sm:text-2xl">
-              Popular Outstation Routes
-            </h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {[
-                { from: "Jaipur",    to: "Delhi",     km: "280 km" },
-                { from: "Jaipur",    to: "Agra",      km: "240 km" },
-                { from: "Mumbai",    to: "Pune",      km: "150 km" },
-                { from: "Delhi",     to: "Agra",      km: "210 km" },
-                { from: "Delhi",     to: "Shimla",    km: "345 km" },
-                { from: "Jaipur",    to: "Udaipur",   km: "395 km" },
-                { from: "Mumbai",    to: "Goa",       km: "590 km" },
-                { from: "Bangalore", to: "Mysore",    km: "145 km" },
-              ].map(({ from, to, km }) => (
-                <a
-                  key={`${from}-${to}`}
-                  href={`/cabs/results?pickup_city=${encodeURIComponent(from)}&drop_city=${encodeURIComponent(to)}&trip_type=one_way&travel_date=${new Date(Date.now() + 86400000).toISOString().slice(0, 10)}&passengers=1&drop_state=`}
-                  className="group flex items-center justify-between rounded-xl border border-[#EEEEEE] bg-[#FAFAFA] px-4 py-3 transition-colors hover:border-[#EF6614] hover:bg-[#FFF3E0]"
-                >
-                  <div>
-                    <p className="text-[13px] font-bold text-[#212121]">
-                      {from} → {to}
-                    </p>
-                    <p className="text-[11px] text-[#9E9E9E]">{km}</p>
-                  </div>
-                  <span className="text-[11px] font-semibold text-[#EF6614] opacity-0 transition-opacity group-hover:opacity-100">
-                    Book →
-                  </span>
-                </a>
-              ))}
-            </div>
-          </div>
-        </section>
-
-      </main>
-      <Footer />
-    </>
+    <main className="grid min-h-screen place-items-center bg-[#fffaf7] p-5 text-center">
+      <section className="max-w-xl rounded-3xl border border-orange-100 bg-white p-8 shadow-[0_20px_55px_-30px_rgba(193,88,16,0.35)] sm:p-12">
+        <Image src="/images/cabs/uno-cabs-dzire-hero.png" alt="UNO Cabs sedan" width={1693} height={929} priority className="mx-auto h-auto w-full max-w-sm" />
+        <p className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-[#ef6614]">UNO Cabs</p>
+        <h1 className="mt-3 text-3xl font-black tracking-tight text-[#2b2521]">Cabs are coming soon</h1>
+        <p className="mt-3 text-[#716871]">We&apos;re getting your next ride ready. Please check back soon.</p>
+      </section>
+    </main>
   );
+}
+
+export default function CabsPage() {
+  return CAB_DEVELOPMENT_ENABLED ? <CabsBookingExperience /> : <ComingSoon />;
 }

@@ -12,8 +12,9 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <AuthPageShell
+      mode="login"
       title="Welcome back"
-      subtitle="Login to book hotels and manage your trips"
+      subtitle="Sign in to manage bookings, quotes, and trips"
     >
       <Suspense fallback={<p className="text-sm text-[#757575]">Loading…</p>}>
         <LoginPageClient />

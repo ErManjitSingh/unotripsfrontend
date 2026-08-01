@@ -21,6 +21,7 @@ import {
   distanceKmBetween,
   findHotelLocality,
   hotelResultsHref,
+  type HotelBookingQueryParams,
   type HotelCity,
   type HotelDestinationOption,
   type HotelListing,
@@ -115,6 +116,12 @@ export function HotelsCityResultsView({
   const [sort, setSort] = useState<HotelSortOption>(initialSort);
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [lastMinuteOnly, setLastMinuteOnly] = useState(initialLastMinute);
+  const [bookingContext, setBookingContext] = useState<HotelBookingQueryParams>({
+    check_in: initialCheckIn,
+    check_out: initialCheckOut,
+    rooms: initialRooms,
+    guests: initialGuests,
+  });
 
   const filtered = useMemo(() => {
     let list = applyFilters(hotels, filters);
@@ -214,6 +221,12 @@ export function HotelsCityResultsView({
       setFilters(EMPTY_HOTEL_FILTERS);
       setSearchQuery(payload.q ?? "");
       setLastMinuteOnly(false);
+      setBookingContext({
+        check_in: payload.check_in,
+        check_out: payload.check_out,
+        rooms: payload.rooms,
+        guests: payload.guests,
+      });
       setPage(1);
 
       window.history.replaceState(
@@ -391,7 +404,7 @@ export function HotelsCityResultsView({
                 ) : (
                   <>
                     {pageHotels.map((hotel) => (
-                      <HotelResultCard key={hotel.id} hotel={hotel} />
+                      <HotelResultCard key={hotel.id} hotel={hotel} bookingContext={bookingContext} />
                     ))}
 
                     {totalPages > 1 ? (

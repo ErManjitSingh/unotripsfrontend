@@ -8,10 +8,6 @@ import {
   ChevronRight,
   MapPin,
   Tag,
-  Shield,
-  Clock,
-  Headphones,
-  Lock,
 } from "lucide-react";
 import { SUMMER_ESCAPE_CARDS } from "@/lib/summer-escapes-cards";
 import { cn } from "@/lib/utils";
@@ -20,13 +16,6 @@ export type SummerEscapesSectionProps = {
   className?: string;
   packageCountsBySlug?: Record<string, number>;
 };
-
-const TRUST_BADGES = [
-  { icon: Shield,     title: "Best Price Guarantee", sub: "We match any price" },
-  { icon: Clock,      title: "Flexible Booking",     sub: "Free cancellation on many trips" },
-  { icon: Headphones, title: "24/7 Support",          sub: "We're here to help" },
-  { icon: Lock,       title: "Secure Payments",       sub: "100% safe & secure" },
-] as const;
 
 export function SummerEscapesSection({
   className,
@@ -177,19 +166,6 @@ export function SummerEscapesSection({
           </div>
 
           {/* ── Trust badges ── */}
-          <div className="mt-5 hidden grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-4 sm:mt-6 sm:grid sm:grid-cols-4 sm:pt-5">
-            {TRUST_BADGES.map(({ icon: Icon, title, sub }) => (
-              <div key={title} className="flex items-center gap-3 px-4 first:pl-0 last:pr-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{title}</p>
-                  <p className="text-xs text-slate-500">{sub}</p>
-                </div>
-              </div>
-            ))}
-          </div>
 
         </div>
       </div>

@@ -12,7 +12,7 @@ type RazorpayCheckoutOptions = {
   name: string;
   description: string;
   prefill?: { name?: string; email?: string; contact?: string };
-  onSuccess: (response: RazorpaySuccessResponse) => void;
+  onSuccess: (response: RazorpaySuccessResponse) => void | Promise<void>;
   onDismiss?: () => void;
 };
 
@@ -64,10 +64,16 @@ export async function openRazorpayCheckout(options: RazorpayCheckoutOptions): Pr
       order_id: options.orderId,
       prefill: options.prefill,
       theme: { color: "#EF6614" },
-      handler(response: RazorpaySuccessResponse) {
+      async handler(response: RazorpaySuccessResponse) {
         completed = true;
-        options.onSuccess(response);
-        resolve();
+        try {
+          // Keep checkout in its pending state until our server has verified
+          // Razorpay's signature and confirmed the booking.
+          await options.onSuccess(response);
+          resolve();
+        } catch (error) {
+          reject(error instanceof Error ? error : new Error("Payment verification failed."));
+        }
       },
       modal: {
         ondismiss() {

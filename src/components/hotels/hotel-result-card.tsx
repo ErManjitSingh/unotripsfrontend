@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { Check, Heart, MapPin, Star } from "lucide-react";
 import { HotelCardGallery } from "@/components/hotels/hotel-card-gallery";
 import { HotelTagBadgeList } from "@/components/hotels/hotel-tag-badge";
-import { hotelDetailHref, hotelListingKey, type HotelListing } from "@/lib/hotels-catalog";
+import { hotelDetailHref, hotelListingKey, type HotelBookingQueryParams, type HotelListing } from "@/lib/hotels-catalog";
 import { cn, formatInrAmount } from "@/lib/utils";
 
 type HotelResultCardProps = {
   hotel: HotelListing;
+  bookingContext?: HotelBookingQueryParams;
   className?: string;
 };
 
@@ -29,11 +30,18 @@ function formatDistanceKm(distance?: number | null): string | null {
   return `${distance.toFixed(1)} km`;
 }
 
-export function HotelResultCard({ hotel, className }: HotelResultCardProps) {
+export function HotelResultCard({ hotel, bookingContext, className }: HotelResultCardProps) {
   const router = useRouter();
   const amenityLine = [...hotel.amenities, `+ ${hotel.amenityMoreCount} More`].join(" • ");
   const cityLabel = cityLabelFromSlug(hotel.citySlug);
-  const detailHref = hotelDetailHref(hotel.citySlug, hotelListingKey(hotel));
+  const detailBaseHref = hotelDetailHref(hotel.citySlug, hotelListingKey(hotel));
+  const bookingQuery = new URLSearchParams();
+  if (bookingContext?.check_in) bookingQuery.set("check_in", bookingContext.check_in);
+  if (bookingContext?.check_out) bookingQuery.set("check_out", bookingContext.check_out);
+  if (bookingContext?.rooms != null) bookingQuery.set("rooms", String(bookingContext.rooms));
+  if (bookingContext?.guests != null) bookingQuery.set("guests", String(bookingContext.guests));
+  if (bookingContext?.children != null) bookingQuery.set("children", String(bookingContext.children));
+  const detailHref = bookingQuery.size ? `${detailBaseHref}?${bookingQuery}` : detailBaseHref;
 
   return (
     <article

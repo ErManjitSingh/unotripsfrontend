@@ -33,6 +33,7 @@ export default function CookiePolicyPage() {
         {
           title: "Third-party technologies",
           body: [
+            "With your permission, UNO Trips may use Google Analytics, Google Ads conversion measurement, Meta Pixel, and similar approved tools to understand campaign performance and booking conversions. We do not send passwords, complete payment details, or sensitive booking notes to these marketing tools.",
             "Some cookies or tracking technologies may be set by payment processors, analytics providers, advertising platforms, embedded tools, or customer support services.",
             "These providers process data under their own policies and controls, while UNO Trips uses them to support website functionality and service improvement.",
           ],

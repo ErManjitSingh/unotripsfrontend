@@ -77,23 +77,36 @@ export type CabBookingResponse = {
   pickup_address:      string;
   drop_city:           string;
   drop_address:        string;
-  actual_distance_km:  number;
-  billed_distance_km:  number;
+  actual_distance_km?: number;
+  billed_distance_km?: number;
   passengers:          number;
   guest_first_name:    string;
   guest_last_name:     string;
-  guest_email:         string;
-  guest_phone:         string;
+  guest_email?:        string;
+  guest_phone?:        string;
+  guest_email_masked?: string;
+  guest_phone_masked?: string;
+  driver_name?:        string | null;
+  driver_phone?:       string | null;
+  vehicle_registration?: string | null;
   total_amount:        number;
-  gst_amount:          number;
-  gst_rate:            number;
-  driver_allowance:    number;
-  night_charge:        number;
-  trip_fare_selling:   number;
+  payment_option?:     "full_online" | "commission_and_driver";
+  online_amount?:      number | null;
+  driver_due_amount?:  number | null;
+  commission_percent?: number | null;
+  gst_amount?:         number;
+  gst_rate?:           number;
+  driver_allowance?:   number;
+  night_charge?:       number;
+  trip_fare_selling?:  number;
   currency:            string;
-  razorpay_order_id:   string | null;
+  razorpay_order_id?:  string | null;
   razorpay_key_id?:    string;
   payment_status:      string;
+  cancellation_reason?: string | null;
+  cancelled_at?:       string | null;
+  refund_status?:      string | null;
+  refund_amount?:      number | null;
   created_at:          string;
 };
 
@@ -112,19 +125,28 @@ const CAB_API = "/api/cabs";
 async function cabApiFetch<T>(
   path: string,
   init?: RequestInit,
+  accessToken?: string | null,
 ): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+
   const res = await fetch(`${CAB_API}${path}`, {
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
     ...init,
+    headers,
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     const msg = (body as { detail?: string; message?: string }).detail
       ?? (body as { message?: string }).message
       ?? `Request failed (${res.status})`;
-    throw new Error(msg);
+    throw new Error(typeof msg === "string" ? msg : `Request failed (${res.status})`);
   }
-  return res.json() as Promise<T>;
+  const body = await res.json() as T & { data?: T };
+  return ((body as { data?: T }).data ?? body) as T;
 }
 
 /** Fetch cab detail by slug. */
@@ -175,5 +197,43 @@ export function fetchCabBookingByConfNo(
 ): Promise<CabBookingResponse> {
   return cabApiFetch<CabBookingResponse>(
     `/bookings/${encodeURIComponent(confNo)}`,
+  );
+}
+
+export type CabReview = {
+  id: string;
+  booking_id: string;
+  confirmation_number: string | null;
+  route_label: string | null;
+  travel_date: string | null;
+  rating: number;
+  title: string | null;
+  comment: string | null;
+  partner_reply: string | null;
+  partner_replied_at: string | null;
+  status: string;
+  created_at: string;
+};
+
+export function submitCabReview(
+  accessToken: string,
+  payload: { booking_id: string; rating: number; title?: string | null; comment?: string | null },
+) {
+  return cabApiFetch<CabReview>(
+    "/reviews",
+    { method: "POST", body: JSON.stringify(payload) },
+    accessToken,
+  );
+}
+
+export function listMyCabReviews(accessToken: string) {
+  return cabApiFetch<CabReview[]>("/reviews/mine", undefined, accessToken);
+}
+
+export function cancelCabBooking(accessToken: string, bookingId: string, reason: string) {
+  return cabApiFetch<CabBookingResponse>(
+    `/bookings/${encodeURIComponent(bookingId)}/cancel`,
+    { method: "POST", body: JSON.stringify({ reason }) },
+    accessToken,
   );
 }

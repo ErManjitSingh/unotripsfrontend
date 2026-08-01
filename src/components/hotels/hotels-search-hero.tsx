@@ -215,7 +215,13 @@ export function HotelsSearchHero({
   };
 
   const handleSelectHotel = (hotel: HotelListing) => {
-    router.push(hotelDetailHref(hotel.citySlug, hotelListingKey(hotel)));
+    const q = new URLSearchParams({
+      check_in: checkInIso,
+      check_out: checkOutIso,
+      rooms: String(rooms),
+      guests: String(guests),
+    });
+    router.push(`${hotelDetailHref(hotel.citySlug, hotelListingKey(hotel))}?${q.toString()}`);
   };
 
   const handleSearch = () => {

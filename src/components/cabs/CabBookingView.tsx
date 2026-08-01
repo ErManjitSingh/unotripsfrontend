@@ -81,7 +81,6 @@ function clearDraft(k: string) {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type Step = "review" | "confirmed";
-type PayMode = "part" | "full";
 
 type Props = { cab: CabDetail; fare: CabFareBreakdown };
 
@@ -95,6 +94,7 @@ export function CabBookingView({ cab, fare }: Props) {
 
   const pickupCity = sp.get("pickup_city") ?? "";
   const dropCity   = sp.get("drop_city") ?? "";
+  const pickupState = sp.get("pickup_state") ?? "";
   const dropState  = sp.get("drop_state") ?? "";
   const tripType   = sp.get("trip_type") ?? "one_way";
   const travelDate = sp.get("travel_date") ?? "";
@@ -122,15 +122,13 @@ export function CabBookingView({ cab, fare }: Props) {
   const [continuing, setContinuing] = useState(false);
 
   // ── Payment ────────────────────────────────────────────────────────────────
-  const [payMode, setPayMode]     = useState<PayMode>("part");
   const [fareOpen, setFareOpen]   = useState(false);
   const [booking, setBooking]     = useState<CabBookingResponse | null>(null);
   const [bookingRef, setBookingRef] = useState("");
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  const fullAmount = booking?.total_amount ?? fare.total_amount;
-  const partAmount = Math.round(fullAmount * 0.25); // 25% upfront
-  const payAmount  = payMode === "part" ? partAmount : fullAmount;
+  // Razorpay order is always created for the full fare — charge that amount only.
+  const payAmount = booking?.total_amount ?? fare.total_amount;
 
   // ── Countdown ──────────────────────────────────────────────────────────────
   const [holdSec, setHoldSec] = useState<number | null>(null);
@@ -197,7 +195,7 @@ export function CabBookingView({ cab, fare }: Props) {
         cab_type_id: cab.id, trip_type: tripType, travel_date: travelDate,
         return_date: returnDate || null,
         pickup_address: pickupAddr.trim(), pickup_city: pickupCity,
-        pickup_state: dropState, drop_address: dropAddr.trim(),
+        pickup_state: pickupState || dropState, drop_address: dropAddr.trim(),
         drop_city: dropCity, drop_state: dropState, pickup_time: null,
         guest_first_name: firstName.trim(), guest_last_name: lastName.trim(),
         guest_email: email.trim(), guest_phone: mobile.replace(/\D/g, "").slice(-10),
@@ -219,23 +217,19 @@ export function CabBookingView({ cab, fare }: Props) {
       await openRazorpayCheckout({
         keyId, orderId, amountPaise, currency: "INR",
         name: "UNO Trips — Cab Booking",
-        description: payMode === "part"
-          ? `Part payment (25%) — ₹${formatInrAmount(partAmount)}`
-          : `Full payment — ₹${formatInrAmount(fullAmount)}`,
+        description: `Full payment — ₹${formatInrAmount(payAmount)}`,
         prefill: {
           name: `${firstName.trim()} ${lastName.trim()}`.trim(),
           email: email.trim(), contact: mobile.replace(/\D/g, "").slice(-10),
         },
         onSuccess: async (response) => {
-          try {
-            await verifyCabBookingPayment(created.id, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            });
-            setStep("confirmed");
-            window.scrollTo({ top: 0, behavior: "smooth" });
-          } catch { setFormError("Payment verification failed. Contact support if deducted."); }
+          await verifyCabBookingPayment(created.id, {
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+          setStep("confirmed");
+          window.scrollTo({ top: 0, behavior: "smooth" });
         },
         onDismiss: () => setFormError("Payment cancelled. Click PAY NOW to retry."),
       });
@@ -257,10 +251,13 @@ export function CabBookingView({ cab, fare }: Props) {
         name: "UNO Trips", description: `${cab.name} · ${pickupCity} → ${dropCity}`,
         prefill: { name: `${firstName} ${lastName}`.trim(), email: email.trim(), contact: mobile.replace(/\D/g, "").slice(-10) },
         onSuccess: async (r) => {
-          try {
-            await verifyCabBookingPayment(booking.id, { razorpay_order_id: r.razorpay_order_id, razorpay_payment_id: r.razorpay_payment_id, razorpay_signature: r.razorpay_signature });
-            setStep("confirmed"); window.scrollTo({ top: 0, behavior: "smooth" });
-          } catch { setFormError("Verification failed."); }
+          await verifyCabBookingPayment(booking.id, {
+            razorpay_order_id: r.razorpay_order_id,
+            razorpay_payment_id: r.razorpay_payment_id,
+            razorpay_signature: r.razorpay_signature,
+          });
+          setStep("confirmed");
+          window.scrollTo({ top: 0, behavior: "smooth" });
         },
         onDismiss: () => setFormError("Payment cancelled."),
       });
@@ -299,12 +296,6 @@ export function CabBookingView({ cab, fare }: Props) {
               <dt className="text-[#757575]">Amount Paid</dt>
               <dd className="text-lg font-bold">₹{formatInrAmount(payAmount)}</dd>
             </div>
-            {payMode === "part" && (
-              <div className="flex justify-between text-[#757575]">
-                <dt>Remaining (pay to driver)</dt>
-                <dd className="font-semibold text-[#424242]">₹{formatInrAmount(fullAmount - partAmount)}</dd>
-              </div>
-            )}
           </dl>
           <p className="mt-4 text-xs text-[#757575]">Confirmation sent to {email}</p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -497,40 +488,16 @@ export function CabBookingView({ cab, fare }: Props) {
             {/* Payment options */}
             <div className="rounded-xl border border-[#E0E0E0] bg-white shadow-sm">
               <div className="border-b border-[#EEE] px-4 py-3">
-                <p className="text-[14px] font-bold text-[#212121]">Payment Options</p>
+                <p className="text-[14px] font-bold text-[#212121]">Payment</p>
               </div>
-              <div className="px-4 py-3 space-y-3">
-                {/* Part Pay */}
-                <label className={cn(
-                  "flex cursor-pointer items-center justify-between rounded-lg border-2 p-3 transition",
-                  payMode === "part" ? "border-[#EF6614] bg-[#FFF8F0]" : "border-[#E0E0E0]",
-                )}>
-                  <div className="flex items-center gap-2">
-                    <input type="radio" name="payMode" checked={payMode === "part"} onChange={() => setPayMode("part")}
-                      className="h-4 w-4 accent-[#EF6614]" />
-                    <div>
-                      <p className="text-[13px] font-bold text-[#212121]">Part Pay</p>
-                      <p className="text-[11px] text-[#757575]">Pay rest to the driver</p>
-                    </div>
+              <div className="px-4 py-3">
+                <div className="flex items-center justify-between rounded-lg border-2 border-[#EF6614] bg-[#FFF8F0] p-3">
+                  <div>
+                    <p className="text-[13px] font-bold text-[#212121]">Pay in full</p>
+                    <p className="text-[11px] text-[#757575]">Secure online payment</p>
                   </div>
-                  <span className="text-[15px] font-bold text-[#212121]">₹{formatInrAmount(partAmount)}</span>
-                </label>
-
-                {/* Full Pay */}
-                <label className={cn(
-                  "flex cursor-pointer items-center justify-between rounded-lg border-2 p-3 transition",
-                  payMode === "full" ? "border-[#EF6614] bg-[#FFF8F0]" : "border-[#E0E0E0]",
-                )}>
-                  <div className="flex items-center gap-2">
-                    <input type="radio" name="payMode" checked={payMode === "full"} onChange={() => setPayMode("full")}
-                      className="h-4 w-4 accent-[#EF6614]" />
-                    <div>
-                      <p className="text-[13px] font-bold text-[#212121]">Full Pay</p>
-                      <p className="text-[11px] text-[#757575]">Full amount</p>
-                    </div>
-                  </div>
-                  <span className="text-[15px] font-bold text-[#212121]">₹{formatInrAmount(fullAmount)}</span>
-                </label>
+                  <span className="text-[15px] font-bold text-[#212121]">₹{formatInrAmount(payAmount)}</span>
+                </div>
               </div>
 
               {/* Countdown */}
@@ -595,7 +562,7 @@ export function CabBookingView({ cab, fare }: Props) {
                     </div>
                     <div className="flex justify-between border-t border-[#EEE] pt-2">
                       <span className="font-bold text-[#212121]">Total</span>
-                      <span className="font-bold text-[#212121]">₹{formatInrAmount(fullAmount)}</span>
+                      <span className="font-bold text-[#212121]">₹{formatInrAmount(payAmount)}</span>
                     </div>
                   </div>
                 )}

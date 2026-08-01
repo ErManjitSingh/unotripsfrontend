@@ -34,6 +34,26 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
+  // Retire orphaned admin-catalog traveller paths in favour of quote marketplace.
+  // Static reserved routes (/cabs/partner, /cabs/quotes, …) are unaffected.
+  // redirects are unsupported with `output: "export"` — page-level redirect() covers that path.
+  ...(!isStaticExport
+    ? {
+        redirects: async () => [
+          {
+            source: "/cabs/results",
+            destination: "/cabs",
+            permanent: true,
+          },
+          {
+            source: "/cabs/results/:path*",
+            destination: "/cabs",
+            permanent: true,
+          },
+        ],
+      }
+    : {}),
+
   ...(isStaticExport
     ? { output: "export" as const, distDir: ".next-build" }
     : {}),

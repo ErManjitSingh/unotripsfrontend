@@ -4,14 +4,9 @@ import Link from "next/link";
 import { useRef } from "react";
 import {
   Building2,
-  CalendarCheck2,
   ChevronLeft,
   ChevronRight,
-  Headphones,
-  ShieldCheck,
-  Tag,
 } from "lucide-react";
-import { Navigation } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
@@ -23,13 +18,6 @@ type HandpickedHotelsSliderProps = {
   hotels: HotelListing[];
   total: number;
 };
-
-const TRUST_BADGES = [
-  { icon: ShieldCheck, title: "Best Price Guarantee", sub: "Find a lower price? We'll match it" },
-  { icon: Tag,         title: "Exclusive Deals",       sub: "Get access to member-only prices" },
-  { icon: Headphones,  title: "24/7 Customer Support", sub: "We're here to help anytime" },
-  { icon: CalendarCheck2, title: "Free Cancellation",  sub: "On most bookings" },
-] as const;
 
 export function HandpickedHotelsSlider({ hotels, total }: HandpickedHotelsSliderProps) {
   const swiperRef = useRef<SwiperType | null>(null);
@@ -103,21 +91,6 @@ export function HandpickedHotelsSlider({ hotels, total }: HandpickedHotelsSlider
                 </SwiperSlide>
               ))}
             </Swiper>
-          </div>
-
-          {/* Trust badges */}
-          <div className="mt-6 hidden grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-5 sm:grid sm:grid-cols-4">
-            {TRUST_BADGES.map(({ icon: Icon, title, sub }) => (
-              <div key={title} className="flex items-center gap-3 px-4 first:pl-0 last:pr-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{title}</p>
-                  <p className="text-xs text-slate-500">{sub}</p>
-                </div>
-              </div>
-            ))}
           </div>
 
         </div>

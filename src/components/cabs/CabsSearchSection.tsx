@@ -3,13 +3,9 @@
 /**
  * components/cabs/CabsSearchSection.tsx
  *
- * KEY FIX: removed `overflow-hidden` and `isolate` from the <section>.
- * Those two classes were clipping / trapping all dropdown popups from
- * CabSearchBar (city suggestions, calendar, time picker, passengers).
- *
- * The background image still works — it uses `absolute inset-0` inside
- * a `relative` wrapper div, not the section itself.
- * The section is now `overflow-visible` so every popup can escape.
+ * DEPRECATED for traveller UX — catalog search was retired in favour of the
+ * quote marketplace at /cabs. Kept temporarily so any residual embeds still
+ * land on the request form instead of /cabs/results.
  */
 
 import Image from "next/image";
@@ -42,19 +38,11 @@ export function CabsSearchSection({
     img.onerror = () => setBannerLoaded(true);
   }, []);
 
-  const handleSearch = async (params: CabSearchParams) => {
+  const handleSearch = async (_params: CabSearchParams) => {
+    // Catalog search → results was retired. Travellers post trip requests instead.
     setSearching(true);
     try {
-      const qs = new URLSearchParams({
-        pickup_city: params.pickup_city,
-        drop_city:   params.drop_city,
-        drop_state:  params.drop_state,
-        trip_type:   params.trip_type,
-        travel_date: params.travel_date,
-        passengers:  String(params.passengers),
-      });
-      if (params.return_date) qs.set("return_date", params.return_date);
-      router.push(`/cabs/results?${qs.toString()}`);
+      router.push("/cabs#cab-booking-form");
     } finally {
       setSearching(false);
     }
