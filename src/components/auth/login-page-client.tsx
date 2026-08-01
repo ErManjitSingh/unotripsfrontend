@@ -13,10 +13,14 @@ import { cn } from "@/lib/utils";
 
 type AuthTab = "guest" | "email";
 
+// Keep the OTP implementation available for when the SMS provider is enabled,
+// but do not expose an unusable sign-in option to travellers yet.
+const PHONE_OTP_ENABLED = false;
+
 export function LoginPageClient() {
   const searchParams = useSearchParams();
   const auth = useAuthOptional();
-  const [tab, setTab] = useState<AuthTab>("guest");
+  const [tab, setTab] = useState<AuthTab>("email");
   const explicitRedirect = searchParams.get("redirect");
   const requestedRole = searchParams.get("role");
   const redirectTo = useMemo(() => {
@@ -78,30 +82,32 @@ export function LoginPageClient() {
 
   return (
     <>
-      <div className="mb-5 flex rounded-xl bg-[#f4efeb] p-1">
-        {(
-          [
-            { id: "guest" as const, label: "Phone OTP" },
-            { id: "email" as const, label: "Email" },
-          ] as const
-        ).map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={cn(
-              "flex-1 rounded-lg py-2.5 text-[13px] font-bold transition",
-              tab === t.id
-                ? "bg-white text-[#1f1820] shadow-sm ring-1 ring-[#e6ddd7]"
-                : "text-[#7a7178] hover:text-[#403842]",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {PHONE_OTP_ENABLED ? (
+        <div className="mb-5 flex rounded-xl bg-[#f4efeb] p-1">
+          {(
+            [
+              { id: "guest" as const, label: "Phone OTP" },
+              { id: "email" as const, label: "Email" },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={cn(
+                "flex-1 rounded-lg py-2.5 text-[13px] font-bold transition",
+                tab === t.id
+                  ? "bg-white text-[#1f1820] shadow-sm ring-1 ring-[#e6ddd7]"
+                  : "text-[#7a7178] hover:text-[#403842]",
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
-      {tab === "guest" ? (
+      {PHONE_OTP_ENABLED && tab === "guest" ? (
         <GuestLoginForm redirectTo={redirectTo} onAuthComplete={() => void routeSignedInUser()} />
       ) : (
         <EmailLoginForm redirectTo={redirectTo} onAuthComplete={() => void routeSignedInUser()} />

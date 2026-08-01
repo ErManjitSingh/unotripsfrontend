@@ -6,7 +6,7 @@ import { TRAVEL_HOME_BRAND } from "@/lib/travel-home-brand";
 
 export const metadata: Metadata = {
   title: `Login | ${TRAVEL_HOME_BRAND.name}`,
-  description: "Login to UNO Trips — continue as guest with OTP or use your email.",
+  description: "Login to UNO Trips with your email.",
 };
 
 export default function LoginPage() {
