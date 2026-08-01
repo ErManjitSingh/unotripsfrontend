@@ -57,6 +57,8 @@ type Props = {
   hotelUpgrade?: number;
   /** Cab upgrade cost. */
   cabUpgrade?: number;
+  /** Volvo bus return-ticket cost (0 for non-Volvo packages). */
+  volvoBusCost?: number;
   /** Activities + sightseeing total. */
   activitiesTotal?: number;
   /** Add-ons total. */
@@ -174,6 +176,7 @@ export function GlacialStylePackageDetail({
   basePackagePrice = 0,
   hotelUpgrade = 0,
   cabUpgrade = 0,
+  volvoBusCost = 0,
   activitiesTotal = 0,
   addonsTotal = 0,
   gstResult = null,
@@ -1083,6 +1086,14 @@ export function GlacialStylePackageDetail({
                         <div className="flex justify-between text-[#667085]">
                           <span>Hotel upgrade</span>
                           <span className="font-medium text-[#344054]">+₹{formatMoney(hotelUpgrade)}</span>
+                        </div>
+                      )}
+                      {volvoBusCost > 0 && (
+                        <div className="flex justify-between text-[#667085]">
+                          <div>
+                            <span>Volvo bus (return ticket)</span>
+                          </div>
+                          <span className="font-medium text-[#344054]">+₹{formatMoney(volvoBusCost)}</span>
                         </div>
                       )}
                       {cabUpgrade > 0 && (

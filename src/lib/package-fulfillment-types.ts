@@ -44,6 +44,7 @@ export type PricingSummary = {
   base_package_price:  number;   // base × billable_persons (PRE-TAX)
   hotel_upgrade_total: number;   // sum of hotel upgrade deltas
   cab_upgrade_total:   number;   // cab upgrade delta (0 = default retained)
+  volvo_bus_cost:      number;   // Volvo return-ticket cost (0 for non-Volvo packages)
   extra_bed_total:     number;   // extra beds × nights
   infant_cot_total:    number;   // infant cots × nights (cot_charge policy)
   activities_total:    number;   // sightseeing + activities

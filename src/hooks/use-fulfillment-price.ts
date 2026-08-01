@@ -143,6 +143,8 @@ export type UseFulfillmentPriceResult = {
   hotelUpgrade: number;
   /** Vehicle upgrade cost over the default cab. */
   cabUpgrade: number;
+  /** Volvo bus return-ticket cost (0 for non-Volvo packages). */
+  volvoBusCost: number;
   /** Combined sightseeing + activities total. */
   activitiesTotal: number;
   /** Add-ons total. */
@@ -334,6 +336,7 @@ export function useFulfillmentPrice(
   const basePackagePrice = current?.pricing_summary.base_package_price      ?? 0;
   const hotelUpgrade    = current?.pricing_summary.hotel_upgrade_total      ?? 0;
   const cabUpgrade      = current?.pricing_summary.cab_upgrade_total        ?? 0;
+  const volvoBusCost    = current?.pricing_summary.volvo_bus_cost          ?? 0;
   const activitiesTotal = current?.pricing_summary.activities_total         ?? 0;
   const addonsTotal     = current?.pricing_summary.addons_total             ?? 0;
   const isComplete      = current?.is_complete                              ?? true;
@@ -355,6 +358,7 @@ export function useFulfillmentPrice(
     basePackagePrice,
     hotelUpgrade,
     cabUpgrade,
+    volvoBusCost,
     activitiesTotal,
     addonsTotal,
     isComplete,
