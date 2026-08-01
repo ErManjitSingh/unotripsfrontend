@@ -32,41 +32,36 @@ const BANNER_SHELL =
 function CabsPromoSlide() {
   return (
     <Link href="/cabs" className={BANNER_SHELL}>
-      <div className="absolute inset-0 bg-[#ffe6c9]" aria-hidden>
-        {/* Keep cars to the right so copy never sits on top of them on mobile. */}
-        <div
-          className="absolute inset-y-0 right-0 w-[52%] overflow-hidden sm:w-[68%]"
-          style={{
-            WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 42%, #000 100%)",
-            maskImage: "linear-gradient(to right, transparent 0%, #000 42%, #000 100%)",
-          }}
-        >
+      <div className="absolute inset-0 bg-[linear-gradient(118deg,#fff5e9_0%,#ffe8cb_52%,#ffc885_100%)]" aria-hidden>
+        <div className="absolute -right-6 top-1/2 h-44 w-44 -translate-y-1/2 rounded-full bg-white/65 blur-2xl sm:h-56 sm:w-56" />
+        <div className="absolute bottom-3 right-3 h-8 w-[57%] rounded-[100%] bg-[#9a4b18]/20 blur-xl sm:right-8 sm:w-[54%]" />
+        <div className="absolute inset-y-0 -right-5 w-[67%] overflow-hidden sm:-right-3 sm:w-[64%]">
           <Image
-            src="/images/cabs/cars-banner-cropped.png"
+            src="/images/cabs/uno-cabs-dzire-hero.png"
             alt=""
             fill
-            className="object-cover object-[82%_58%] transition-transform duration-700 group-hover:scale-[1.02] sm:object-[68%_54%]"
-            sizes="(max-width: 640px) 52vw, 68vw"
+            className="origin-right object-contain object-right mix-blend-multiply transition-transform duration-700 group-hover:scale-[1.03]"
+            sizes="(max-width: 640px) 67vw, 64vw"
             priority
           />
         </div>
-        <div className="absolute inset-y-0 left-0 w-[58%] bg-gradient-to-r from-[#ffe6c9] via-[#ffe6c9]/95 to-transparent sm:w-[48%]" />
+        <div className="absolute inset-y-0 left-0 w-[64%] bg-gradient-to-r from-[#fff0dc] via-[#fff0dc]/95 to-transparent sm:w-[50%]" />
       </div>
 
       <div className="relative flex h-full items-center px-4 py-4 sm:px-7 sm:py-5 md:px-9">
-        <div className="min-w-0 max-w-[56%] sm:max-w-[54%] md:max-w-[50%]">
-          <span className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-sm">
+        <div className="min-w-0 max-w-[58%] sm:max-w-[52%] md:max-w-[48%]">
+          <span className="mb-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.16em] text-white shadow-sm sm:text-[10px]">
             <CarFront className="h-3 w-3" aria-hidden />
             UNO Cabs
           </span>
-          <h2 className="text-[20px] font-black leading-[1.08] tracking-tight text-[#252b35] sm:text-[26px] md:text-[31px]">
+          <h2 className="text-[20px] font-black leading-[1.04] tracking-[-0.025em] text-[#252b35] sm:text-[26px] md:text-[31px]">
             Your ride is <span className="text-[#ef6614]">ready.</span>
           </h2>
-          <p className="mt-1.5 text-[11px] font-semibold leading-snug text-[#665953] sm:mt-2 sm:max-w-sm sm:text-[13px] sm:leading-relaxed">
-            <span className="sm:hidden">Verified partner quotes for every journey.</span>
+          <p className="mt-1.5 max-w-[145px] text-[11px] font-semibold leading-snug text-[#665953] sm:mt-2 sm:max-w-sm sm:text-[13px] sm:leading-relaxed">
+            <span className="sm:hidden">Compare verified partner quotes.</span>
             <span className="hidden sm:inline">A comfortable UNO Cabs ride and verified partner quotes for every journey.</span>
           </p>
-          <span className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-3.5 py-2 text-[11px] font-extrabold text-white shadow-[0_12px_28px_-10px_rgba(239,102,20,0.65)] transition group-hover:bg-[#e05a0f] sm:mt-3 sm:px-5 sm:py-2.5 sm:text-[13px]">
+          <span className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-4 py-2 text-[11px] font-extrabold text-white shadow-[0_12px_28px_-10px_rgba(239,102,20,0.65)] transition group-hover:bg-[#e05a0f] sm:min-h-0 sm:px-5 sm:py-2.5 sm:text-[13px]">
             Get quotes
             <span aria-hidden>→</span>
           </span>
