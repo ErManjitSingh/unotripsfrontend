@@ -300,7 +300,7 @@ function PackageCard({
   const panelId = useId();
   const thumbs = pkg.galleryImages.slice(0, 3);
   const waText = encodeURIComponent(
-    `Hi, I want details for ${pkg.title} (${pkg.duration}) starting ${pkg.priceFrom}/person.`,
+    `Hi, I want a customized package quote for ${pkg.title} (${pkg.duration}).`,
   );
 
   return (
@@ -337,10 +337,13 @@ function PackageCard({
       <div className="hs1-card-body">
         <div className="hs1-card-title-row">
           <h3 className="hs1-card-title">{pkg.shortTitle}</h3>
-          <p className="hs1-card-price">
-            <span className="amt">{pkg.priceFrom}</span>
-            <span className="pp">/person</span>
-          </p>
+          <button
+            type="button"
+            className="hs1-card-customize"
+            onClick={() => onEnquire(pkg.title)}
+          >
+            Customize Package
+          </button>
         </div>
 
         <p className="hs1-card-loc">

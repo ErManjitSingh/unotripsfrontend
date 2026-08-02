@@ -498,23 +498,24 @@
   flex: 1;
   min-width: 0;
 }
-.hs1-card-price {
+.hs1-card-customize {
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
   text-align: right;
   flex: 0 0 auto;
-  line-height: 1.2;
-}
-.hs1-card-price .amt {
-  display: block;
-  font-size: 1.05rem;
+  font-size: 0.92rem;
   font-weight: 800;
   color: var(--hs1-green);
   white-space: nowrap;
+  line-height: 1.2;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.hs1-card-price .pp {
-  font-size: 0.72rem;
-  color: var(--hs1-muted);
-  font-weight: 600;
+.hs1-card-customize:hover {
+  color: var(--hs1-orange);
 }
 .hs1-card-loc {
   margin: 0;
