@@ -61,7 +61,14 @@ function tripTypeLabel(value: string) {
 export default function PartnerQuotesContent() {
   const auth = useAuthOptional();
   const searchParams = useSearchParams();
-  const { requests, selectedByTravellerRequests, setRequests, quotesError, refreshQuotes } = usePartnerPortal();
+  const {
+    requests,
+    selectedByTravellerRequests,
+    recentlyClosedRequests,
+    setRequests,
+    quotesError,
+    refreshQuotes,
+  } = usePartnerPortal();
   const requestParam = searchParams.get("request");
 
   const [selected, setSelected] = useState<CabTripRequest | null>(null);
@@ -349,6 +356,41 @@ export default function PartnerQuotesContent() {
                 <div className="flex items-start justify-between gap-2"><div><strong className="block text-sm font-extrabold text-[#192131]">{request.pickup_city} → {request.drop_city}</strong><p className="mt-1 text-[11px] text-slate-500">{formatDateTime(request.pickup_at)} · {request.passengers} pax</p></div><span className="text-right text-sm font-black text-emerald-700">{quote ? formatMoney(quote.total_amount) : "Selected"}</span></div>
                 <p className="mt-2 text-[11px] font-medium text-emerald-800">Quote selected · waiting for the traveller to complete booking</p>
               </article>;
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {recentlyClosedRequests.length > 0 ? (
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+            <div>
+              <h3 className="text-sm font-black text-[#192131]">Recently closed leads</h3>
+              <p className="mt-0.5 text-[11px] text-slate-500">These requests are no longer accepting quotes, but stay visible for seven days.</p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-extrabold text-slate-600">{recentlyClosedRequests.length} closed</span>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {recentlyClosedRequests.map((request) => {
+              const quote = request.quotes?.[0];
+              const highlighted = requestParam === request.id;
+              return (
+                <article
+                  key={request.id}
+                  className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${highlighted ? "bg-amber-50/70 ring-1 ring-inset ring-amber-200" : ""}`}
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <strong className="text-sm font-extrabold text-[#192131]">{request.pickup_city} → {request.drop_city}</strong>
+                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-700">Quote window closed</span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-slate-500">{formatDateTime(request.pickup_at)} · {request.passengers} pax · {request.request_number}</p>
+                  </div>
+                  <div className="text-right text-[11px] text-slate-500">
+                    {quote ? <><strong className="block text-sm text-[#192131]">{formatMoney(quote.total_amount)}</strong><span className="capitalize">Your quote {quote.status}</span></> : <span>Closed {formatDateTime(request.quote_deadline_at)}</span>}
+                  </div>
+                </article>
+              );
             })}
           </div>
         </section>

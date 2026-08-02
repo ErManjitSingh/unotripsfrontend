@@ -19,6 +19,7 @@ import { getCabPartnerContext, type CabPartnerApplication, type CabPartnerContex
 import {
   getPartnerAcceptedQuoteRequests,
   getPartnerQuoteRequests,
+  getPartnerRecentlyClosedQuoteRequests,
   type CabTripRequest,
 } from "@/lib/cab-quote-api";
 import { PartnerShell } from "@/components/cabs/partner/PartnerShell";
@@ -28,6 +29,7 @@ type PartnerPortalValue = {
   application: CabPartnerApplication;
   requests: CabTripRequest[];
   selectedByTravellerRequests: CabTripRequest[];
+  recentlyClosedRequests: CabTripRequest[];
   setRequests: Dispatch<SetStateAction<CabTripRequest[]>>;
   quotesError: string;
   refreshQuotes: () => Promise<void>;
@@ -47,6 +49,7 @@ export function PartnerPortalProvider({ children }: { children: ReactNode }) {
   const [context, setContext] = useState<CabPartnerContext | null>(null);
   const [requests, setRequests] = useState<CabTripRequest[]>([]);
   const [selectedByTravellerRequests, setSelectedByTravellerRequests] = useState<CabTripRequest[]>([]);
+  const [recentlyClosedRequests, setRecentlyClosedRequests] = useState<CabTripRequest[]>([]);
   const [quotesError, setQuotesError] = useState("");
   const [contextError, setContextError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -89,15 +92,17 @@ export function PartnerPortalProvider({ children }: { children: ReactNode }) {
   const refreshQuotes = useCallback(async () => {
     if (!accessToken || !approved) return;
     try {
-      const [openResult, acceptedResult] = await Promise.allSettled([
+      const [openResult, acceptedResult, historyResult] = await Promise.allSettled([
         getPartnerQuoteRequests(accessToken),
         getPartnerAcceptedQuoteRequests(accessToken),
+        getPartnerRecentlyClosedQuoteRequests(accessToken),
       ]);
       if (openResult.status === "rejected") throw openResult.reason;
       setRequests(openResult.value);
       // Keep the open inbox working even if an older backend has not exposed
       // the accepted-offers endpoint yet.
       setSelectedByTravellerRequests(acceptedResult.status === "fulfilled" ? acceptedResult.value : []);
+      setRecentlyClosedRequests(historyResult.status === "fulfilled" ? historyResult.value : []);
       setQuotesError("");
     } catch (reason) {
       setQuotesError(reason instanceof Error ? reason.message : "Could not load quote requests.");
@@ -120,11 +125,12 @@ export function PartnerPortalProvider({ children }: { children: ReactNode }) {
       application: context.application,
       requests,
       selectedByTravellerRequests,
+      recentlyClosedRequests,
       setRequests,
       quotesError,
       refreshQuotes,
     };
-  }, [context, requests, selectedByTravellerRequests, quotesError, refreshQuotes]);
+  }, [context, requests, selectedByTravellerRequests, recentlyClosedRequests, quotesError, refreshQuotes]);
 
   if (!authReady || loading) {
     return (

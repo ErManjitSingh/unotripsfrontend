@@ -185,6 +185,11 @@ export function getPartnerAcceptedQuoteRequests(accessToken: string) {
   return cabPartnerApi<CabTripRequest[]>("/quote-requests/accepted", accessToken);
 }
 
+/** Read-only recent leads whose quote deadline has already passed. */
+export function getPartnerRecentlyClosedQuoteRequests(accessToken: string) {
+  return cabPartnerApi<CabTripRequest[]>("/quote-requests/history", accessToken);
+}
+
 async function cabPartnerApi<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/cab-partner${path}`, {
     ...init,
