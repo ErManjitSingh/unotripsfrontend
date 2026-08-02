@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CarFront, ChevronDown, Clock3, MapPin, Users } from "lucide-react";
+import { CarFront, CheckCircle2, ChevronDown, Clock3, MapPin, Users } from "lucide-react";
 import { useAuthOptional } from "@/contexts/auth-context";
 import {
   getPartnerVehiclePricing,
@@ -61,7 +61,7 @@ function tripTypeLabel(value: string) {
 export default function PartnerQuotesContent() {
   const auth = useAuthOptional();
   const searchParams = useSearchParams();
-  const { requests, setRequests, quotesError, refreshQuotes } = usePartnerPortal();
+  const { requests, selectedByTravellerRequests, setRequests, quotesError, refreshQuotes } = usePartnerPortal();
   const requestParam = searchParams.get("request");
 
   const [selected, setSelected] = useState<CabTripRequest | null>(null);
@@ -332,6 +332,27 @@ export default function PartnerQuotesContent() {
           Match a fleet cab to each request, price from your rate card, and send a clear offer.
         </p>
       </div>
+
+      {selectedByTravellerRequests.length > 0 ? (
+        <section className="overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50/35 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-100 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-100 text-emerald-700"><CheckCircle2 className="h-4 w-4" /></span>
+              <div><h3 className="text-sm font-black text-emerald-950">Selected by traveller</h3><p className="text-[11px] text-emerald-800/75">Your offer was chosen. It will move to Bookings once the traveller completes the final step.</p></div>
+            </div>
+            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-extrabold text-emerald-700">{selectedByTravellerRequests.length} awaiting booking</span>
+          </div>
+          <div className="grid gap-2 p-3 sm:grid-cols-2">
+            {selectedByTravellerRequests.map((request) => {
+              const quote = request.quotes?.[0];
+              return <article key={request.id} className="rounded-lg border border-emerald-100 bg-white px-3 py-3">
+                <div className="flex items-start justify-between gap-2"><div><strong className="block text-sm font-extrabold text-[#192131]">{request.pickup_city} → {request.drop_city}</strong><p className="mt-1 text-[11px] text-slate-500">{formatDateTime(request.pickup_at)} · {request.passengers} pax</p></div><span className="text-right text-sm font-black text-emerald-700">{quote ? formatMoney(quote.total_amount) : "Selected"}</span></div>
+                <p className="mt-2 text-[11px] font-medium text-emerald-800">Quote selected · waiting for the traveller to complete booking</p>
+              </article>;
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
         {/* Inbox */}

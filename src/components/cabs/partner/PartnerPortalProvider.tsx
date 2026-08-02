@@ -16,13 +16,18 @@ import { useRouter } from "next/navigation";
 import { FileCheck2 } from "lucide-react";
 import { useAuthOptional } from "@/contexts/auth-context";
 import { getCabPartnerContext, type CabPartnerApplication, type CabPartnerContext } from "@/lib/cab-partner-api";
-import { getPartnerQuoteRequests, type CabTripRequest } from "@/lib/cab-quote-api";
+import {
+  getPartnerAcceptedQuoteRequests,
+  getPartnerQuoteRequests,
+  type CabTripRequest,
+} from "@/lib/cab-quote-api";
 import { PartnerShell } from "@/components/cabs/partner/PartnerShell";
 
 type PartnerPortalValue = {
   context: CabPartnerContext;
   application: CabPartnerApplication;
   requests: CabTripRequest[];
+  selectedByTravellerRequests: CabTripRequest[];
   setRequests: Dispatch<SetStateAction<CabTripRequest[]>>;
   quotesError: string;
   refreshQuotes: () => Promise<void>;
@@ -41,6 +46,7 @@ export function PartnerPortalProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [context, setContext] = useState<CabPartnerContext | null>(null);
   const [requests, setRequests] = useState<CabTripRequest[]>([]);
+  const [selectedByTravellerRequests, setSelectedByTravellerRequests] = useState<CabTripRequest[]>([]);
   const [quotesError, setQuotesError] = useState("");
   const [contextError, setContextError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -83,8 +89,15 @@ export function PartnerPortalProvider({ children }: { children: ReactNode }) {
   const refreshQuotes = useCallback(async () => {
     if (!accessToken || !approved) return;
     try {
-      const next = await getPartnerQuoteRequests(accessToken);
-      setRequests(next);
+      const [openResult, acceptedResult] = await Promise.allSettled([
+        getPartnerQuoteRequests(accessToken),
+        getPartnerAcceptedQuoteRequests(accessToken),
+      ]);
+      if (openResult.status === "rejected") throw openResult.reason;
+      setRequests(openResult.value);
+      // Keep the open inbox working even if an older backend has not exposed
+      // the accepted-offers endpoint yet.
+      setSelectedByTravellerRequests(acceptedResult.status === "fulfilled" ? acceptedResult.value : []);
       setQuotesError("");
     } catch (reason) {
       setQuotesError(reason instanceof Error ? reason.message : "Could not load quote requests.");
@@ -106,11 +119,12 @@ export function PartnerPortalProvider({ children }: { children: ReactNode }) {
       context,
       application: context.application,
       requests,
+      selectedByTravellerRequests,
       setRequests,
       quotesError,
       refreshQuotes,
     };
-  }, [context, requests, quotesError, refreshQuotes]);
+  }, [context, requests, selectedByTravellerRequests, quotesError, refreshQuotes]);
 
   if (!authReady || loading) {
     return (

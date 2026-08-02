@@ -180,6 +180,11 @@ export function getPartnerQuoteRequests(accessToken: string) {
   return cabPartnerApi<CabTripRequest[]>("/quote-requests", accessToken);
 }
 
+/** Offers the traveller selected but has not completed booking/payment for yet. */
+export function getPartnerAcceptedQuoteRequests(accessToken: string) {
+  return cabPartnerApi<CabTripRequest[]>("/quote-requests/accepted", accessToken);
+}
+
 async function cabPartnerApi<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/cab-partner${path}`, {
     ...init,
