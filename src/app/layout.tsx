@@ -4,7 +4,6 @@ import { AppProviders } from "@/components/providers/app-providers";
 import { TopBanner } from "@/components/layout/top-banner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { MarketingTracking } from "@/components/marketing/MarketingTracking";
-import { CookieConsentBanner } from "@/components/marketing/CookieConsentBanner";
 import { HERO_SLIDES, SITE } from "@/lib/constants";
 import "./globals.css";
 
@@ -123,7 +122,8 @@ export default function RootLayout({
           <TopBanner />
           {children}
         </AppProviders>
-        <CookieConsentBanner />
+        {/* Temporarily disabled: the consent dialog was obstructing mobile CTA controls. */}
+        {/* <CookieConsentBanner /> */}
       </body>
     </html>
   );
