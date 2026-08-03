@@ -34,11 +34,56 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
+  // Retire orphaned admin-catalog traveller paths in favour of quote marketplace.
+  // Static reserved routes (/cabs/partner, /cabs/quotes, …) are unaffected.
+  // redirects are unsupported with `output: "export"` — page-level redirect() covers that path.
+  ...(!isStaticExport
+    ? {
+        redirects: async () => [
+          {
+            source: "/cabs/results",
+            destination: "/cabs",
+            permanent: true,
+          },
+          {
+            source: "/cabs/results/:path*",
+            destination: "/cabs",
+            permanent: true,
+          },
+        ],
+      }
+    : {}),
+
   ...(isStaticExport
     ? { output: "export" as const, distDir: ".next-build" }
     : {}),
 
   transpilePackages: ["swiper"],
+
+  async redirects() {
+    return [
+      {
+        source: "/meta/himachal_special1",
+        destination: "/meta/himachal_special",
+        permanent: true,
+      },
+      {
+        source: "/meta/himachal_special1/:path*",
+        destination: "/meta/himachal_special/:path*",
+        permanent: true,
+      },
+      {
+        source: "/meta/leh",
+        destination: "/meta/leh_tour_package",
+        permanent: true,
+      },
+      {
+        source: "/meta/leh/:path*",
+        destination: "/meta/leh_tour_package/:path*",
+        permanent: true,
+      },
+    ];
+  },
 
   images: {
     // Serve images as-is — Supabase CDN handles resizing/compression.

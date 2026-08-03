@@ -33,16 +33,16 @@ const LIST_PROPERTY_CTA = {
   badge: "Free",
 } as const;
 
-const SOON_NAV_IDS = new Set<string>(["flights", "trains", "bus", "cabs"]);
+const SOON_NAV_IDS = new Set<string>(["flights", "trains", "bus"]);
 
 const EASE_MAIN_NAV: EaseNavItem[] = [
   { id: "holidays",   label: "HOLIDAYS",   href: "/packages"   },
   { id: "hotels",     label: "HOTELS",     href: "/hotels"     },
+  { id: "cabs",       label: "CABS",       href: "/cabs"       },
   { id: "activities", label: "ACTIVITIES", href: "/activities" },
   { id: "flights",    label: "FLIGHTS",    href: "/flights"    },
   { id: "trains",     label: "TRAINS",     href: "/trains"     },
   { id: "bus",        label: "BUS",        href: "/bus"        },
-  { id: "cabs",       label: "CABS",       href: "/cabs"       },
 ];
 
 export function Navbar({
@@ -249,7 +249,7 @@ export function Navbar({
                 <div className="flex items-center justify-between gap-2">
                   {inrBlock}
                 </div>
-                <AuthNavActions variant="ease" onNavigate={() => setOpen(false)} />
+                <AuthNavActions variant="ease" layout="inline" onNavigate={() => setOpen(false)} />
               </div>
             </div>
           ) : null}

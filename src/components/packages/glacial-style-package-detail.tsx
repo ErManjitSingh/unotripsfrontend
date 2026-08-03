@@ -67,6 +67,8 @@ type Props = {
   gstResult?: { total_gst: number; gst_label: string } | null;
   onBook: () => void;
   onViewBrochure: () => void;
+  /** From origin/main: opens the enquiry flow via the secondary CTA. */
+  onEnquire: () => void;
   onChangeHotel: (index: number) => void;
   onChangeRoom: (index: number) => void;
   onChangeCab: () => void;
@@ -182,6 +184,7 @@ export function GlacialStylePackageDetail({
   gstResult = null,
   onBook,
   onViewBrochure,
+  onEnquire,
   onChangeHotel,
   onChangeRoom,
   onChangeCab,
@@ -1227,10 +1230,16 @@ export function GlacialStylePackageDetail({
                   <span className="text-xl">›</span>
                 </div>
               </div>
-              <div className="mt-5">
+              <div className="mt-5 grid grid-cols-2 gap-4">
+                <button
+                  onClick={onEnquire}
+                  className="h-14 rounded-xl border border-[#FF5A00] bg-white text-base font-bold text-[#FF5A00] transition hover:bg-[#FFF4EC]"
+                >
+                  Enquire Now
+                </button>
                 <button
                   onClick={onBook}
-                  className="h-14 w-full rounded-xl bg-gradient-to-r from-[#FF7A18] to-[#FF5A00] text-base font-bold text-white shadow-[0_10px_22px_rgba(255,107,0,.2)] transition hover:-translate-y-0.5"
+                  className="h-14 rounded-xl bg-gradient-to-r from-[#FF7A18] to-[#FF5A00] text-base font-bold text-white shadow-[0_10px_22px_rgba(255,107,0,.2)] transition hover:-translate-y-0.5"
                 >
                   Book Now
                 </button>

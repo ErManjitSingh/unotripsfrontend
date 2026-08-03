@@ -68,6 +68,7 @@
         name: fd.get("name"),
         phone: phone,
         email: fd.get("email") || "",
+        destination: fd.get("destination") || "Gujarat",
         package: fd.get("package") || "",
         message: "",
       };

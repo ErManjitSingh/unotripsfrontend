@@ -68,16 +68,12 @@ export function GuestLoginForm({ redirectTo = "/account", onAuthComplete }: Gues
 
   return (
     <form onSubmit={otpSent ? handleVerify : handleSendOtp} className="space-y-4">
-      <p className="rounded-md bg-[#E3F2FD] px-3 py-2 text-[12px] leading-relaxed text-[#1565C0]">
-        Continue as a <strong>Guest</strong> with your mobile number. OTP will be sent to verify you.
-      </p>
-
       <div>
-        <label htmlFor="guest-phone" className="mb-1.5 block text-sm font-medium text-[#424242]">
+        <label htmlFor="guest-phone" className="mb-1.5 block text-sm font-semibold text-[#403842]">
           Mobile number
         </label>
         <div className="flex gap-2">
-          <span className="flex h-11 items-center rounded-xl border border-slate-200/80 bg-slate-50 px-3 text-sm text-[#616161]">
+          <span className="flex h-11 items-center rounded-xl border border-[#e4dbd5] bg-[#faf7f5] px-3 text-sm font-semibold text-[#616161]">
             +91
           </span>
           <Input
@@ -89,31 +85,34 @@ export function GuestLoginForm({ redirectTo = "/account", onAuthComplete }: Gues
             maxLength={10}
             value={phone}
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-            className="rounded-lg border-[#e0e0e0]"
+            className="h-11 rounded-xl border-[#e4dbd5] focus-visible:ring-[#ef6614]/25"
             disabled={otpSent && loading}
           />
         </div>
+        {!otpSent ? (
+          <p className="mt-1.5 text-[12px] text-[#837882]">We&apos;ll text you a one-time code.</p>
+        ) : null}
       </div>
 
       {otpSent ? (
-        <div>
-          <label htmlFor="guest-otp" className="mb-1.5 block text-sm font-medium text-[#424242]">
-            OTP
+        <div className="animate-[auth-panel-in_0.35s_ease-out]">
+          <label htmlFor="guest-otp" className="mb-1.5 block text-sm font-semibold text-[#403842]">
+            Enter OTP
           </label>
           <Input
             id="guest-otp"
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
-            placeholder="6-digit OTP"
+            placeholder="6-digit code"
             maxLength={6}
             value={otp}
             onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            className="rounded-lg border-[#e0e0e0] tracking-[0.3em]"
+            className="h-11 rounded-xl border-[#e4dbd5] tracking-[0.35em] focus-visible:ring-[#ef6614]/25"
           />
           <button
             type="button"
-            className="mt-2 text-[12px] font-semibold text-[#2196F3] hover:underline"
+            className="mt-2 text-[12px] font-bold text-[#ef6614] hover:underline"
             onClick={() => {
               setOtpSent(false);
               setOtp("");
@@ -125,14 +124,14 @@ export function GuestLoginForm({ redirectTo = "/account", onAuthComplete }: Gues
         </div>
       ) : null}
 
-      {info ? <p className="text-[12px] text-[#2E7D32]">{info}</p> : null}
-      {error ? <p className="text-[12px] text-red-600">{error}</p> : null}
+      {info ? <p className="text-[12px] font-medium text-emerald-700">{info}</p> : null}
+      {error ? <p className="text-[12px] font-medium text-red-600">{error}</p> : null}
 
       <Button
         type="submit"
         disabled={loading}
         className={cn(
-          "h-11 w-full rounded-md bg-[#EF6614] text-sm font-bold uppercase tracking-wide text-white hover:bg-[#E65100]",
+          "h-11 w-full rounded-xl border-0 bg-[#EF6614] bg-none text-sm font-bold text-white shadow-[0_12px_24px_-12px_rgba(239,102,20,0.9)] hover:bg-[#E65100] hover:brightness-100",
         )}
       >
         {loading ? "Please wait…" : otpSent ? "Verify & continue" : "Send OTP"}

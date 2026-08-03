@@ -673,6 +673,21 @@ export type PriceBreakdown = {
 // after the backend fulfillment-price endpoint is confirmed stable in
 // production for at least one release cycle.
 
+// basePackagePrice is ALWAYS the real package.priceINR (base_price from the
+// backend) — never omit it. It used to default to a hardcoded ₹9,500 demo
+// constant, which meant the optimistic price shown while customizing never
+// matched the authoritative POST /calculate-price total charged at checkout
+// (e.g. showing ~₹19,000 while browsing, then jumping to ₹46,000+ at
+// "Confirm & Pay"). There is no fallback anymore — callers must pass it.
+
+/**
+ * Full price breakdown using the package's configured pricing basis plus
+ * real hotel/cab option deltas. `basePackagePrice` and `originalPackagePrice`
+ * come straight from the package record (TourPackage.priceINR / oldPriceINR) —
+ * never a hardcoded rate. `disc` is informational only (what the traveller is
+ * already saving vs. the listed price) — it is NOT subtracted from `total`,
+ * since basePackagePrice is already the net/current selling price.
+ */
 export function calcTotalWithOptions(
   state: Omit<CustomizerState, "pay">,
   hotels: DestinationHotels[],

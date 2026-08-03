@@ -4,6 +4,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 
 require 'vendor/autoload.php';
 require_once __DIR__ . '/mail_smtp.php';
+require_once __DIR__ . '/crm_lead_push.php';
 
 if (isset($_POST['submit'])) {
 
@@ -16,6 +17,7 @@ if (isset($_POST['submit'])) {
   $city = isset($_POST['cityy']) ? trim($_POST['cityy']) : '';
   $subject = isset($_POST['subjecty']) ? trim($_POST['subjecty']) : 'Himachal Tour Query';
   $packageTitle = isset($_POST['package-title']) ? trim($_POST['package-title']) : '';
+  $destination = isset($_POST['destinationy']) ? trim($_POST['destinationy']) : 'Himachal';
 
   if (empty($name) || empty($mobile)) {
     echo "<script>alert('Please enter your name and phone number.');</script>";
@@ -26,31 +28,46 @@ if (isset($_POST['submit'])) {
   if (!empty($email)) {
     $message .= "Email: " . $email . "\n";
   }
+  $message .= "Destination: " . $destination . "\n";
   $message .= "City: " . $city . "\n";
   if (!empty($packageTitle)) {
     $message .= "Package: " . $packageTitle . "\n";
   }
 
-  $mail = new PHPMailer(true);
+  $crmResult = uno_crm_push_lead([
+    'name' => $name,
+    'phone' => $mobile,
+    'email' => $email,
+    'destination' => $destination !== '' ? $destination : 'Himachal',
+    'city' => $city,
+    'source' => 'Himachal Landing Page',
+    'sourceLabel' => 'Himachal Landing Page',
+    'package' => $packageTitle,
+    'captureType' => 'form',
+    'channel' => 'meta',
+  ]);
+  $crmOk = !empty($crmResult['success']);
 
+  $mailOk = false;
+  $mail = new PHPMailer(true);
   try {
     uno_trips_smtp_configure($mail);
     $mail->setFrom('query@ptwhotels.com', 'Uno Trips');
-
     $mail->addAddress('unotripsit@gmail.com');
     $mail->addAddress('manjitsingh012345@gmail.com');
     $mail->Subject = $subject;
     $mail->Body = $message;
-
-    if (!$mail->send()) {
-      echo 'Mailer Error: ' . $mail->ErrorInfo;
-    } else {
-      echo "<script>window.location.href = 'thankyou.html';</script>";
-      exit();
-    }
+    $mailOk = $mail->send();
   } catch (Exception $e) {
-    echo "Message could not be sent. Mailer Error: {$mail->ErrorInfo}";
+    error_log('[himachal form] mail failed: ' . $e->getMessage());
   }
+
+  if ($crmOk || $mailOk) {
+    echo "<script>window.location.href = 'thankyou.html';</script>";
+    exit();
+  }
+
+  echo 'Could not save enquiry. Please call us or try WhatsApp.';
 }
 
 ?>

@@ -26,9 +26,20 @@ type BookingAuthModalProps = {
   onSuccess: () => void;
   /** Pre-fill signup form from the guest details the user already typed. */
   prefill?: { name?: string; email?: string; phone?: string };
+  title?: string;
+  subtitle?: string;
+  footerNote?: string;
 };
 
-export function BookingAuthModal({ open, onClose, onSuccess, prefill }: BookingAuthModalProps) {
+export function BookingAuthModal({
+  open,
+  onClose,
+  onSuccess,
+  prefill,
+  title = "Login to continue booking",
+  subtitle = "Sign in to confirm your reservation",
+  footerNote = "Your booking details are saved. Login or sign up to confirm.",
+}: BookingAuthModalProps) {
   const auth = useAuthOptional();
   const [tab, setTab] = useState<AuthTab>("signup");
 
@@ -72,9 +83,9 @@ export function BookingAuthModal({ open, onClose, onSuccess, prefill }: BookingA
               sizes="110px"
             />
           </div>
-          <h2 className="text-[17px] font-bold text-[#212121]">Login to continue booking</h2>
+          <h2 className="text-[17px] font-bold text-[#212121]">{title}</h2>
           <p className="mt-1 text-[12px] text-[#757575]">
-            Sign in to confirm your reservation
+            {subtitle}
           </p>
         </div>
 
@@ -128,7 +139,7 @@ export function BookingAuthModal({ open, onClose, onSuccess, prefill }: BookingA
           )}
 
           <p className="mt-4 text-center text-[11px] text-[#9E9E9E]">
-            Your booking details are saved. Login or sign up to confirm.
+            {footerNote}
           </p>
         </div>
       </div>

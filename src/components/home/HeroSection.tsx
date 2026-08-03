@@ -22,6 +22,7 @@ import { HeroCinematicBackground } from "@/components/home/hero-cinematic-backgr
 import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
 import { HolidayPackagesSearchBar, TrustBadgesBar } from "@/components/home/holiday-packages-search-bar";
 import { AuthNavActions } from "@/components/auth/auth-nav-actions";
+import { useAuthOptional } from "@/contexts/auth-context";
 import type { HeroSearchCatalog } from "@/lib/hero-search-catalog";
 import { PARTNER_PORTAL_URL } from "@/lib/constants";
 import { TRAVEL_HOME_BRAND, TRAVEL_HOME_LOGO_SRC } from "@/lib/travel-home-brand";
@@ -44,21 +45,21 @@ const fadeUp = {
 const mobileCategories = [
   { id: "holidays", label: "Holidays", href: "/packages", icon: Palmtree },
   { id: "hotels", label: "Hotels", href: "/hotels", icon: Building2 },
+  { id: "cabs", label: "Cabs", href: "/cabs", icon: Car },
   { id: "activities", label: "Activities", href: "/activities", icon: TicketCheck },
   { id: "flights", label: "Flights", href: "/flights", icon: Plane },
   { id: "trains", label: "Trains", href: "/trains", icon: TrainFront },
   { id: "bus", label: "Bus", href: "/bus", icon: Bus },
-  { id: "cabs", label: "Cabs", href: "/cabs", icon: Car },
 ];
 
 const mobileMenuLinks = [
   { label: "Holiday Packages", href: "/packages", icon: Palmtree },
   { label: "Hotels", href: "/hotels", icon: Building2 },
+  { label: "Cabs", href: "/cabs", icon: Car },
   { label: "Activities", href: "/activities", icon: TicketCheck },
   { label: "Flights", href: "/flights", icon: Plane },
   { label: "Trains", href: "/trains", icon: TrainFront },
   { label: "Bus", href: "/bus", icon: Bus },
-  { label: "Cabs", href: "/cabs", icon: Car },
 ];
 
 const mobileFallbackDestinations = [
@@ -95,6 +96,14 @@ export function TravelMobileTopShell({
   compact?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const auth = useAuthOptional();
+  const firstName =
+    auth?.isAuthenticated && auth.user
+      ? (auth.user.name?.trim().split(/\s+/)[0]
+        || auth.user.email?.split("@")[0]
+        || null)
+      : null;
+  const greetingName = firstName || "Explorer";
 
   return (
     <section className={cn(
@@ -139,7 +148,8 @@ export function TravelMobileTopShell({
         </header>
 
         {menuOpen && (
-          <div className="fixed left-4 right-4 top-[66px] z-[60] overflow-hidden rounded-[22px] border border-white bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.55)] backdrop-blur-xl">
+          <div className="fixed left-4 right-4 top-[66px] z-[60] max-h-[calc(100dvh-80px)] overflow-y-auto rounded-[22px] border border-white bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.55)] backdrop-blur-xl">
+
             <div className="grid grid-cols-2 gap-2 p-3">
               {mobileMenuLinks.map(({ label, href, icon: Icon }) => (
                 <Link
@@ -154,8 +164,13 @@ export function TravelMobileTopShell({
               ))}
             </div>
             <div className="border-t border-orange-100/70 p-3">
-              <div className="mb-3 flex justify-center">
-                <AuthNavActions variant="ease" combined onNavigate={() => setMenuOpen(false)} />
+              <div className="mb-3">
+                <AuthNavActions
+                  variant="ease"
+                  combined
+                  layout="inline"
+                  onNavigate={() => setMenuOpen(false)}
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Link
@@ -182,7 +197,9 @@ export function TravelMobileTopShell({
         {showGreeting && (
           <div className="mt-2 flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-[20px] font-black leading-tight text-slate-900">Namaste, Explorer! 👋</h1>
+              <h1 className="text-[20px] font-black leading-tight text-slate-900">
+                Namaste, {greetingName}! 👋
+              </h1>
               <p className="mt-1 text-[14px] font-medium text-slate-500">Where do you want to go next?</p>
             </div>
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-orange-100 shadow-[0_10px_24px_-12px_rgba(234,88,12,0.7)] ring-4 ring-white">

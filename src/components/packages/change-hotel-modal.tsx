@@ -12,12 +12,10 @@ import {
   ChevronDown,
   ImageIcon,
   MapPin,
-  ParkingSquare,
   Search,
   Sparkles,
   Star,
   UtensilsCrossed,
-  Wifi,
   X,
 } from "lucide-react";
 import type {
@@ -800,6 +798,9 @@ export function ChangeHotelModal({
                                     : "1"}
                                 </span>
                               )}
+                              <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-lg bg-black/75 px-2 py-1 text-xs font-bold text-white">
+                                <ImageIcon className="h-3.5 w-3.5" />1 / 24
+                              </span>
                             </div>
                             <div className="flex min-w-0 flex-col py-1">
                               <div className="flex flex-wrap items-center gap-2">

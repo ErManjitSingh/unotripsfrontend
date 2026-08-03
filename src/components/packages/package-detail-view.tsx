@@ -251,6 +251,12 @@ export function PackageDetailView({
 
 
 
+  // New package payloads carry the authoritative selling price in
+  // day-options.base_price. The package list/detail summary can still be
+  // cached from the legacy shape, so never let that stale value drive totals
+  // when the new payload has supplied a price.
+  const effectiveBasePrice = basePrice ?? tour.priceINR;
+
   // ── Customiser state ──────────────────────────────────────────────────────
   const [rooms, setRooms] = useState<RoomConfig[]>(
     // A package's quoted price is built for its standard two-adult booking.
@@ -759,6 +765,7 @@ export function PackageDetailView({
           gstResult={priceRaw?.gst_result ?? null}
           onBook={goToPackageCheckout}
           onViewBrochure={() => setShowBrochure(true)}
+          onEnquire={() => setShowLoginModal(true)}
           onChangeHotel={(index) => { setChangeHotelMode("hotel"); setChangeHotelDestIdx(index); }}
           onChangeRoom={(index) => { setChangeHotelMode("room"); setChangeHotelDestIdx(index); }}
           onChangeCab={() => setChangeVehicleOpen(true)}

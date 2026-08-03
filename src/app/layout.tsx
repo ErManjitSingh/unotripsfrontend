@@ -4,6 +4,7 @@ import { Dancing_Script, Playfair_Display, Roboto } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import { TopBanner } from "@/components/layout/top-banner";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { MarketingTracking } from "@/components/marketing/MarketingTracking";
 import { HERO_SLIDES, SITE } from "@/lib/constants";
 import "./globals.css";
 
@@ -139,11 +140,14 @@ export default function RootLayout({
             alt=""
           />
         </noscript>
+        <MarketingTracking />
         <JsonLd />
         <AppProviders>
           <TopBanner />
           {children}
         </AppProviders>
+        {/* Temporarily disabled: the consent dialog was obstructing mobile CTA controls. */}
+        {/* <CookieConsentBanner /> */}
       </body>
     </html>
   );

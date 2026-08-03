@@ -22,6 +22,10 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiData } from "@/lib/api";
 import { NEW_DATA_PREVIEW } from "@/lib/new-data-preview";
+// Retained for origin/main's client-side hotel enrichment (attachHotelDetails).
+// Currently unused: this branch takes upgrade prices from the date-aware
+// backend PricingEngine instead. Kept so the fallback can be re-enabled.
+import { searchHotels, type HotelListing } from "@/lib/hotels-api";
 import {
   DEMO_HOTELS,
   DEMO_CABS,
@@ -210,6 +214,59 @@ export type DayOptionsData = {
     is_default_on: boolean;
   }>;
 };
+
+/** Resolve package hotel ids against the existing Hotels API. */
+async function attachHotelDetails(
+  data: DayOptionsData,
+): Promise<DayOptionsData> {
+  if (!data.stays?.length) return data;
+
+  const cities = [
+    ...new Set(data.stays.map((stay) => stay.destination_city).filter(Boolean)),
+  ];
+  const results = await Promise.all(
+    cities.map(async (city) => {
+      try {
+        const result = await searchHotels({
+          city,
+          page: 1,
+          limit: 50,
+          sort: "popular",
+        });
+        return [city, result.hotels] as const;
+      } catch {
+        return [city, [] as HotelListing[]] as const;
+      }
+    }),
+  );
+  const hotelsByCity = new Map(results);
+
+  return {
+    ...data,
+    stays: data.stays.map((stay) => {
+      const hotels = hotelsByCity.get(stay.destination_city) ?? [];
+      const byId = new Map(hotels.map((hotel) => [hotel.id, hotel]));
+      const defaultHotel = stay.default_hotel_id
+        ? byId.get(stay.default_hotel_id)
+        : undefined;
+      return {
+        ...stay,
+        default_hotel_image_url: defaultHotel?.images?.[0] ?? null,
+        default_hotel_starting_price: defaultHotel?.price ?? null,
+        default_hotel_slug: defaultHotel?.hotelSlug ?? null,
+        hotel_options: stay.hotel_options?.map((option) => {
+          const hotel = byId.get(option.hotel_id);
+          return {
+            ...option,
+            image_url: option.image_url ?? hotel?.images?.[0] ?? null,
+            starting_price: hotel?.price ?? null,
+            hotel_slug: hotel?.hotelSlug ?? null,
+          };
+        }),
+      };
+    }),
+  };
+}
 
 // ── Derived data ──────────────────────────────────────────────────────────────
 

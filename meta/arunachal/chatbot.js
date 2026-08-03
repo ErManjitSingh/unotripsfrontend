@@ -139,7 +139,8 @@
       chat: JSON.stringify(transcript),
       user_name: '',
       user_email: '',
-      user_phone: userMobile || ''
+      user_phone: userMobile || '',
+      destination: 'Arunachal'
     };
     var xhr = new XMLHttpRequest();
     xhr.open('POST', CHAT_ENDPOINT, true);

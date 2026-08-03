@@ -8,6 +8,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 require 'vendor/autoload.php';
+require_once __DIR__ . '/crm_lead_push.php';
 
 header('Content-Type: application/json');
 
@@ -21,6 +22,7 @@ $chat = $input['chat'] ?? '';
 $userEmail = isset($input['user_email']) ? trim($input['user_email']) : '';
 $userName = isset($input['user_name']) ? trim($input['user_name']) : '';
 $userPhone = isset($input['user_phone']) ? trim($input['user_phone']) : '';
+$destination = trim((string) ($input['destination'] ?? $input['destinationy'] ?? 'Arunachal'));
 
 if (empty($chat)) {
   echo json_encode(['success' => false, 'message' => 'No chat data']);
@@ -119,6 +121,21 @@ try {
   $mail->AltBody = $plainBody;
 
   $mail->send();
+
+  if ($userPhone !== '') {
+    uno_crm_push_lead([
+      'name' => $userName !== '' ? $userName : 'Arunachal Chatbot Lead',
+      'phone' => $userPhone,
+      'email' => $userEmail,
+      'destination' => $destination !== '' ? $destination : 'Arunachal',
+      'source' => 'Arunachal Chatbot',
+      'sourceLabel' => 'Arunachal Chatbot',
+      'chat' => $lines,
+      'captureType' => 'chatbot',
+      'channel' => 'meta',
+    ]);
+  }
+
   echo json_encode(['success' => true, 'message' => 'Chat sent']);
 } catch (Exception $e) {
   echo json_encode(['success' => false, 'message' => $e->getMessage()]);
