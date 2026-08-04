@@ -10,7 +10,7 @@ import {
   Bus,
   Car,
   Menu,
-  Palmtree,
+  Trees,
   Plane,
   Search,
   TicketCheck,
@@ -43,7 +43,7 @@ const fadeUp = {
 };
 
 const mobileCategories = [
-  { id: "holidays", label: "Holidays", href: "/packages", icon: Palmtree },
+  { id: "holidays", label: "Holidays", href: "/packages", icon: Trees },
   { id: "hotels", label: "Hotels", href: "/hotels", icon: Building2 },
   { id: "cabs", label: "Cabs", href: "/cabs", icon: Car },
   { id: "activities", label: "Activities", href: "/activities", icon: TicketCheck },
@@ -53,7 +53,7 @@ const mobileCategories = [
 ];
 
 const mobileMenuLinks = [
-  { label: "Holiday Packages", href: "/packages", icon: Palmtree },
+  { label: "Holiday Packages", href: "/packages", icon: Trees },
   { label: "Hotels", href: "/hotels", icon: Building2 },
   { label: "Cabs", href: "/cabs", icon: Car },
   { label: "Activities", href: "/activities", icon: TicketCheck },
