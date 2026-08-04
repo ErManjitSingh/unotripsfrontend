@@ -893,7 +893,7 @@ export function PackageDetailView({
                     <span className="flex">{Array.from({ length: 5 }).map((_, i) => (
                       <Star key={i} className={cn("h-3.5 w-3.5", i < fullStars ? "fill-amber-400 text-amber-400" : "fill-slate-200 text-slate-200")} aria-hidden />
                     ))}</span>
-                    <span className="text-xs font-bold text-[#424242]">{tour.rating.toFixed(1)}</span>
+                    <span className="text-xs font-bold text-[#424242]">{(tour.rating ?? 0).toFixed(1)}</span>
                     <span className="text-[11px] text-[#9e9e9e]">({formatInrAmount(tour.reviewCount)} reviews)</span>
                   </>
                 ) : (
@@ -996,7 +996,7 @@ export function PackageDetailView({
                       {/* Trip summary strip — all real, derived from actual package data */}
                       <div className="mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-orange-50/60 px-4 py-3">
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-primary bg-white px-3 py-1 text-[11px] font-bold text-primary">
-                          {tour.itinerary.length} Day Plan
+                          {(tour.itinerary?.length ?? 0)} Day Plan
                         </span>
                         {transfersCount > 0 && (
                           <span className="text-[12px] text-[#616161]"><b className="font-bold text-[#1a1a1a]">{transfersCount}</b> Transfer{transfersCount === 1 ? "" : "s"}</span>
@@ -1012,7 +1012,7 @@ export function PackageDetailView({
                       <div className="grid gap-4 sm:grid-cols-[150px_1fr] sm:gap-5">
                         {/* Day timeline */}
                         <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-col sm:overflow-visible sm:pb-0">
-                          {tour.itinerary.map((d) => {
+                          {(tour.itinerary ?? []).map((d) => {
                             const dateLabel = dayDateLabel(d.day);
                             const active = activeDay === d.day;
                             return (
