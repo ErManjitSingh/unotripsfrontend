@@ -247,6 +247,9 @@ export function PackageDetailView({
     // Token terms are per-package config (token_type: percent|fixed,
     // token_amount). Never hard-code a percentage here - Ops owns it.
     tokenType: pkgTokenType, tokenAmount: pkgTokenValue,
+    // Authoritative selling price from the day-options payload.
+    // Falls back to tour.priceINR (via effectiveBasePrice below) if not yet loaded.
+    basePrice,
   } = useDayOptions(slug, travelDate);
 
 
