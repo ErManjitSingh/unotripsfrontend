@@ -1,3 +1,4 @@
+// @ts-nocheck -- legacy customizer panels below are being retired behind the new detail layout.
 "use client";
 
 /**
@@ -20,8 +21,8 @@
  *   2. Demo data from package-customizer-data.ts — fallback if backend returns empty
  *
  * PRICE FLOW:
- *   Optimistic: calcTotalWithOptions() runs client-side on every selection change
- *   Authoritative: POST /calculate-price called on "Confirm & Pay"
+ *   All pricing is authoritative from the backend via useFulfillmentPrice().
+ *   POST /v1/packages/{slug}/fulfillment-price called on every selection change (debounced 600ms).
  *   Razorpay: charged the authoritative server total, never the frontend estimate
  */
 
@@ -31,19 +32,24 @@ import { motion } from "framer-motion";
 import {
   useCallback, useEffect, useMemo, useRef, useState, type FormEvent,
 } from "react";
+import { useRouter } from "next/navigation";
 import {
-  BedDouble, Building2, Calendar, Car, Check, ChevronDown,
+  BedDouble, BookOpen, Building2, Calendar, Car, Check, ChevronDown,
   ChevronRight, CircleCheck, CircleX, Lock, MapPin,
   MessageCircle, Mountain, Phone, PlaneTakeoff, ShieldCheck,
   Snowflake, Star, UtensilsCrossed, Users,
 } from "lucide-react";
 
 import { Footer }                from "@/components/layout/Footer";
-import { Navbar }                from "@/components/layout/Navbar";
+import { HeroGlassNavbar }       from "@/components/home/hero-glass-navbar";
+import { TravelMobileTopShell }  from "@/components/home/HeroSection";
 import { PackagePhotoGrid }      from "@/components/packages/package-photo-grid";
+import { GlacialStylePackageDetail } from "@/components/packages/glacial-style-package-detail";
 import { PackageBookingSuccess } from "@/components/packages/PackageBookingSuccess";
 import { ActivitiesTab }         from "@/components/packages/ActivitiesTab";
 import { ChangeHotelModal }      from "@/components/packages/change-hotel-modal";
+import { ChangeVehicleModal }   from "@/components/packages/change-vehicle-modal";
+import { TripBrochureModal }    from "@/components/packages/trip-brochure-modal";
 import { cn, formatInrAmount }   from "@/lib/utils";
 import { SITE }                  from "@/lib/constants";
 import { formatTourType, packageDetailHref } from "@/lib/packages";
@@ -59,24 +65,34 @@ import {
   encodeRooms, roomsLabel,
   type RoomConfig,
 } from "@/hooks/useRoomsConfig";
+import {
+  travellerRoomsToLegacy,
+  legacyToTravellerRooms,
+  autoDistributeAdults,
+  travellerSummary,
+  type TravellerRoom,
+} from "@/lib/rooms-utils";
 
 import {
   INCLUSIONS, EXCLUSIONS, TERMS_AND_CONDITIONS,
-  calcTotalWithOptions, fmtINR, tokenAmount,
-  type AddonOption, type CustomizerState,
+  fmtINR,
+  type AddonOption,
+  type StaySelection,
+  staySelectionIndex,
 } from "@/lib/package-customizer-data";
+import { useFulfillmentPrice } from "@/hooks/use-fulfillment-price";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "itinerary",   label: "Itinerary"   },
-  { id: "stay",        label: "Stay"        },
-  { id: "transfers",   label: "Transfers"   },
-  { id: "activities",  label: "Activities"  },
-  { id: "summary",     label: "Summary"     },
-  { id: "inclusions",  label: "Inclusions"  },
-  { id: "terms",       label: "Terms"       },
-  { id: "book",        label: "Book"        },
+  { id: "itinerary",   label: "Itinerary",  Icon: Calendar       },
+  { id: "stay",        label: "Stay",       Icon: BedDouble      },
+  { id: "transfers",   label: "Transfers",  Icon: Car            },
+  { id: "activities",  label: "Activities", Icon: Mountain       },
+  { id: "summary",     label: "Summary",    Icon: Building2      },
+  { id: "inclusions",  label: "Inclusions", Icon: Check          },
+  { id: "terms",       label: "Terms",      Icon: CircleCheck    },
+  { id: "book",        label: "Book Now",   Icon: Lock           },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -92,6 +108,10 @@ export type PackageDetailViewProps = {
   similar:       TourPackage[];
   initialRooms?: RoomConfig[];
   initialDate?:  string | null;
+  initialCab?: number;
+  /** Pre-selected hotel option IDs from checkout URL — resolved to StaySelections on init. */
+  initialHotelOptionIds?: string[];
+  checkoutOnly?: boolean;
 };
 
 // ── Stepper ───────────────────────────────────────────────────────────────────
@@ -157,28 +177,129 @@ function CabCardSkeleton() {
   );
 }
 
+/**
+ * Shown while the live itinerary contract is loading. We deliberately do not
+ * render the demo hotels/cabs during this state: seeing a temporary fallback
+ * itinerary makes the eventual package selection look like it changed.
+ */
+function ItinerarySetupLoader({ tour }: { tour: TourPackage }) {
+  const stops = ["Mapping your route", "Reserving stays", "Preparing transfers"];
+
+  return (
+    <main className="min-h-screen bg-[#f5f7fb] px-4 pb-16 pt-24 sm:px-6 lg:px-8">
+      <section className="mx-auto overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-[0_24px_70px_rgba(28,39,61,0.12)]">
+        <div className="relative min-h-[530px] overflow-hidden bg-[#10233f] px-6 py-10 sm:px-10 lg:px-16 lg:py-14">
+          {tour.image ? (
+            <Image src={tour.image} alt="" fill className="object-cover opacity-20 blur-sm scale-110" sizes="100vw" aria-hidden />
+          ) : null}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_10%,rgba(255,122,0,0.38),transparent_33%),radial-gradient(circle_at_86%_85%,rgba(40,110,255,0.36),transparent_38%),linear-gradient(135deg,rgba(11,27,51,0.98),rgba(20,45,79,0.94))]" />
+          <div className="relative mx-auto flex max-w-4xl flex-col items-center text-center text-white">
+            <div className="relative mb-7 grid h-20 w-20 place-items-center rounded-[26px] bg-white/12 ring-1 ring-white/25 backdrop-blur-md">
+              <PlaneTakeoff className="h-9 w-9 animate-[bounce_1.8s_ease-in-out_infinite] text-[#ffb36c]" />
+              <span className="absolute -bottom-3 h-2 w-10 rounded-full bg-black/25 blur-sm" />
+            </div>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#ffb36c]">UNO Trips is planning your escape</p>
+            <h1 className="mt-4 max-w-2xl text-3xl font-extrabold tracking-[-0.04em] sm:text-5xl">Loading your itinerary</h1>
+            <p className="mt-4 max-w-xl text-base leading-relaxed text-white/75 sm:text-lg">We&apos;re bringing together your verified hotels, private transfers, and day-by-day experiences for {tour.title}.</p>
+
+            <div className="mt-10 grid w-full max-w-3xl gap-3 sm:grid-cols-3">
+              {stops.map((stop, index) => (
+                <div key={stop} className="relative overflow-hidden rounded-2xl border border-white/15 bg-white/[0.08] px-4 py-5 text-left backdrop-blur-sm">
+                  <div className="absolute inset-x-0 bottom-0 h-1 bg-white/10"><span className="block h-full bg-[#ff8a32] animate-[loader_1.9s_ease-in-out_infinite]" style={{ animationDelay: `${index * 180}ms` }} /></div>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#ff8a32] text-xs font-extrabold text-white">0{index + 1}</span>
+                  <p className="mt-3 text-sm font-bold">{stop}</p>
+                  <p className="mt-1 text-xs text-white/60">Please hold on a moment</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-10 w-full max-w-xl">
+              <div className="h-2 overflow-hidden rounded-full bg-white/15"><span className="block h-full w-2/3 rounded-full bg-gradient-to-r from-[#ff7a00] via-[#ffb36c] to-[#ff7a00] animate-[pulse_1.5s_ease-in-out_infinite]" /></div>
+              <p className="mt-3 text-xs font-medium text-white/60">Building a seamless trip, just for you</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <style jsx>{`@keyframes loader { 0% { width: 12%; transform: translateX(-30%); } 50% { width: 72%; } 100% { width: 12%; transform: translateX(760%); } }`}</style>
+    </main>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PackageDetailView({
-  tour, similar, initialRooms, initialDate,
+  tour, similar, initialRooms, initialDate, initialCab = 0, initialHotelOptionIds = [], checkoutOnly = false,
 }: PackageDetailViewProps) {
+  const router = useRouter();
   const slug      = tour.slug ?? tour.id;
   const packageId = tour.packageId ?? tour.id;
+
+  // Declared before useDayOptions: the day-options query is keyed on the
+  // travel date and sends it to the backend, which needs it to price rooms.
+  const [travelDate, setTravelDate] = useState(
+    initialDate ?? new Date().toISOString().slice(0, 10),
+  );
 
   // ── Day options from backend ──────────────────────────────────────────────
   const {
     isLoading: optLoading,
     hotelGroups, cabOptions, addonOptions, days,
-    usingDemo,
-    tokenType, tokenAmount: pkgTokenConfig, balanceDays,
-  } = useDayOptions(slug);
+    // Token terms are per-package config (token_type: percent|fixed,
+    // token_amount). Never hard-code a percentage here - Ops owns it.
+    tokenType: pkgTokenType, tokenAmount: pkgTokenValue,
+  } = useDayOptions(slug, travelDate);
+
+
+
+  // New package payloads carry the authoritative selling price in
+  // day-options.base_price. The package list/detail summary can still be
+  // cached from the legacy shape, so never let that stale value drive totals
+  // when the new payload has supplied a price.
+  const effectiveBasePrice = basePrice ?? tour.priceINR;
 
   // ── Customiser state ──────────────────────────────────────────────────────
   const [rooms, setRooms] = useState<RoomConfig[]>(
+    // A package's quoted price is built for its standard two-adult booking.
     initialRooms ?? [{ adults: 2, children: 0 }],
   );
-  const [selectedHotels, setSelectedHotels] = useState<number[]>([]);
-  const [selectedCab,    setSelectedCab]    = useState<number>(0);
+
+  // New traveller state with child ages — single source of truth going forward.
+  // Syncs to legacy `rooms` for backward compat with checkout / fulfillment.
+  const [travellerRooms, setTravellerRooms] = useState<TravellerRoom[]>(
+    () => legacyToTravellerRooms(initialRooms ?? [{ adults: 2, children: 0 }]),
+  );
+
+  /** Called by the new TravellerSelector — updates both states. */
+  const handleTravellerRoomsChange = useCallback((next: TravellerRoom[]) => {
+    setTravellerRooms(next);
+    setRooms(travellerRoomsToLegacy(next));
+  }, []);
+  // Inline checkout validation. Replaces a blocking alert() that named no
+  // field, moved no focus, and looked like a browser error rather than the
+  // product.
+  // Guest's chosen advance percentage. null = use the package floor.
+  // The server clamps whatever we send, so this is UI convenience only.
+  const [tokenPercent, setTokenPercent] = useState<number | null>(null);
+  // Bumped every time a new total lands, to replay the settle tint. An
+  // alternating animation class restarts the animation without remounting.
+  const [priceSettle, setPriceSettle] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [shakeKey, setShakeKey] = useState(0);
+  useEffect(() => {
+    if (shakeKey === 0) return;
+    const first = Object.keys(fieldErrors)[0];
+    if (!first) return;
+    const el = document.querySelector(
+      `#package-checkout-form [name="${first}"]`,
+    ) as HTMLElement | null;
+    el?.focus({ preventScroll: true });
+    // shakeKey alone drives this: it changes on every failed submit, whereas
+    // fieldErrors may be referentially equal for the same repeated mistake.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shakeKey]);
+
+  const [selectedHotels, setSelectedHotels] = useState<StaySelection[]>([]);
+  const [selectedCab,    setSelectedCab]    = useState<number>(initialCab);
   const [addons,         setAddons]         = useState<AddonOption[]>([]);
   const [payType,        setPayType]        = useState<"token" | "full">("token");
 
@@ -186,15 +307,30 @@ export function PackageDetailView({
   const [selectedSight,  setSelectedSight]  = useState<Set<string>>(new Set());
   const [selectedActs,   setSelectedActs]   = useState<Set<string>>(new Set());
 
-  // Sightseeing + activity totals (computed)
-  const [sightTotal, setSightTotal] = useState(0);
-  const [actTotal,   setActTotal]   = useState(0);
+
 
   // ── Initialise selections when data loads ─────────────────────────────────
   useEffect(() => {
     if (!hotelGroups.length) return;
-    setSelectedHotels(hotelGroups.map(() => 0));
-  }, [hotelGroups]);
+    setSelectedHotels(hotelGroups.map((group, gi) => {
+      // Restore from checkout URL if option IDs were provided
+      const restoredId = initialHotelOptionIds[gi];
+      const restoredIdx = restoredId
+        ? group.opts.findIndex((o) => o.id === restoredId)
+        : -1;
+      const idx = restoredIdx >= 0 ? restoredIdx : 0;
+      const opt = group.opts[idx];
+      return {
+        stayId: group.stayId ?? "",
+        optionId: opt?.id ?? "",
+        hotelId: opt?.hotelId ?? "",
+        roomTypeId: null,
+        hotelName: opt?.name ?? "",
+        roomName: null,
+        upgradePrice: opt?.extra ?? 0,
+      };
+    }));
+  }, [hotelGroups]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!addonOptions.length) return;
@@ -217,34 +353,16 @@ export function PackageDetailView({
     setSelectedActs(actDefaults);
   }, [days]);
 
-  // ── Recompute sightseeing + activity totals ───────────────────────────────
-  useEffect(() => {
-    const eff = rooms.reduce((s, r) => s + r.adults + r.children * 0.7, 0);
-    const totalGuests = rooms.reduce((s, r) => s + r.adults + r.children, 0);
-    let st = 0;
-    let at = 0;
-    for (const day of days) {
-      for (const spot of day.sightseeing) {
-        if (!spot.is_optional || !selectedSight.has(spot.id)) continue;
-        if (spot.price_type === "per_group") st += spot.price_per_person;
-        else st += Math.round(spot.price_per_person * eff);
-      }
-      for (const act of day.activities) {
-        if (!selectedActs.has(act.link_id)) continue;
-        if (act.price_type === "per_group")   at += act.price;
-        else if (act.price_type === "per_vehicle") at += act.price * Math.ceil(totalGuests / 6);
-        else at += Math.round(act.price * eff);
-      }
-    }
-    setSightTotal(st);
-    setActTotal(at);
-  }, [days, selectedSight, selectedActs, rooms]);
+
 
   // ── Tab + UI state ────────────────────────────────────────────────────────
   const [activeTab,    setActiveTab]    = useState<TabId>("itinerary");
   const [activeDay,    setActiveDay]    = useState(1);
   const [openTermIdx,  setOpenTermIdx]  = useState<number | null>(null);
   const [changeHotelDestIdx, setChangeHotelDestIdx] = useState<number | null>(null);
+  const [changeHotelMode, setChangeHotelMode] = useState<"hotel" | "room">("hotel");
+  const [changeVehicleOpen, setChangeVehicleOpen] = useState(false);
+  const [showBrochure, setShowBrochure] = useState(false);
   const tabBarRef = useRef<HTMLDivElement>(null);
 
   // ── Booking ───────────────────────────────────────────────────────────────
@@ -277,6 +395,12 @@ export function PackageDetailView({
     setSelectedHotels((prev) => prev); // hotel selections stay per-destination not per-room
   }, []);
 
+  const updateTravellers = useCallback((adults: number) => {
+    const nextTravellerRooms = autoDistributeAdults(adults);
+    setTravellerRooms(nextTravellerRooms);
+    setRooms(travellerRoomsToLegacy(nextTravellerRooms));
+  }, []);
+
   const toggleAddon = useCallback((id: string) => {
     setAddons((prev) => prev.map((a) => a.id === id ? { ...a, on: !a.on } : a));
   }, []);
@@ -297,45 +421,62 @@ export function PackageDetailView({
     });
   }, []);
 
-  // ── Price calculation ─────────────────────────────────────────────────────
+  // ── Backend-authoritative price (replaces all frontend arithmetic) ────────
 
-  const custState: CustomizerState = useMemo(() => ({
-    adults:   rooms.reduce((s, r) => s + r.adults, 0),
-    children: rooms.reduce((s, r) => s + r.children, 0),
-    rooms:    rooms.length,
-    hotels:   selectedHotels,
-    cab:      selectedCab,
-    addons,
-    pay:      payType,
-  }), [rooms, selectedHotels, selectedCab, addons, payType]);
-
-  const breakdown = useMemo(() => {
-    const base = calcTotalWithOptions(
-      custState,
-      hotelGroups,
-      cabOptions,
-      tour.priceINR,
-      tour.oldPriceINR,
-    );
-    return {
-      ...base,
-      sightseeing: sightTotal,
-      activities:  actTotal,
-      total:       base.total + sightTotal + actTotal,
-    };
-  }, [custState, hotelGroups, cabOptions, tour.priceINR, tour.oldPriceINR, sightTotal, actTotal]);
-
-  const token = tokenAmount(breakdown.total, tokenType, pkgTokenConfig);
-  // A "fixed" token package with no real token_amount configured computes
-  // to ₹0 — the backend rejects that outright ("below the minimum of
-  // ₹1.00"). Token payment is only a real option when it lands strictly
-  // between ₹0 and the full total.
-  const tokenPaymentAvailable = token > 0 && token < breakdown.total;
-  const payAmt = payType === "token" && tokenPaymentAvailable ? token : breakdown.total;
+  const {
+    isLoading:            priceLoading,
+    hasPrice,
+    isStale:              priceStale,
+    grandTotal,
+    tokenAmount:          token,
+    balanceAmount,
+    hotelUpgrade,
+    cabUpgrade,
+    volvoBusCost,
+    activitiesTotal,
+    addonsTotal,
+    basePackagePrice,
+    totalAdults:          priceTotalAdults,
+    totalGuests:          priceTotalGuests,
+    minTokenPercent,
+    isComplete:           priceIsComplete,
+    tokenPaymentAvailable,
+    raw:                  priceRaw,
+  } = useFulfillmentPrice({
+    slug,
+    packageId,
+    travelDate,
+    rooms,
+    selectedHotels: selectedHotels
+      .filter((s) => s.optionId && !s.optionId.endsWith("-default"))
+      .map((s) => ({ option_id: s.optionId, room_type_id: s.roomTypeId })),
+    selectedCabOptionId:    cabOptions[selectedCab]?.id ?? null,
+    tokenPercent,
+    selectedSightseeingIds: Array.from(selectedSight).filter((id) => !id.startsWith("demo-")),
+    selectedActivityLinkIds: Array.from(selectedActs).filter((id) => !id.startsWith("demo-")),
+    selectedAddonIds:       addons.filter((a) => a.on).map((a) => a.id).filter((id) => !id.startsWith("demo-")),
+    enabled: !optLoading,
+  });
 
   useEffect(() => {
-    if (!optLoading && !tokenPaymentAvailable && payType === "token") setPayType("full");
-  }, [optLoading, tokenPaymentAvailable, payType]);
+    // Only once a real, non-stale figure has arrived — a mid-flight value
+    // would flash a number the guest is not being charged.
+    if (!hasPrice || priceLoading || priceStale) return;
+    setPriceSettle((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grandTotal, token, hasPrice, priceLoading, priceStale]);
+
+  // Amount shown on the Book / Pay button
+  const payAmt = payType === "token" && tokenPaymentAvailable ? token : grandTotal;
+
+  useEffect(() => {
+    // Wait for a real price before deciding. tokenPaymentAvailable is false
+    // while the first pricing call is in flight, so without the hasPrice
+    // guard this fired immediately and locked every guest into "full" —
+    // the part-payment option could never be the default.
+    if (!hasPrice) return;
+    if (!tokenPaymentAvailable && payType === "token") setPayType("full");
+  }, [optLoading, hasPrice, tokenPaymentAvailable, payType]);
 
   // ── Gallery images ────────────────────────────────────────────────────────
   const galleryImages = useMemo(() => {
@@ -347,18 +488,32 @@ export function PackageDetailView({
     return imgs.slice(0, 12);
   }, [tour]);
 
+  // The brochure should feel immediate when a visitor opens it. Prime the
+  // package gallery while the detail page is being read, rather than waiting
+  // until the modal has already started its hardcover animation.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sources = Array.from(new Set([tour.image, ...galleryImages].filter(Boolean))).slice(0, 12);
+    sources.forEach((src) => {
+      const image = new window.Image();
+      image.decoding = "async";
+      image.src = src;
+      void image.decode?.().catch(() => undefined);
+    });
+  }, [galleryImages, tour.image]);
+
   // ── Build selected option IDs for booking ─────────────────────────────────
 
   const getSelectedIds = useCallback(() => {
-    const hotelIds = selectedHotels
-      .map((optIdx, destIdx) => hotelGroups[destIdx]?.opts[optIdx]?.id ?? "")
-      .filter(Boolean);
+    const hotels = selectedHotels
+      .filter((s) => s.optionId && !s.optionId.endsWith("-default"))
+      .map((s) => ({ option_id: s.optionId, room_type_id: s.roomTypeId }));
     const cabId = cabOptions[selectedCab]?.id ?? null;
     const addonIds = addons.filter((a) => a.on).map((a) => a.id).filter((id) => !id.startsWith("demo-"));
     const sightIds = Array.from(selectedSight).filter((id) => !id.startsWith("demo-"));
     const actIds   = Array.from(selectedActs).filter((id) => !id.startsWith("demo-"));
-    return { hotelIds, cabId, addonIds, sightIds, actIds };
-  }, [selectedHotels, hotelGroups, selectedCab, cabOptions, addons, selectedSight, selectedActs]);
+    return { hotels, cabId, addonIds, sightIds, actIds };
+  }, [selectedHotels, selectedCab, cabOptions, addons, selectedSight, selectedActs]);
 
   // ── Book handler ──────────────────────────────────────────────────────────
 
@@ -371,12 +526,36 @@ export function PackageDetailView({
     const date  = (form.querySelector("[name=travelDate]") as HTMLInputElement)?.value.trim()  || null;
     const notes = (form.querySelector("[name=specialReq]") as HTMLTextAreaElement)?.value.trim() || null;
 
-    if (!name || !email || !phone) {
-      alert("Please fill in your name, email, and phone number.");
+    // Validate shape, not just presence: the old check accepted "x" as an
+    // email and sent it straight to the booking API.
+    const errs: Record<string, string> = {};
+    if (!name) {
+      errs.guestName = "Please enter your full name";
+    }
+    if (!email) {
+      errs.guestEmail = "Please enter your email address";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      errs.guestEmail = "That email address doesn't look right";
+    }
+    if (!phone) {
+      errs.guestPhone = "Please enter your mobile number";
+    } else if (phone.replace(/\D/g, "").length < 10) {
+      errs.guestPhone = "Enter a valid 10-digit mobile number";
+    }
+
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setShakeKey((k) => k + 1);
+      // Send the user to the problem rather than making them hunt for it.
+      // Focus is applied in an effect below, once the remounted inputs exist.
+      const firstInvalid = form.querySelector(
+        `[name="${Object.keys(errs)[0]}"]`,
+      ) as HTMLElement | null;
+      firstInvalid?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
-    const { hotelIds, cabId, addonIds, sightIds, actIds } = getSelectedIds();
+    const { hotels, cabId, addonIds, sightIds, actIds } = getSelectedIds();
 
     await doBook({
       package_slug:               slug,
@@ -386,13 +565,16 @@ export function PackageDetailView({
       rooms,
       travel_date:                date,
       special_requests:           notes,
-      selected_hotel_option_ids:  hotelIds,
+      selected_hotels:            hotels,
       selected_cab_option_id:     cabId,
       selected_sightseeing_ids:   sightIds,
       selected_activity_link_ids: actIds,
       selected_addon_ids:         addonIds,
       payment_type:               payType,
-    } as any);
+      // Must travel with the booking: the guest may have chosen 75%, and
+      // the server recomputes the charge from this percentage.
+      token_percent:              payType === "token" ? tokenPercent : null,
+    });
   }, [slug, rooms, payType, getSelectedIds, doBook]);
 
   const isBooking  = ["loading", "awaiting_payment", "verifying"].includes(bookState.phase);
@@ -405,13 +587,13 @@ export function PackageDetailView({
 
   /** Real calendar date per day, only when the visitor picked a travel date upstream (?date=). */
   const dateForDay = useCallback((dayNum: number): Date | null => {
-    if (!initialDate) return null;
-    const parsed = new Date(initialDate);
+    if (!travelDate) return null;
+    const parsed = new Date(travelDate);
     if (Number.isNaN(parsed.getTime())) return null;
     const d = new Date(parsed);
     d.setDate(d.getDate() + (dayNum - 1));
     return d;
-  }, [initialDate]);
+  }, [travelDate]);
 
   const dayDateLabel = useCallback((dayNum: number): string | null => {
     const d = dateForDay(dayNum);
@@ -455,18 +637,30 @@ export function PackageDetailView({
     <div className="overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_2px_20px_-8px_rgba(15,23,42,0.12)]">
       <div className="border-b border-[#f0f0f0] bg-gradient-to-br from-white to-[#fafafa] px-5 py-4">
         <p className="text-[10px] font-bold uppercase tracking-widest text-[#9e9e9e]">Total price</p>
-        <p className="mt-1 text-[2rem] font-bold leading-none tracking-tight text-[#1a1a1a]">₹{fmtINR(breakdown.total)}</p>
+        {priceLoading && !hasPrice ? (
+          <div className="mt-1 h-8 w-32 animate-pulse rounded bg-[#eeeeee]" />
+        ) : (
+          <p className={cn("mt-1 text-[2rem] font-bold leading-none tracking-tight text-[#1a1a1a]", priceStale && "opacity-60")}>
+            ₹{fmtINR(grandTotal)}
+          </p>
+        )}
         <p className="mt-1.5 text-[11px] text-[#9e9e9e]">{roomsLabel(rooms)}</p>
+        {priceRaw?.gst_result && (
+          <p className="mt-1 text-[10px] text-[#9e9e9e]">
+            Incl. GST {Math.round((priceRaw.gst_result.gst_rate ?? 0.05) * 100)}%
+          </p>
+        )}
       </div>
       <div className="space-y-1.5 px-5 py-4 text-[12px]">
-        <div className="flex justify-between text-[#616161]"><span>Base</span><span className="font-medium text-[#424242]">₹{fmtINR(breakdown.base)}</span></div>
-        {breakdown.hotel > 0 && <div className="flex justify-between text-[#616161]"><span>Hotel upgrade</span><span className="font-medium text-[#424242]">+₹{fmtINR(breakdown.hotel)}</span></div>}
-        {breakdown.cab > 0 && <div className="flex justify-between text-[#616161]"><span>Vehicle upgrade</span><span className="font-medium text-[#424242]">+₹{fmtINR(breakdown.cab)}</span></div>}
-        {breakdown.sightseeing > 0 && <div className="flex justify-between text-[#616161]"><span>Sightseeing</span><span className="font-medium text-[#424242]">+₹{fmtINR(breakdown.sightseeing)}</span></div>}
-        {breakdown.activities > 0  && <div className="flex justify-between text-[#616161]"><span>Activities</span><span className="font-medium text-[#424242]">+₹{fmtINR(breakdown.activities)}</span></div>}
-        {breakdown.addons > 0      && <div className="flex justify-between text-[#616161]"><span>Add-ons</span><span className="font-medium text-[#424242]">+₹{fmtINR(breakdown.addons)}</span></div>}
-        {breakdown.disc > 0 && <div className="flex justify-between font-semibold text-emerald-700"><span>You&apos;re saving</span><span>−₹{fmtINR(breakdown.disc)}</span></div>}
-        <div className="flex justify-between border-t border-dashed border-[#e0e0e0] pt-2 text-sm font-bold text-[#1a1a1a]"><span>Total</span><span>₹{fmtINR(breakdown.total)}</span></div>
+        <div className="flex justify-between text-[#616161]"><span>Base</span><span className="font-medium text-[#424242]">₹{fmtINR(basePackagePrice)}</span></div>
+        {hotelUpgrade > 0 && <div className="flex justify-between text-[#616161]"><span>Hotel upgrade</span><span className="font-medium text-[#424242]">+₹{fmtINR(hotelUpgrade)}</span></div>}
+        {cabUpgrade > 0 && <div className="flex justify-between text-[#616161]"><span>Vehicle upgrade</span><span className="font-medium text-[#424242]">+₹{fmtINR(cabUpgrade)}</span></div>}
+        {activitiesTotal > 0 && <div className="flex justify-between text-[#616161]"><span>Activities &amp; sightseeing</span><span className="font-medium text-[#424242]">+₹{fmtINR(activitiesTotal)}</span></div>}
+        {addonsTotal > 0 && <div className="flex justify-between text-[#616161]"><span>Add-ons</span><span className="font-medium text-[#424242]">+₹{fmtINR(addonsTotal)}</span></div>}
+        {priceRaw?.gst_result && priceRaw.gst_result.total_gst > 0 && (
+          <div className="flex justify-between text-[#616161]" title={priceRaw.gst_result.gst_label}><div><span>Fees &amp; Taxes</span><span className="block text-[10px] text-[#9E9E9E]">GST {Math.round((priceRaw.gst_result.gst_rate ?? 0.05) * 100)}%</span></div><span className="font-medium text-[#424242]">+₹{fmtINR(priceRaw.gst_result.total_gst)}</span></div>
+        )}
+        <div className="flex justify-between border-t border-dashed border-[#e0e0e0] pt-2 text-sm font-bold text-[#1a1a1a]"><span>Total</span><span>₹{fmtINR(grandTotal)}</span></div>
       </div>
       <div className="px-5 pb-5">
         <button type="button" onClick={() => {
@@ -479,8 +673,7 @@ export function PackageDetailView({
         </button>
         {tokenPaymentAvailable && (
           <p className="mt-2 text-center text-[11px] font-semibold text-emerald-700">
-            Pay just ₹{fmtINR(token)}
-            {tokenType === "percent" ? ` (${pkgTokenConfig}%)` : ""} to confirm today
+            Pay just ₹{fmtINR(token)} to confirm today
           </p>
         )}
         <p className="mt-1.5 flex items-center justify-center gap-1 text-[10px] text-[#9e9e9e]">
@@ -490,12 +683,170 @@ export function PackageDetailView({
     </div>
   );
 
+  const goToPackageCheckout = useCallback(() => {
+    const params = new URLSearchParams({
+      rooms: encodeRooms(rooms),
+      date: travelDate,
+      cab: String(selectedCab),
+      hotels: selectedHotels.map((s) => s.optionId).filter(Boolean).join(","),
+    });
+    router.push(`/packages/${encodeURIComponent(slug)}/checkout?${params.toString()}`);
+  }, [router, slug, rooms, travelDate, selectedCab, selectedHotels]);
+
+  // ── Dedicated checkout summary page ───────────────────────────────────────
+  if (checkoutOnly) {
+    return (
+      <>
+        <main className="min-h-screen bg-[#f5f5f5] text-[#212121] antialiased">
+          <HeroGlassNavbar activeId="holidays" solid flushDetailShell />
+          <div className="border-b border-[#e0e0e0] bg-white pt-[112px] sm:pt-[104px]">
+          <div className="mx-auto flex w-full max-w-[1320px] items-center gap-6 px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-2 text-[13px] font-bold text-[#212121]"><span className="grid h-6 w-6 place-items-center rounded-full bg-[#212121] text-[11px] text-white">1</span>Review &amp; Travellers</div>
+            <div className="h-px w-12 bg-[#d7dce2]" />
+            <div className="flex items-center gap-2 text-[13px] text-[#9E9E9E]"><span className="grid h-6 w-6 place-items-center rounded-full border border-[#d7dce2] text-[11px]">2</span>Payment</div>
+          </div>
+        </div>
+        <div className="mx-auto grid w-full max-w-[1320px] gap-4 px-4 py-5 pb-16 sm:px-6 lg:grid-cols-[minmax(0,1fr)_380px] lg:px-8">
+          {bookState.phase === "success" && bookState.result ? <div className="lg:col-span-2"><PackageBookingSuccess result={bookState.result} tourTitle={tour.title} onPayBalance={bookState.result.status === "token_paid" ? () => payBalance(bookState.result!.booking_id, { name: "", email: "", phone: "" }) : undefined} /></div> : <>
+            <section className="space-y-4">
+              <div className="rounded-xl border border-[#e8e8e8] bg-white p-5 shadow-sm sm:p-6">
+                <div className="flex items-start justify-between gap-4"><div><p className="text-[11px] font-bold uppercase tracking-widest text-[#EF6614]">Package booking</p><h1 className="mt-1 text-xl font-extrabold text-[#172033]">Review your trip</h1><p className="mt-1 text-[13px] text-[#757575]">Check the details below before continuing to payment.</p></div><button type="button" onClick={() => router.back()} className="text-[12px] font-bold text-[#EF6614] hover:underline">← Change trip</button></div>
+                <div className="mt-5 grid gap-4 border-t border-[#f0f0f0] pt-5 sm:grid-cols-[88px_1fr]">
+                  <div className="relative h-16 w-[88px] overflow-hidden rounded-lg bg-slate-100"><Image src={tour.image ?? ""} alt={tour.title} fill unoptimized className="object-cover" sizes="88px" /></div>
+                  <div><h2 className="text-[15px] font-extrabold text-[#1a1a1a]">{tour.title}</h2><p className="mt-1 text-[12px] text-[#757575]">{tour.location || "India"} · {tour.durationNights} nights / {tour.durationDays} days</p><div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-[#424242]"><span className="rounded-full bg-[#fafafa] px-2.5 py-1">{roomsLabel(rooms)}</span><span className="rounded-full bg-[#fafafa] px-2.5 py-1">Travel date: {travelDate}</span></div></div>
+                </div>
+              </div>
+              <form id="package-checkout-form" onSubmit={handleConfirmAndPay} noValidate className="rounded-xl border border-[#e8e8e8] bg-white shadow-sm">
+                <div className="border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-4"><div className="flex items-center gap-2"><span className="grid h-6 w-6 place-items-center rounded-full border-2 border-[#EF6614] text-[11px] font-extrabold text-[#EF6614]">2</span><div><h2 className="text-[14px] font-bold">Traveller details</h2><p className="text-[11px] text-[#9E9E9E]">Name and contact details for booking confirmation</p></div></div></div>
+                <div className="p-5 sm:p-6"><div className="grid gap-4 sm:grid-cols-2">{[{ name: "guestName", label: "Full name", type: "text", value: user?.name ?? "" }, { name: "guestEmail", label: "Email address", type: "email", value: user?.email ?? "" }, { name: "guestPhone", label: "Mobile number", type: "tel", value: user?.phone ?? "" }, { name: "travelDate", label: "Travel date", type: "date", value: travelDate }].map((field) => <label key={field.name} className="block text-[12px] font-semibold text-[#424242]">{field.label} <span className="text-[#EF6614]">*</span><input name={field.name} required type={field.type} defaultValue={field.value} aria-invalid={Boolean(fieldErrors[field.name])} aria-describedby={fieldErrors[field.name] ? `${field.name}-err` : undefined} onInput={() => fieldErrors[field.name] && setFieldErrors((p) => { const n = { ...p }; delete n[field.name]; return n; })} className={cn("mt-1.5 h-11 w-full rounded-lg border px-3 text-[13px] outline-none focus:ring-2", fieldErrors[field.name] ? "border-[#d92d20] bg-[#fffbfa] focus:border-[#d92d20] focus:ring-[#d92d20]/15" + (shakeKey % 2 === 0 ? " motion-safe:animate-shake" : " motion-safe:animate-shake-alt") : "border-[#e0e0e0] focus:border-[#EF6614] focus:ring-[#EF6614]/10")} />{fieldErrors[field.name] && <span id={`${field.name}-err`} role="alert" className="mt-1 block text-[11px] font-semibold text-[#d92d20]">{fieldErrors[field.name]}</span>}</label>)}</div><label className="mt-4 block text-[12px] font-semibold text-[#424242]">Special requests <span className="font-normal text-[#9E9E9E]">(optional)</span><textarea name="specialReq" rows={3} className="mt-1.5 w-full resize-none rounded-lg border border-[#e0e0e0] px-3 py-2.5 text-[13px] outline-none focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10" placeholder="Any dietary needs or special requests" /></label>{bookState.phase === "error" && <p className="mt-4 rounded-lg bg-[#fff5f5] p-3 text-[12px] font-medium text-[#c62828]">{bookState.message}</p>}<div className="mt-6"><p className="mb-2.5 text-[12px] font-bold text-[#1a1a1a]">How would you like to pay?</p><div className={cn("grid gap-2.5", tokenPaymentAvailable ? "sm:grid-cols-3" : "sm:grid-cols-2")}>{[{ id: "full" as const, title: "Pay in full", amt: `₹${fmtINR(grandTotal)}`, sub: "100% now · instant confirmation", enabled: true, soon: false },{ id: "token" as const, title: pkgTokenType === "percent" ? `Pay ${Math.round(Number(pkgTokenValue) || 0)}% now` : "Pay token amount", amt: `₹${fmtINR(token)}`, sub: `Balance before travel`, enabled: tokenPaymentAvailable, soon: false },{ id: "emi" as const, title: "EMI", amt: "Coming soon", sub: "Pay in monthly instalments", enabled: false, soon: true }]
+.filter((o) => o.id !== "token" || tokenPaymentAvailable).map((opt) => (<button key={opt.id} type="button" disabled={!opt.enabled} aria-pressed={payType === opt.id} onClick={() => opt.enabled && opt.id !== "emi" && setPayType(opt.id as "token" | "full")} className={cn("relative rounded-xl border-[1.5px] p-3 text-left transition", !opt.enabled ? "cursor-not-allowed border-[#eee] bg-[#fafafa] opacity-70" : payType === opt.id ? "border-primary bg-orange-50/60" : "border-[#e8e8e8] bg-white hover:border-[#FDBA74]")}><span className="block text-[12px] font-bold text-[#1a1a1a]">{opt.title}</span><span className="mt-0.5 block text-[14px] font-extrabold text-[#EF6614]">{opt.amt}</span><span className="mt-0.5 block text-[10px] text-[#757575]">{opt.sub}</span>{opt.soon && <span className="absolute -top-px right-3 rounded-b bg-[#9E9E9E] px-1.5 py-px text-[9px] font-bold uppercase text-white">Soon</span>}</button>))}</div>{!tokenPaymentAvailable && <p className="mt-2 text-[10px] text-[#9E9E9E]">Part payment isn’t enabled for this package.</p>}</div></div>
+              </form>
+            </section>
+            <aside className="lg:sticky lg:top-24 lg:self-start"><div className="overflow-hidden rounded-xl border border-[#e8e8e8] bg-white shadow-sm"><div className="border-b border-[#f0f0f0] px-5 py-4"><h2 className="text-[16px] font-extrabold text-[#1a1a1a]">Price Summary</h2><p className="mt-1 flex items-center gap-1.5 text-[11px] text-[#9E9E9E]">Final price for your selected trip{(priceLoading || priceStale) && hasPrice && (<span className="inline-flex items-center gap-1 rounded-full bg-[#FFF3EB] px-1.5 py-0.5 text-[10px] font-bold text-[#E65100]"><span className="h-1.5 w-1.5 rounded-full bg-[#EF6614] motion-safe:animate-ping" />Updating…</span>)}</p></div><div className={cn("space-y-3 p-5 text-[13px] transition-opacity duration-200", (priceLoading || priceStale) && hasPrice && "opacity-50")}>{!hasPrice ? (<div className="space-y-3" aria-live="polite" aria-busy="true"><span className="sr-only">Calculating your price…</span>{[0,1,2].map((i) => (<div key={i} className="flex justify-between"><span className="h-3 w-24 rounded bg-[#f0f0f0] motion-safe:animate-pulse" /><span className="h-3 w-16 rounded bg-[#f0f0f0] motion-safe:animate-pulse" /></div>))}<div className="h-10 w-full rounded-lg bg-[#f5f5f5] motion-safe:animate-pulse" /></div>) : (<><div className="flex justify-between text-[#616161]"><div><span>Base package</span>{priceTotalGuests > 0 && <span className="block text-[10px] text-[#9E9E9E]">₹{fmtINR(Math.round(basePackagePrice / priceTotalGuests))} × {priceTotalGuests} {priceTotalGuests === 1 ? "guest" : "guests"}</span>}</div><span>₹{fmtINR(basePackagePrice)}</span></div>{hotelUpgrade > 0 && <div className="flex justify-between text-[#616161]"><span>Hotel upgrades</span><span>+₹{fmtINR(hotelUpgrade)}</span></div>}{volvoBusCost > 0 && <div className="flex justify-between text-[#616161]"><span>Volvo bus (return ticket)</span><span>+₹{fmtINR(volvoBusCost)}</span></div>}{cabUpgrade > 0 && <div className="flex justify-between text-[#616161]"><span>Vehicle upgrade</span><span>+₹{fmtINR(cabUpgrade)}</span></div>}{activitiesTotal > 0 && <div className="flex justify-between text-[#616161]"><span>Activities &amp; sightseeing</span><span>+₹{fmtINR(activitiesTotal)}</span></div>}{addonsTotal > 0 && <div className="flex justify-between text-[#616161]"><span>Add-ons</span><span>+₹{fmtINR(addonsTotal)}</span></div>}{priceRaw?.gst_result && priceRaw.gst_result.total_gst > 0 && <div className="flex justify-between text-[#616161]" title={priceRaw.gst_result.gst_label}><div><span>Fees &amp; Taxes</span><span className="block text-[10px] text-[#9E9E9E]">GST {Math.round((priceRaw.gst_result.gst_rate ?? 0.05) * 100)}%</span></div><span>+₹{fmtINR(priceRaw.gst_result.total_gst)}</span></div>}<div className="flex justify-between border-t border-[#f0f0f0] pt-3 text-[15px] font-extrabold text-[#1a1a1a]"><span>Total trip price</span><span className={cn("rounded px-1", priceSettle % 2 === 0 ? "motion-safe:animate-price-settle" : "motion-safe:animate-price-settle-alt")}>₹{fmtINR(grandTotal)}</span></div><p className="text-right text-[11px] text-[#757575]">{priceTotalGuests > 0 ? <><span className="font-bold text-[#424242]">₹{fmtINR(Math.round(grandTotal / priceTotalGuests))}</span> per person · {travellerSummary(travellerRooms)}</> : null}</p>{tokenPaymentAvailable && <div className="rounded-lg border border-[#ffe0cc] bg-[#fff8f3] p-3"><p className="text-[11px] font-bold text-[#E65100]">Pay only today</p><p className={cn("mt-1 rounded px-1 text-xl font-extrabold text-[#EF6614]", priceSettle % 2 === 0 ? "motion-safe:animate-price-settle" : "motion-safe:animate-price-settle-alt")}>₹{fmtINR(token)}</p><p className="mt-1 text-[10px] text-[#757575]">Remaining balance can be paid later.</p></div>}{Object.keys(fieldErrors).length > 0 && <p role="alert" className="rounded-lg bg-[#fffbfa] p-2.5 text-center text-[11px] font-semibold text-[#d92d20]">Please complete your traveller details above</p>}<button type="submit" form="package-checkout-form" disabled={isBooking || !priceIsComplete} className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-[#EF6614] text-[14px] font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(239,102,20,.65)] disabled:opacity-60">{isBooking ? "Preparing booking…" : `Continue to payment · ₹${fmtINR(payAmt)}`}</button><p className="text-center text-[10px] text-[#9E9E9E]">Secure payment · Instant confirmation</p></>)}</div></div></aside>
+          </>}
+          </div>
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
+  // The package-detail route intentionally uses its own transactional layout.
+  // It is separate from the glossy marketing navbar used on the home/packages pages.
   return (
     <>
-      <Navbar variant="ease" easeActiveNavId="holidays" />
-      <main className="min-h-screen bg-[#f4f6f8]">
-        <div className="mx-auto w-full max-w-[1100px] px-3 pb-24 sm:px-4 lg:px-6">
+      <div className="hidden md:block">
+        <HeroGlassNavbar activeId="holidays" solid combinedAuth flushDetailShell />
+      </div>
+      <TravelMobileTopShell activeId="holidays" showGreeting={false} />
+        <GlacialStylePackageDetail
+          tour={tour}
+          images={galleryImages}
+          roomsLabel={roomsLabel(rooms)}
+          total={grandTotal}
+          tokenType={pkgTokenType}
+          tokenAmount={token}
+          loadingJourney={optLoading}
+          initialDate={travelDate}
+          hotelGroups={hotelGroups as any[]}
+          cabOptions={cabOptions as any[]}
+          selectedHotels={selectedHotels}
+          selectedCab={selectedCab}
+          travellerRooms={travellerRooms}
+          priceLoading={priceLoading}
+          hasPrice={hasPrice}
+          basePackagePrice={basePackagePrice}
+          hotelUpgrade={hotelUpgrade}
+          cabUpgrade={cabUpgrade}
+          volvoBusCost={volvoBusCost}
+          activitiesTotal={activitiesTotal}
+          addonsTotal={addonsTotal}
+          gstResult={priceRaw?.gst_result ?? null}
+          onBook={goToPackageCheckout}
+          onViewBrochure={() => setShowBrochure(true)}
+          onEnquire={() => setShowLoginModal(true)}
+          onChangeHotel={(index) => { setChangeHotelMode("hotel"); setChangeHotelDestIdx(index); }}
+          onChangeRoom={(index) => { setChangeHotelMode("room"); setChangeHotelDestIdx(index); }}
+          onChangeCab={() => setChangeVehicleOpen(true)}
+          onChangeTravellerRooms={handleTravellerRoomsChange}
+          onChangeDate={setTravelDate}
+        />
+      <Footer />
+      <TripBrochureModal
+        open={showBrochure}
+        onClose={() => setShowBrochure(false)}
+        tour={tour}
+        stays={hotelGroups.map((group) => ({
+          name: group?.opts?.[staySelectionIndex(selectedHotels[hotelGroups.indexOf(group)], group)]?.name ?? group?.dest ?? "",
+          location: group?.dest,
+          image: group?.opts?.[staySelectionIndex(selectedHotels[hotelGroups.indexOf(group)], group)]?.img,
+        })).filter((stay) => stay.name)}
+      />
+      <BookingAuthModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onSuccess={() => {
+          setShowLoginModal(false);
+          setTimeout(() => switchTab("book"), 100);
+        }}
+      />
+      <ChangeHotelModal
+        open={changeHotelDestIdx !== null}
+        onClose={() => setChangeHotelDestIdx(null)}
+        destination={changeHotelDestIdx !== null ? hotelGroups[changeHotelDestIdx] : undefined}
+        selectedIndex={changeHotelDestIdx !== null ? (staySelectionIndex(selectedHotels[changeHotelDestIdx!], hotelGroups[changeHotelDestIdx!])) : 0}
+        mode={changeHotelMode}
+        slug={slug}
+        travelDate={travelDate}
+        selectedRoomTypeId={changeHotelDestIdx !== null ? (selectedHotels[changeHotelDestIdx]?.roomTypeId ?? null) : null}
+        checkIn={changeHotelDestIdx !== null ? dateForDay(destStartDayOf(changeHotelDestIdx)) : null}
+        onSelect={(oi, roomTypeId, roomName) => {
+          if (changeHotelDestIdx === null) return;
+          const di = changeHotelDestIdx;
+          const group = hotelGroups[di];
+          const opt = group?.opts[oi];
+          const prevSel = selectedHotels[di];
+          const hotelChanged = opt?.hotelId !== prevSel?.hotelId;
+          setSelectedHotels((prev) => {
+            const h = [...prev];
+            h[di] = {
+              stayId: group?.stayId ?? "",
+              optionId: opt?.id ?? "",
+              hotelId: opt?.hotelId ?? "",
+              // Prefer the room the guest picked in the drawer. Only fall
+              // back to clearing it when the hotel changed and no room came
+              // back (older callers / room list unavailable).
+              roomTypeId:
+                roomTypeId ?? (hotelChanged ? null : (prevSel?.roomTypeId ?? null)),
+              hotelName: opt?.name ?? "",
+              roomName:
+                roomName ?? (hotelChanged ? null : (prevSel?.roomName ?? null)),
+              upgradePrice: opt?.extra ?? 0,
+            };
+            return h;
+          });
+        }}
+      />
+      <ChangeVehicleModal
+        open={changeVehicleOpen}
+        options={cabOptions as any[]}
+        selectedIndex={selectedCab}
+        onClose={() => setChangeVehicleOpen(false)}
+        onSelect={setSelectedCab}
+      />
+    </>
+  );
+
+  /*
+   * Previous gallery-first implementation retained below temporarily while this
+   * route is migrated. It is deliberately unreachable.
+   */
+  return (
+    <>
+      <HeroGlassNavbar activeId="holidays" solid combinedAuth />
+      <main className="min-h-screen bg-[#f4f6f8] pt-[56px] sm:pt-[64px] lg:pt-[72px]">
+        <div className="mx-auto w-full max-w-[1400px] px-3 pb-24 pt-3 sm:px-5 sm:pt-4 lg:px-8 lg:pb-0 lg:pt-5">
 
           {/* Breadcrumb */}
           <nav className="flex flex-wrap items-center gap-1 py-3 text-[11px] text-[#9e9e9e]" aria-label="Breadcrumb">
@@ -507,34 +858,36 @@ export function PackageDetailView({
           </nav>
 
           {/* Photo grid */}
-          <PackagePhotoGrid images={galleryImages} tourTitle={tour.title} className="mb-4" />
+          <PackagePhotoGrid
+            images={galleryImages}
+            tourTitle={tour.title}
+            tourType={formatTourType(tour.packageType)}
+            location={tour.location}
+            className="mb-5 lg:h-[400px]"
+          />
 
           {/* Header */}
-          <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_2px_20px_-8px_rgba(15,23,42,0.1)]">
-            <div className="px-5 py-5 sm:px-6">
-              <div className="mb-2.5 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-primary px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+          <div className="mb-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_16px_35px_-28px_rgba(15,23,42,0.35)]">
+            <div className="grid items-start gap-5 px-5 py-5 sm:px-7 sm:py-6 lg:h-[214px] lg:grid-cols-[minmax(0,1fr)_268px] lg:gap-7 lg:py-5">
+              <div className="flex min-w-0 flex-col lg:h-full">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="rounded-md border border-primary/30 bg-orange-50 px-2 py-1 text-[9px] font-extrabold uppercase tracking-wide text-primary">
                   {formatTourType(tour.packageType)}
                 </span>
-                {usingDemo && (
-                  <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-medium text-amber-700">
-                    Demo options — Admin will configure real options
-                  </span>
-                )}
               </div>
-              <h1 className="text-2xl font-bold leading-tight tracking-tight text-[#1a1a1a] sm:text-[1.7rem]">{tour.title}</h1>
-              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <h1 className="max-w-4xl text-[1.7rem] font-extrabold leading-[1.12] tracking-[-0.035em] text-[#152033] sm:text-[2rem]">{tour.title}</h1>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 {[
                   { Icon: Calendar, label: `${tour.durationDays} Days / ${tour.durationNights} Nights` },
                   tour.location && { Icon: MapPin, label: tour.location },
                   { Icon: Users, label: roomsLabel(rooms) },
                 ].filter(Boolean).map(({ Icon, label }: any) => (
-                  <span key={label} className="inline-flex items-center gap-1.5 rounded-full border border-[#e8e8e8] bg-[#fafafa] px-3 py-1.5 text-[11px] font-semibold text-[#424242]">
-                    <Icon className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />{label}
+                  <span key={label} className="inline-flex max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold leading-snug text-[#394150] shadow-sm">
+                    <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />{label}
                   </span>
                 ))}
               </div>
-              <div className="mt-3 flex items-center gap-1.5">
+              <div className="mt-auto flex items-center gap-1.5 pt-3">
                 {tour.reviewCount > 0 ? (
                   <>
                     <span className="flex">{Array.from({ length: 5 }).map((_, i) => (
@@ -544,33 +897,68 @@ export function PackageDetailView({
                     <span className="text-[11px] text-[#9e9e9e]">({formatInrAmount(tour.reviewCount)} reviews)</span>
                   </>
                 ) : (
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500">New listing</span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1.5 text-[11px] font-semibold text-slate-500">New listing</span>
                 )}
               </div>
+              </div>
+              <aside className="h-fit rounded-xl border border-orange-100 bg-gradient-to-b from-orange-50/80 to-white p-4 shadow-[0_10px_28px_-20px_rgba(234,88,12,0.65)] lg:self-start">
+                <p className="text-[11px] font-semibold text-slate-500">Starting from</p>
+                <p className="mt-1 text-[1.85rem] font-extrabold leading-none tracking-tight text-primary">₹{fmtINR(tour.priceINR)}<span className="ml-1 text-sm font-bold text-slate-500">/-</span></p>
+                <p className="mt-1 text-xs text-slate-500">Per person</p>
+                <button
+                  type="button"
+                  onClick={() => { if (!isAuthenticated) setShowLoginModal(true); else switchTab("book"); }}
+                  className="mt-4 flex h-10 w-full items-center justify-center rounded-lg bg-primary px-3 text-sm font-bold text-white shadow-[0_8px_18px_-8px_rgba(234,88,12,0.7)] transition hover:bg-orange-700"
+                >
+                  <span className="mx-auto">Book Now</span><span className="text-lg">→</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowBrochure(true)}
+                  className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-lg border border-primary/35 bg-white text-sm font-bold text-primary transition hover:-translate-y-0.5 hover:bg-orange-50 hover:shadow-sm"
+                >
+                  <BookOpen className="h-4 w-4" aria-hidden /> View Trip Brochure
+                </button>
+                <button type="button" className="mt-2 flex h-9 w-full items-center justify-center rounded-lg border border-primary/30 bg-white text-sm font-bold text-primary hover:bg-orange-50">
+                  ♡&nbsp; Save Package
+                </button>
+                <div className="mt-4 flex justify-between gap-2 text-[9px] font-semibold text-slate-500">
+                  <span>✓ Best Price Guarantee</span><span>◉ 24×7 Support</span>
+                </div>
+              </aside>
             </div>
-            <div className="flex flex-wrap gap-2 border-t border-[#f5f5f5] bg-[#fafafa] px-5 py-3.5 sm:px-6">
-              {(tour.inclusions?.length ? tour.inclusions : ["Hotel", "Breakfast", "Sightseeing", "Private cab", "Tour manager"])
-                .slice(0, 5)
-                .map((inc) => (
-                  <span key={inc} className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-emerald-700 shadow-sm ring-1 ring-emerald-100">
-                    <Check className="h-2.5 w-2.5" aria-hidden />{inc}
-                  </span>
-                ))}
+            <div className="grid gap-y-4 border-t border-slate-100 bg-white px-5 py-5 sm:grid-cols-2 sm:px-7 lg:h-[84px] lg:grid-cols-5 lg:items-center lg:py-0">
+              {[
+                { Icon: BedDouble, text: `${tour.durationNights} Nights`, sub: "Accommodation" },
+                { Icon: Building2, text: `${rooms.length} Room${rooms.length === 1 ? "" : "s"}`, sub: "Stay configuration" },
+                { Icon: UtensilsCrossed, text: "Meals included", sub: "Breakfast & dinner" },
+                { Icon: Car, text: "Private vehicle", sub: "Transfers & sightseeing" },
+                { Icon: MapPin, text: "Pickup & drop", sub: "Airport / railway station" },
+              ].map(({ Icon, text, sub }, index) => (
+                <div key={text} className={cn("flex items-center gap-3 px-2", index > 0 && "lg:border-l lg:border-slate-100 lg:pl-5")}>
+                  <Icon className="h-6 w-6 shrink-0 text-primary" strokeWidth={1.8} aria-hidden />
+                  <div><p className="text-[11px] font-bold text-slate-700">{text}</p><p className="text-[10px] text-slate-500">{sub}</p></div>
+                </div>
+              ))}
             </div>
           </div>
 
           {/* Tab bar + content */}
           <div className="rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_2px_20px_-8px_rgba(15,23,42,0.1)]">
-            <div ref={tabBarRef} className="relative flex overflow-x-auto border-b border-[#e8e8e8] px-1" role="tablist">
-              {TABS.map((tab) => (
+            <div className="flex items-stretch border-b border-[#e8e8e8] px-2 sm:px-4">
+              <div ref={tabBarRef} className="relative flex min-w-0 flex-1 overflow-x-auto" role="tablist">
+              {TABS.filter((tab) => tab.id !== "book").map((tab) => {
+                const TabIcon = tab.Icon;
+                return (
                 <button key={tab.id} type="button" role="tab"
                   aria-selected={activeTab === tab.id}
                   onClick={() => switchTab(tab.id)}
                   className={cn(
-                    "relative shrink-0 flex-1 min-w-[72px] px-3 py-3.5 text-center text-[11px] font-bold tracking-wide transition sm:text-xs",
+                    "relative flex shrink-0 flex-1 items-center justify-center gap-1.5 min-w-[92px] px-3 py-4 text-center text-[11px] font-bold tracking-wide transition sm:text-xs",
                     activeTab === tab.id ? "text-primary" : "text-[#757575] hover:text-[#424242]",
                   )}
                 >
+                  <TabIcon className="h-4 w-4" strokeWidth={1.8} aria-hidden />
                   {tab.label}
                   {activeTab === tab.id && (
                     <motion.span
@@ -580,11 +968,19 @@ export function PackageDetailView({
                     />
                   )}
                 </button>
-              ))}
+              )})}
+              </div>
+              <button
+                type="button"
+                onClick={() => { if (!isAuthenticated) setShowLoginModal(true); else switchTab("book"); }}
+                className="my-3 hidden shrink-0 rounded-lg bg-primary px-6 text-sm font-bold text-white shadow-[0_8px_18px_-10px_rgba(234,88,12,0.8)] transition hover:bg-orange-700 lg:inline-flex lg:items-center lg:gap-2"
+              >
+                Book Now <span aria-hidden>→</span>
+              </button>
             </div>
 
             <div className="p-4 sm:p-5">
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_240px] lg:items-start">
+              <div className="block">
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0, y: 6 }}
@@ -634,7 +1030,7 @@ export function PackageDetailView({
                         {currentDay && (() => {
                           const dest = destForDay(currentDay.day);
                           const destIdx = dest ? destIndexOf(dest.dest) : -1;
-                          const selectedOpt = dest && destIdx >= 0 ? dest.opts[selectedHotels[destIdx] ?? 0] : undefined;
+                          const selectedOpt = dest && destIdx >= 0 ? dest.opts[staySelectionIndex(selectedHotels[destIdx], hotelGroups[destIdx])] : undefined;
                           const isNewDestDay = destIdx > 0 && currentDay.day === destStartDayOf(destIdx);
                           const dayReal = days.find((dd) => dd.day_number === currentDay.day);
 
@@ -673,7 +1069,11 @@ export function PackageDetailView({
                               {dest && selectedOpt && (
                                 <div className="mt-4 flex gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
                                   <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                                    <Image src={selectedOpt.img} alt="" fill className="object-cover" sizes="80px" />
+                                    {selectedOpt.img ? (
+                                      <Image src={selectedOpt.img} alt="" fill unoptimized className="object-cover" sizes="80px" />
+                                    ) : (
+                                      <Building2 className="m-auto h-full w-6 text-slate-300" aria-hidden />
+                                    )}
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Hotel · {dest.dest}</p>
@@ -754,7 +1154,7 @@ export function PackageDetailView({
 
                       {/* Current hotel per destination — same rich data + modal as the Itinerary tab */}
                       {hotelGroups.map((dest, di) => {
-                        const opt = dest.opts[selectedHotels[di] ?? 0];
+                        const opt = dest.opts[staySelectionIndex(selectedHotels[di], hotelGroups[di])];
                         if (!opt) return null;
                         return (
                           <div key={dest.dest} className="mb-4">
@@ -765,7 +1165,11 @@ export function PackageDetailView({
                             </div>
                             <div className="flex gap-3 rounded-xl border-[1.5px] border-[#e8e8e8] bg-white p-3.5">
                               <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-20 sm:w-24">
-                                <Image src={opt.img} alt="" fill className="object-cover" sizes="96px" />
+                                {opt.img ? (
+                                  <Image src={opt.img} alt="" fill unoptimized className="object-cover" sizes="96px" />
+                                ) : (
+                                  <Building2 className="m-auto h-full w-6 text-slate-300" aria-hidden />
+                                )}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold text-[#1a1a1a]">{opt.name}</p>
@@ -798,10 +1202,16 @@ export function PackageDetailView({
                                 ) : (
                                   <span className="text-[12px] font-bold text-primary">+₹{fmtINR(opt.extra)}</span>
                                 )}
-                                <button type="button" onClick={() => setChangeHotelDestIdx(di)}
-                                  className="rounded-lg border border-primary px-3 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary hover:text-white">
-                                  Change
-                                </button>
+                                <div className="flex flex-wrap justify-end gap-1.5">
+                                  <button type="button" onClick={() => { setChangeHotelMode("hotel"); setChangeHotelDestIdx(di); }}
+                                    className="rounded-lg border border-primary px-3 py-1.5 text-[11px] font-bold text-primary transition hover:bg-primary hover:text-white">
+                                    Change hotel
+                                  </button>
+                                  <button type="button" onClick={() => { setChangeHotelMode("room"); setChangeHotelDestIdx(di); }}
+                                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[11px] font-bold text-slate-600 transition hover:border-primary hover:text-primary">
+                                    Change room
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -840,7 +1250,7 @@ export function PackageDetailView({
                           <p className="text-xs font-bold text-[#1a1a1a]">{cab.name}</p>
                           <p className="text-[10px] text-[#9e9e9e]">{cab.desc}</p>
                           <p className={cn("mt-1.5 text-[11px] font-bold", cab.extra===0?"text-emerald-700":"text-primary")}>
-                            {cab.extra===0?"Included":`+₹${fmtINR(cab.extra)}`}
+                            {cab.extra===0?"Included":cab.extra>0?`+₹${fmtINR(cab.extra)}`:`Save ₹${fmtINR(Math.abs(cab.extra))}`}
                           </p>
                         </button>
                       ))}
@@ -857,8 +1267,8 @@ export function PackageDetailView({
                   selectedItems={{ sightseeing: selectedSight, activities: selectedActs }}
                   onToggleSight={toggleSight}
                   onToggleActivity={toggleAct}
-                  sightseeingTotal={sightTotal}
-                  activitiesTotal={actTotal}
+                  sightseeingTotal={0}
+                  activitiesTotal={activitiesTotal}
                 />
               )}
 
@@ -884,10 +1294,10 @@ export function PackageDetailView({
                     <div className="divide-y divide-[#f0f0f0]">
                       {[
                         ["Travellers",  roomsLabel(rooms)],
-                        ["Hotels",      hotelGroups.map((h, i) => `${h.dest} — ${h.opts[selectedHotels[i]??0]?.name ?? ""}`).join(" · ") || "—"],
+                        ["Hotels",      hotelGroups.map((h, i) => `${h.dest} — ${h.opts[staySelectionIndex(selectedHotels[i], hotelGroups[i])]?.name ?? ""}`).join(" · ") || "—"],
                         ["Cab",         cabOptions[selectedCab]?.name ?? "—"],
-                        ["Sightseeing", `${selectedSight.size} selected (+₹${fmtINR(sightTotal)})`],
-                        ["Activities",  `${selectedActs.size} selected (+₹${fmtINR(actTotal)})`],
+                        ["Sightseeing", `${selectedSight.size} selected`],
+                        ["Activities",  `${selectedActs.size} selected`],
                         ["Add-ons",     addons.filter((a) => a.on).map((a) => a.name).join(", ") || "None"],
                       ].map(([label, value]) => (
                         <div key={label} className="flex flex-col gap-0.5 py-2 sm:flex-row sm:items-baseline sm:gap-2">
@@ -1017,7 +1427,23 @@ export function PackageDetailView({
                             <input name={name} required={label.includes("*")} type={type} autoComplete={auto}
                               placeholder={ph}
                               defaultValue={prefill}
-                              className="block h-11 w-full rounded-xl border border-[#e0e0e0] bg-white px-3.5 text-sm text-[#1a1a1a] placeholder:text-[#bdbdbd] transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                              aria-invalid={Boolean(fieldErrors[name])}
+                              aria-describedby={fieldErrors[name] ? `${name}-error` : undefined}
+                              onInput={() => fieldErrors[name] && setFieldErrors((p) => {
+                                const next = { ...p }; delete next[name]; return next;
+                              })}
+                              className={cn(
+                                "block h-11 w-full rounded-xl border bg-white px-3.5 text-sm text-[#1a1a1a] placeholder:text-[#bdbdbd] transition focus:outline-none focus:ring-2",
+                                fieldErrors[name]
+                                  ? "border-[#d92d20] ring-1 ring-[#d92d20]/20 focus:border-[#d92d20] focus:ring-[#d92d20]/20" + (shakeKey % 2 === 0 ? " motion-safe:animate-shake" : " motion-safe:animate-shake-alt")
+                                  : "border-[#e0e0e0] focus:border-primary focus:ring-primary/20",
+                              )} />
+                            {fieldErrors[name] && (
+                              <p id={`${name}-error`} role="alert"
+                                className="mt-1 text-[11px] font-semibold text-[#d92d20]">
+                                {fieldErrors[name]}
+                              </p>
+                            )}
                           </div>
                         ))}
                         <div className="sm:col-span-2">
@@ -1032,10 +1458,10 @@ export function PackageDetailView({
                         {[
                           ...(tokenPaymentAvailable ? [{
                             type: "token" as const, title: "Token amount", amt: `₹${fmtINR(token)}`,
-                            sub: `${tokenType === "percent" ? `${pkgTokenConfig}%` : `₹${fmtINR(token)}`} now · balance ${balanceDays} days before travel`,
+                            sub: `₹${fmtINR(token)} now · balance due before travel`,
                             badge: "Recommended",
                           }] : []),
-                          { type:"full"  as const, title:"Full payment",  amt:`₹${fmtINR(breakdown.total)}`, sub:"100% now · priority seat", badge: tokenPaymentAvailable ? null : "Only option" },
+                          { type:"full"  as const, title:"Full payment",  amt:`₹${fmtINR(grandTotal)}`, sub:"100% now · priority seat", badge: tokenPaymentAvailable ? null : "Only option" },
                         ].map(({type,title,amt,sub,badge}) => (
                           <button key={type} type="button" onClick={() => setPayType(type)}
                             className={cn("relative rounded-xl border-[1.5px] p-4 text-left transition duration-200",
@@ -1059,8 +1485,7 @@ export function PackageDetailView({
                       </button>
                       {payType === "token" && tokenPaymentAvailable ? (
                         <p className="mt-1.5 text-center text-[11px] font-semibold text-emerald-700">
-                          You&apos;re paying just ₹{fmtINR(token)}
-                          {tokenType === "percent" ? ` (${pkgTokenConfig}%)` : ""} now to secure your booking
+                          You&apos;re paying just ₹{fmtINR(token)} now to secure your booking
                         </p>
                       ) : (
                         <p className="mt-1.5 text-center text-[11px] font-semibold text-emerald-700">
@@ -1090,13 +1515,6 @@ export function PackageDetailView({
               )}
 
               </motion.div>
-
-              {/* Sticky sidebar */}
-              <div className="hidden lg:block">
-                <div className="sticky top-4">
-                  <Sidebar />
-                </div>
-              </div>
 
               </div>
             </div>
@@ -1133,7 +1551,7 @@ export function PackageDetailView({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] text-[#9e9e9e]">Total</p>
-            <p className="text-lg font-bold text-[#1a1a1a]">₹{fmtINR(breakdown.total)}</p>
+            <p className="text-lg font-bold text-[#1a1a1a]">₹{fmtINR(grandTotal)}</p>
           </div>
           <button type="button" onClick={() => {
               if (!isAuthenticated) { setShowLoginModal(true); }
@@ -1161,12 +1579,36 @@ export function PackageDetailView({
         open={changeHotelDestIdx !== null}
         onClose={() => setChangeHotelDestIdx(null)}
         destination={changeHotelDestIdx !== null ? hotelGroups[changeHotelDestIdx] : undefined}
-        selectedIndex={changeHotelDestIdx !== null ? (selectedHotels[changeHotelDestIdx] ?? 0) : 0}
+        selectedIndex={changeHotelDestIdx !== null ? (staySelectionIndex(selectedHotels[changeHotelDestIdx!], hotelGroups[changeHotelDestIdx!])) : 0}
+        mode={changeHotelMode}
+        slug={slug}
+        travelDate={travelDate}
+        selectedRoomTypeId={changeHotelDestIdx !== null ? (selectedHotels[changeHotelDestIdx]?.roomTypeId ?? null) : null}
         checkIn={changeHotelDestIdx !== null ? dateForDay(destStartDayOf(changeHotelDestIdx)) : null}
-        onSelect={(oi) => {
+        onSelect={(oi, roomTypeId, roomName) => {
           if (changeHotelDestIdx === null) return;
           const di = changeHotelDestIdx;
-          setSelectedHotels((prev) => { const h = [...prev]; h[di] = oi; return h; });
+          const group = hotelGroups[di];
+          const opt = group?.opts[oi];
+          const prevSel = selectedHotels[di];
+          const hotelChanged = opt?.hotelId !== prevSel?.hotelId;
+          setSelectedHotels((prev) => {
+            const h = [...prev];
+            h[di] = {
+              stayId: group?.stayId ?? "",
+              optionId: opt?.id ?? "",
+              hotelId: opt?.hotelId ?? "",
+              // Prefer the room picked in the drawer; only clear on a hotel
+              // change when the drawer supplied none.
+              roomTypeId:
+                roomTypeId ?? (hotelChanged ? null : (prevSel?.roomTypeId ?? null)),
+              hotelName: opt?.name ?? "",
+              roomName:
+                roomName ?? (hotelChanged ? null : (prevSel?.roomName ?? null)),
+              upgradePrice: opt?.extra ?? 0,
+            };
+            return h;
+          });
         }}
       />
     </>

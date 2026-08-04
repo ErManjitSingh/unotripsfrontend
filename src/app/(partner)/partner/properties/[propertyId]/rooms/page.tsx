@@ -27,16 +27,19 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { partnerApi } from "@/lib/partner/api";
 import {
-  PARTNER_MEAL_PLAN_LABELS,
-  MEAL_PLAN_CODES,
-  MEAL_DEFAULT_PRICES,
-  type RoomTypePayload,
-  type PartnerMealKey,
-  type MealPlans,
+  emptyRatePlans,
+  emptyRatePlanChannel,
+  type RatePlans,
+  type RatePlanChannel,
   type BedType,
 } from "@/components/partner/wizard/shared/types";
+import RatePlanEditor from "@/components/partner/wizard/shared/RatePlanEditor";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+//
+// AUDIT FIX (partner/backend pricing alignment, 2026-07): base_price,
+// weekend_price, and meal_plans are RETIRED — replaced by rate_plans
+// (Website EP/CP/MAP/AP × Room Rate/Extra Bed). See shared/types.ts.
 
 interface PartnerRoomType {
   id:            string;
@@ -46,10 +49,13 @@ interface PartnerRoomType {
   max_occupancy: number;
   size_sqft:     number;
   count:         number;
-  base_price:    number;
-  weekend_price?: number;
+  // AUDIT FIX: backend response (PartnerRoomTypeOut) returns the SINGULAR
+  // "rate_plan" field, flat {room, extra_bed} — NOT the plural "rate_plans"
+  // {website, staff, agent} wrapper used on create. Same shape as
+  // RatePlanChannel, reused here rather than declaring a duplicate type.
+  rate_plan:     RatePlanChannel;
+  weekend_markup_percent?: number;
   amenities:     string[];
-  meal_plans:    Partial<Record<PartnerMealKey, number>>;
   is_active:     boolean;
 }
 
@@ -142,23 +148,29 @@ const BED_TYPES: { value: BedType; label: string }[] = [
   { value: "bunk",   label: "Bunk Beds"   },
 ];
 
-const MEAL_ICONS: Record<PartnerMealKey, string> = {
-  breakfast: "☕", lunch: "🍱", dinner: "🍽️",
-};
-const MEAL_DESCRIPTIONS: Record<PartnerMealKey, string> = {
-  breakfast: "Morning meal included",
-  lunch:     "Midday meal included",
-  dinner:    "Evening meal included",
-};
-
 const cardSt: React.CSSProperties = {
   padding: 18, borderRadius: 10, border: "1px solid #E5E5E5",
   background: "#fff", display: "flex", flexDirection: "column", gap: 14,
 };
 
+// AUDIT FIX: create (POST) and update (PUT/PATCH) use DIFFERENT wire
+// shapes for pricing — create wants the full 3-channel "rate_plans"
+// {website, staff, agent}, update wants just the flat "rate_plan"
+// (singular) = website's {room, extra_bed}. RoomForm itself stays
+// wire-shape-agnostic: it always edits the full RatePlans internally
+// (so RatePlanEditor's `.website` binding works the same in both add
+// and edit modes) and hands the parent this plain values object; the
+// parent builds the correct create/update body from it.
+interface RoomFormValues {
+  name: string; description: string; bed_type: BedType;
+  max_occupancy: number; size_sqft: number; count: number;
+  amenities: string[]; images: string[]; is_active: boolean;
+  rate_plans: RatePlans; weekend_markup_percent?: number;
+}
+
 interface RoomFormProps {
   initial?:  Partial<PartnerRoomType>;
-  onSave:    (data: RoomTypePayload) => void;
+  onSave:    (data: RoomFormValues) => void;
   onCancel:  () => void;
   loading:   boolean;
 }
@@ -170,10 +182,18 @@ function RoomForm({ initial, onSave, onCancel, loading }: RoomFormProps) {
   const [maxOcc,      setMaxOcc]      = useState(initial?.max_occupancy ?? 2);
   const [sqft,        setSqft]        = useState(initial?.size_sqft ?? 300);
   const [count,       setCount]       = useState(initial?.count ?? 1);
-  const [basePrice,   setBasePrice]   = useState(initial?.base_price ?? 0);
-  const [weekendPrice,setWeekendPrice]= useState(initial?.weekend_price ?? "");
+  // AUDIT FIX: initial (when editing) comes from the API response, whose
+  // pricing field is `rate_plan` (singular, flat website channel) — NOT
+  // `rate_plans`. Seed the full 3-channel editor state by placing that
+  // flat channel under "website"; staff/agent stay zeroed (partner never
+  // sets those).
+  const [ratePlans,   setRatePlans]   = useState<RatePlans>(
+    initial?.rate_plan
+      ? { website: initial.rate_plan, staff: emptyRatePlanChannel(), agent: emptyRatePlanChannel() }
+      : emptyRatePlans(),
+  );
+  const [weekendMarkup, setWeekendMarkup] = useState(initial?.weekend_markup_percent ?? "");
   const [amenities,   setAmenities]   = useState<string[]>(initial?.amenities ?? []);
-  const [mealPlans,   setMealPlans]   = useState<MealPlans>(initial?.meal_plans ?? {});
   const [isActive,    setIsActive]    = useState(initial?.is_active ?? true);
   const [errors,      setErrors]      = useState<Record<string, string>>({});
 
@@ -181,29 +201,13 @@ function RoomForm({ initial, onSave, onCancel, loading }: RoomFormProps) {
     setAmenities(p => p.includes(a) ? p.filter(x => x !== a) : [...p, a]);
   }
 
-  function toggleMeal(meal: PartnerMealKey) {
-    setMealPlans(p => {
-      const n = { ...p };
-      if (meal in n) delete n[meal]; else n[meal] = MEAL_DEFAULT_PRICES[meal];
-      return n;
-    });
-  }
-
-  function setMealPrice(meal: PartnerMealKey, price: number) {
-    setMealPlans(p => ({ ...p, [meal]: price }));
-  }
-
   function validate(): boolean {
     const e: Record<string, string> = {};
-    if (!name.trim())   e.name       = "Room name is required";
-    if (basePrice <= 0) e.basePrice  = "Base price must be greater than ₹0";
-    if (maxOcc < 1)     e.maxOcc     = "At least 1 guest required";
-    if (count < 1)      e.count      = "At least 1 room required";
-    for (const meal of MEAL_PLAN_CODES) {
-      if (meal in mealPlans && (mealPlans[meal] ?? 0) <= 0) {
-        e.meals = `${PARTNER_MEAL_PLAN_LABELS[meal]} price must be > ₹0`; break;
-      }
-    }
+    if (!name.trim())               e.name       = "Room name is required";
+    if (ratePlans.website.room.ep <= 0)
+                                     e.ratePlans  = "Website EP (Room only rate) must be greater than ₹0";
+    if (maxOcc < 1)                 e.maxOcc     = "At least 1 guest required";
+    if (count < 1)                  e.count      = "At least 1 room required";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -217,10 +221,9 @@ function RoomForm({ initial, onSave, onCancel, loading }: RoomFormProps) {
       max_occupancy: maxOcc,
       size_sqft:     sqft,
       count,
-      base_price:    basePrice,
-      weekend_price: weekendPrice ? Number(weekendPrice) : undefined,
+      rate_plans:    ratePlans,
+      weekend_markup_percent: weekendMarkup ? Number(weekendMarkup) : undefined,
       amenities,
-      meal_plans:    mealPlans,
       is_active:     isActive,
       images:        (initial as any)?.images ?? [],
     });
@@ -280,56 +283,23 @@ function RoomForm({ initial, onSave, onCancel, loading }: RoomFormProps) {
         </div>
       </div>
 
-      {/* Pricing */}
-      <div style={cardSt}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#0C0C0C" }}>Pricing</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div>
-            <label style={labelSt}>Base Price / Night (₹) *</label>
-            <FI type="number" min={0} value={basePrice} onChange={e => { setBasePrice(Number(e.target.value)); setErrors(p => ({ ...p, basePrice: "" })); }} />
-            {errors.basePrice && <p style={{ fontSize: 11, color: "#dc2626", margin: "4px 0 0" }}>{errors.basePrice}</p>}
-          </div>
-          <div>
-            <label style={labelSt}>Weekend Price / Night (₹)</label>
-            <FI type="number" min={0} value={weekendPrice} placeholder="Optional" onChange={e => setWeekendPrice(e.target.value)} />
-          </div>
-        </div>
-      </div>
-
-      {/* Meal Plans */}
+      {/* Pricing — Rate Plans (Website EP/CP/MAP/AP × Room Rate / Extra Bed) */}
       <div style={cardSt}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#0C0C0C", marginBottom: 4 }}>Meal Options</div>
-          <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>Optional — enable meals and set price per person per night.</p>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0C0C0C", marginBottom: 4 }}>Rate Plans ₹/night</div>
+          <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>
+            Enter your direct rate for each meal plan, per row. Website EP (Room Rate) is required.
+          </p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {MEAL_PLAN_CODES.map(meal => {
-            const enabled = meal in mealPlans;
-            const price   = mealPlans[meal] ?? 0;
-            return (
-              <div key={meal} style={{ padding: "12px 14px", borderRadius: 9, border: `1.5px solid ${enabled ? "#C9A84C" : "#E5E5E5"}`, background: enabled ? "rgba(201,168,76,0.04)" : "#fafaf9", transition: "all 0.15s" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 }}>
-                    <input type="checkbox" checked={enabled} onChange={() => toggleMeal(meal)} style={{ width: 15, height: 15, accentColor: "#C9A84C", cursor: "pointer", flexShrink: 0 }} />
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#0C0C0C" }}>{MEAL_ICONS[meal]} {PARTNER_MEAL_PLAN_LABELS[meal]}</div>
-                      <div style={{ fontSize: 11, color: "#9B9B9B", marginTop: 1 }}>{MEAL_DESCRIPTIONS[meal]}</div>
-                    </div>
-                  </label>
-                  {enabled && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                      <span style={{ fontSize: 13, color: "#6B7280" }}>₹</span>
-                      <input type="number" min={1} value={price} onChange={e => setMealPrice(meal, Number(e.target.value))}
-                        style={{ width: 90, padding: "7px 9px", borderRadius: 7, border: "1.5px solid #C9A84C", fontSize: 13, fontFamily: "inherit", outline: "none", textAlign: "right" as const }} />
-                      <span style={{ fontSize: 11, color: "#9B9B9B", whiteSpace: "nowrap" as const }}>/person/night</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <RatePlanEditor
+          value={ratePlans.website}
+          onChange={website => { setRatePlans(p => ({ ...p, website })); setErrors(p => ({ ...p, ratePlans: "" })); }}
+          error={errors.ratePlans}
+        />
+        <div>
+          <label style={labelSt}>Weekend Markup (%)</label>
+          <FI type="number" min={0} max={100} style={{ maxWidth: 200 }} value={weekendMarkup} placeholder="Optional" onChange={e => setWeekendMarkup(e.target.value)} />
         </div>
-        {errors.meals && <p style={{ fontSize: 11, color: "#dc2626", marginTop: -4 }}>{errors.meals}</p>}
       </div>
 
       {/* Status */}
@@ -391,17 +361,48 @@ export default function PropertyRoomsPage() {
   }, [token, propertyId]);
 
   // ── Add / Edit ─────────────────────────────────────────────────────────────
+  //
+  // AUDIT FIX: create and update use different pricing wire shapes (see
+  // RoomFormValues comment above) — build the right body for each here
+  // rather than forwarding RoomForm's output as-is.
 
-  async function handleSave(data: RoomTypePayload) {
+  async function handleSave(data: RoomFormValues) {
     if (!token) return;
     setSaving(true);
     try {
       if (editRoom) {
-        const updated = await partnerApi.updateRoom(token, propertyId, editRoom.id, data as unknown as Record<string, unknown>);
+        const updateBody: Record<string, unknown> = {
+          name:            data.name,
+          description:     data.description,
+          bed_type:        data.bed_type,
+          max_occupancy:   data.max_occupancy,
+          size_sqft:       data.size_sqft,
+          count:           data.count,
+          amenities:       data.amenities,
+          is_active:       data.is_active,
+          // singular "rate_plan", flat — just the website channel.
+          rate_plan:       data.rate_plans.website,
+          weekend_markup_percent: data.weekend_markup_percent,
+        };
+        const updated = await partnerApi.updateRoom(token, propertyId, editRoom.id, updateBody);
         setRooms(rs => rs.map(r => r.id === editRoom.id ? (updated as PartnerRoomType) : r));
         toast.success("Room type updated.");
       } else {
-        const created = await partnerApi.addRoom(token, propertyId, data as unknown as Record<string, unknown>);
+        const createBody: Record<string, unknown> = {
+          name:            data.name,
+          description:     data.description,
+          bed_type:        data.bed_type,
+          max_occupancy:   data.max_occupancy,
+          size_sqft:       data.size_sqft,
+          count:           data.count,
+          amenities:       data.amenities,
+          images:          data.images,
+          is_active:       data.is_active,
+          // plural "rate_plans" — full website/staff/agent object.
+          rate_plans:      data.rate_plans,
+          weekend_markup_percent: data.weekend_markup_percent,
+        };
+        const created = await partnerApi.addRoom(token, propertyId, createBody);
         setRooms(rs => [...rs, created as PartnerRoomType]);
         toast.success("Room type added.");
       }
@@ -514,7 +515,7 @@ export default function PropertyRoomsPage() {
 
                     {/* Amenity chips */}
                     {room.amenities.length > 0 && (
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: Object.keys(room.meal_plans ?? {}).length > 0 ? 8 : 0 }}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {room.amenities.slice(0, 5).map(a => (
                           <span key={a} style={{ padding: "2px 8px", background: "#F9F7F2", border: "1px solid #E5E5E5", borderRadius: 4, fontSize: 11, color: "#6B7280" }}>{a}</span>
                         ))}
@@ -522,24 +523,33 @@ export default function PropertyRoomsPage() {
                       </div>
                     )}
 
-                    {/* Meal plan badges */}
-                    {Object.keys(room.meal_plans ?? {}).length > 0 && (
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                        {(Object.entries(room.meal_plans ?? {}) as [PartnerMealKey, number][]).map(([meal, price]) => (
-                          <span key={meal} style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.3)", color: "#7A5F18" }}>
-                            🍽️ {PARTNER_MEAL_PLAN_LABELS[meal]} — {fmtPrice(price)}/person/night
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    {/* Rate plan tier badges — CP/MAP/AP shown only when the partner has priced them */}
+                    {(() => {
+                      const w = room.rate_plan?.room;
+                      const tiers: { code: string; label: string; price: number }[] = w ? [
+                        { code: "CP",  label: "Room + breakfast",              price: w.cp },
+                        { code: "MAP", label: "Room + breakfast + dinner",     price: w.map },
+                        { code: "AP",  label: "Room + all meals",              price: w.ap },
+                      ].filter(t => t.price > 0) : [];
+                      if (tiers.length === 0) return null;
+                      return (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                          {tiers.map(t => (
+                            <span key={t.code} style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 500, background: "rgba(201,168,76,0.08)", border: "1px solid rgba(201,168,76,0.3)", color: "#7A5F18" }}>
+                              🍽️ {t.code} · {t.label} — {fmtPrice(t.price)}/night
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Right — price + actions */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10, flexShrink: 0 }}>
                     <div style={{ textAlign: "right" as const }}>
-                      <div style={{ fontFamily: "inherit", fontSize: 22, fontWeight: 700, color: "#0C0C0C" }}>{fmtPrice(room.base_price)}</div>
-                      <div style={{ fontSize: 11, color: "#9B9B9B" }}>per night (base)</div>
-                      {room.weekend_price && <div style={{ fontSize: 12, color: "#6B7280" }}>Weekend: {fmtPrice(room.weekend_price)}</div>}
+                      <div style={{ fontFamily: "inherit", fontSize: 22, fontWeight: 700, color: "#0C0C0C" }}>{fmtPrice(room.rate_plan?.room?.ep ?? 0)}</div>
+                      <div style={{ fontSize: 11, color: "#9B9B9B" }}>per night (EP · Website)</div>
+                      {!!room.weekend_markup_percent && <div style={{ fontSize: 12, color: "#6B7280" }}>Weekend: +{room.weekend_markup_percent}%</div>}
                     </div>
 
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>

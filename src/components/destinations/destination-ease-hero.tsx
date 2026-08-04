@@ -94,31 +94,33 @@ export function DestinationEaseHero({
       className={cn("relative z-10 w-full overflow-hidden bg-slate-900", className)}
       aria-label={title}
     >
-      <div className="relative h-[310px] w-full sm:h-[360px]">
+      <div className="relative h-[248px] w-full sm:h-[360px]">
         {/* Background */}
         <Image src={image} alt="" fill priority unoptimized sizes="100vw" className="object-cover object-center" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/70" />
 
         {/* Title */}
-        <div className="relative z-10 flex h-full flex-col items-center justify-center px-4 pb-24 pt-6 text-center sm:pb-28">
-          <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.35em] text-amber-400 drop-shadow-md sm:text-xs">
+        {/* The site navbar overlays this hero on desktop. Reserve that space so
+            the eyebrow/title never disappear behind it. */}
+        <div className="relative z-10 hidden h-full translate-y-2 flex-col items-center justify-center px-4 pb-28 pt-[92px] text-center sm:flex">
+          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.38em] text-amber-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)] sm:text-xs">
             Holiday Packages
           </p>
-          <h1 className="max-w-3xl text-2xl font-black leading-tight text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.7)] sm:text-3xl md:text-4xl">
+          <h1 className="max-w-4xl font-display text-3xl font-extrabold leading-tight tracking-[-0.025em] text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.78)] sm:text-4xl md:text-5xl lg:text-[3.75rem]">
             {title}
           </h1>
           {destinationName !== "All Destinations" && (
-            <p className="mt-1.5 text-sm font-semibold text-white/70 drop-shadow-md">{destinationName}</p>
+            <p className="mt-2 text-sm font-medium tracking-[0.06em] text-white/80 drop-shadow-md sm:text-base">{destinationName}</p>
           )}
         </div>
 
         {/* Search card */}
-        <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-4 sm:px-6 sm:pb-6">
+        <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-3 sm:px-6 sm:pb-6">
           <div className="w-full max-w-[900px] overflow-visible rounded-2xl border border-white/20 bg-white shadow-[0_20px_60px_-12px_rgba(0,0,0,0.4),0_4px_16px_rgba(0,0,0,0.12)]">
             <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-[1fr_1.6fr_1fr_auto] sm:divide-x sm:divide-y-0">
 
               {/* FROM */}
-              <div className="flex items-center gap-3 px-5 py-4">
+              <div className="hidden items-center gap-3 px-5 py-4 sm:flex">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-50">
                   <MapPin className="h-[18px] w-[18px] text-primary" strokeWidth={2} />
                 </span>
@@ -129,7 +131,7 @@ export function DestinationEaseHero({
               </div>
 
               {/* TO — editable */}
-              <div ref={toRef} className="relative flex items-center gap-3 px-5 py-4">
+              <div ref={toRef} className="relative flex items-center gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-50">
                   <Search className="h-[18px] w-[18px] text-primary" strokeWidth={2} />
                 </span>
@@ -173,7 +175,7 @@ export function DestinationEaseHero({
               </div>
 
               {/* DATE */}
-              <div className="flex items-center gap-3 px-5 py-4">
+              <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-50">
                   <Calendar className="h-[18px] w-[18px] text-primary" strokeWidth={2} />
                 </span>

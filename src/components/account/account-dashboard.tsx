@@ -31,6 +31,7 @@ import {
   Users,
   Wallet,
   Zap,
+  CarFront,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,7 @@ import { getCachedBookings, mergeBookings } from "@/lib/booking-cache-storage";
 import { cancelHotelBooking, isIncompleteBookingStatus } from "@/lib/hotels-bookings-api";
 import { AccountChangePassword } from "@/components/account/account-change-password";
 import { AccountMyReviews } from "@/components/account/account-my-reviews";
+import { AccountMyQuotes } from "@/components/account/account-my-quotes";
 import {
   claimPendingCheckoutsForUser,
   getPendingCheckoutsForUser,
@@ -324,8 +326,11 @@ function NextTripSpotlight({ booking }: { booking: UserBooking }) {
           {/* Bottom row */}
           <div className="flex items-center justify-between gap-3 border-t border-[#f0f0f0] pt-4">
             <div>
-              <p className="text-[11px] text-[#9E9E9E]">Total paid</p>
-              <p className="text-[20px] font-black text-[#212121]">{formatMoney(booking.total_amount, booking.currency)}</p>
+              <p className="text-[11px] text-[#9E9E9E]">{(booking.balance_due_amount ?? 0) > 0 ? "Paid so far" : "Total paid"}</p>
+              <p className="text-[20px] font-black text-[#212121]">{formatMoney(booking.amount_paid ?? booking.total_amount, booking.currency)}</p>
+              {(booking.balance_due_amount ?? 0) > 0 ? (
+                <p className="mt-0.5 text-[10px] font-semibold text-[#B45309]">{formatMoney(booking.balance_due_amount ?? 0, booking.currency)} due at hotel</p>
+              ) : null}
             </div>
             <Link href={hotelPath}
               className="inline-flex items-center gap-2 rounded-xl bg-[#EF6614] px-5 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#E65100]"
@@ -540,9 +545,10 @@ function BookingCard({
 
 type AccountDashboardProps = {
   onLogout: () => Promise<void>;
+  initialTab?: "bookings" | "quotes" | "reviews" | "profile";
 };
 
-export function AccountDashboard({ onLogout }: AccountDashboardProps) {
+export function AccountDashboard({ onLogout, initialTab = "bookings" }: AccountDashboardProps) {
   const { user: sessionUser, getAccessToken, updateUser } = useAuth();
   const [profile, setProfile] = useState<AuthUser | null>(sessionUser);
 
@@ -563,7 +569,14 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
     return getCachedBookings(sessionUser.id).length === 0;
   });
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"bookings" | "reviews" | "profile">("bookings");
+  const [activeTab, setActiveTab] = useState<"bookings" | "quotes" | "reviews" | "profile">(initialTab);
+
+  const selectTab = useCallback((tab: "bookings" | "quotes" | "reviews" | "profile") => {
+    setActiveTab(tab);
+    const href = tab === "bookings" ? "/account" : `/account?tab=${tab}`;
+    // Soft URL update — avoids remounting the dashboard / full-page loaders
+    window.history.replaceState(window.history.state, "", href);
+  }, []);
   const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
   const [bookingFilter, setBookingFilter] = useState<BookingFilter>("all");
   const [refreshing, setRefreshing] = useState(false);
@@ -765,10 +778,11 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
         <nav className="rounded-2xl border border-[#e8e8e8] bg-white p-2 shadow-sm">
           {([
             { id: "bookings" as const, label: "My Bookings", icon: Plane },
+            { id: "quotes" as const,   label: "My Quotes",   icon: CarFront },
             { id: "reviews" as const,  label: "My Reviews",  icon: MessageSquare },
             { id: "profile" as const,  label: "Profile",     icon: Shield },
           ] as const).map((item) => (
-            <button key={item.id} type="button" onClick={() => setActiveTab(item.id)}
+            <button key={item.id} type="button" onClick={() => selectTab(item.id)}
               className={cn("flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-[13px] font-semibold transition",
                 activeTab === item.id ? "bg-[#EF6614] text-white" : "text-[#424242] hover:bg-[#f5f5f5]")}
             >
@@ -859,11 +873,12 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
         <div className="flex gap-1 rounded-xl border border-[#e8e8e8] bg-white p-1 lg:hidden">
           {([
             { id: "bookings" as const, label: "Bookings", count: confirmedBookings.length + incompleteCount },
+            { id: "quotes" as const,   label: "Quotes",   count: null },
             { id: "reviews" as const,  label: "Reviews",  count: null },
             { id: "profile" as const,  label: "Profile",  count: null },
           ] as const).map((tab) => (
-            <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)}
-              className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition",
+            <button key={tab.id} type="button" onClick={() => selectTab(tab.id)}
+              className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-[12px] font-semibold transition sm:px-3 sm:text-[13px]",
                 activeTab === tab.id ? "bg-[#EF6614] text-white shadow-sm" : "text-[#757575] hover:bg-[#f5f5f5]")}
             >
               {tab.label}
@@ -949,6 +964,9 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
               </>
             ) : null}
           </section>
+
+        ) : activeTab === "quotes" ? (
+          <AccountMyQuotes />
 
         ) : activeTab === "reviews" ? (
           <section className="space-y-4">
@@ -1041,7 +1059,6 @@ export function AccountDashboard({ onLogout }: AccountDashboardProps) {
     </div>
   );
 }
-
 
 
 

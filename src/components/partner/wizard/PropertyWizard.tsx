@@ -33,13 +33,11 @@ function generateUUID(): string {
 }
 import WizardShell, { type StepConfig } from "./shared/WizardShell";
 import type {
-  PropertyWizardData, PropertyType, BedType, PartnerMealKey,
-  MealPlans, RoomTypePayload, DiningVenue, NearbyAttraction,
+  PropertyWizardData, PropertyType, BedType,
+  RoomTypePayload, DiningVenue, NearbyAttraction,
 } from "./shared/types";
-import {
-  MEAL_DEFAULT_PRICES, MEAL_PLAN_CODES,
-  PARTNER_MEAL_PLAN_LABELS, PARTNER_MEAL_DESCRIPTIONS,
-} from "./shared/types";
+import { emptyRatePlans } from "./shared/types";
+import RatePlanEditor from "./shared/RatePlanEditor";
 
 // ── Shared style helpers ──────────────────────────────────────────────────────
 
@@ -155,6 +153,17 @@ const IconConference = () => <svg width="16" height="16" viewBox="0 0 24 24" fil
 const IconRooftop    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12l9-9 9 9"/><path d="M9 21V12h6v9"/><path d="M3 21h18"/></svg>
 const IconViews      = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg>
 const IconKids       = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="3"/><path d="M6.5 11a5.5 5.5 0 0 1 11 0L19 17H5l1.5-6z"/><path d="M9 21l1-4h4l1 4"/></svg>
+// AUDIT FIX (photo category audit): 8 categories below were defined on the
+// backend (app/config/constants.py's PHOTO_CATEGORIES) but had no matching
+// button here — a partner had no way to upload photos under them at all.
+const IconReception  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M4 21V9a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v12M14 21V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v17"/><path d="M8 12h0M8 15h0M17 8h0M17 11h0M17 14h0"/></svg>
+const IconRestaurant = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></svg>
+const IconEntrance   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>
+const IconFacade     = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="1"/><path d="M3 10h18M3 16h18M9 4v17M15 4v17"/></svg>
+const IconOutdoors   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+const IconWashroom   = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12h16M6 12V6a2 2 0 0 1 2-2h1"/><path d="M4 12v7a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h10v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-7"/></svg>
+const IconParking    = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg>
+const IconOther      = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
 
 // ── STEP 1 ────────────────────────────────────────────────────────────────────
 
@@ -309,20 +318,13 @@ function Step2Location({ data, setField }: StepProps) {
         <div />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <Field label="Latitude">
-          <FocusInput type="number" value={String(data.latitude || "")} onChange={e => setField("latitude", Number(e.target.value))} placeholder="18.9388" />
-          <div style={{ fontSize: 11, color: "#9B9B9B", marginTop: 4 }}>From Google Maps</div>
-        </Field>
-        <Field label="Longitude">
-          <FocusInput type="number" value={String(data.longitude || "")} onChange={e => setField("longitude", Number(e.target.value))} placeholder="72.8354" />
-          <div style={{ fontSize: 11, color: "#9B9B9B", marginTop: 4 }}>From Google Maps</div>
-        </Field>
-      </div>
-
-      <div style={{ padding: "12px 16px", background: "#F9F7F2", borderRadius: 8, fontSize: 12, color: "#6B7280", lineHeight: 1.7 }}>
-        💡 To get coordinates: open <strong>Google Maps</strong> → right-click your property location → copy the latitude and longitude shown.
-      </div>
+      {/* AUDIT FIX: Latitude/Longitude manual-entry removed per request —
+          the backend now geocodes the map pin from address/city/state/
+          pincode automatically (see property_service.py's
+          create_from_wizard). data.latitude/longitude stay at their
+          default of 0 and are never edited here; the backend treats
+          (0, 0) as "needs geocoding" and resolves real coordinates
+          itself before saving. */}
     </div>
   );
 }
@@ -619,7 +621,6 @@ const BED_TYPES_LIST: { value: BedType; label: string }[] = [
 
 const BED_LABELS: Record<string, string> = { single: "Single", double: "Double", twin: "Twin", queen: "Queen", king: "King", bunk: "Bunk" };
 const ROOM_AMENITIES = ["AC","WiFi","TV","Mini Bar","Safe","Balcony","Sea View","Lake View","Garden View","Jacuzzi","Bathtub","Coffee Maker","Microwave","Kitchenette"];
-const MEAL_ICONS: Record<PartnerMealKey, string> = { breakfast: "☕", lunch: "🍱", dinner: "🍽️" };
 
 const rLabelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 6, display: "block" };
 
@@ -635,8 +636,9 @@ function RoomFormInline({ initial, onSave, onCancel }: RoomFormInlineProps) {
     bed_type: initial?.bed_type ?? "king", max_occupancy: initial?.max_occupancy ?? 2,
     size_sqft: initial?.size_sqft ?? 300, count: initial?.count ?? 1,
     amenities: initial?.amenities ?? [], images: initial?.images ?? [],
-    base_price: initial?.base_price ?? 0, weekend_price: initial?.weekend_price,
-    is_active: initial?.is_active ?? true, meal_plans: initial?.meal_plans ?? {},
+    rate_plans: initial?.rate_plans ?? emptyRatePlans(),
+    weekend_markup_percent: initial?.weekend_markup_percent,
+    is_active: initial?.is_active ?? true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -646,25 +648,14 @@ function RoomFormInline({ initial, onSave, onCancel }: RoomFormInlineProps) {
   }
 
   function toggleAmenity(a: string) { set("amenities", form.amenities.includes(a) ? form.amenities.filter(x => x !== a) : [...form.amenities, a]); }
-  function isMealEnabled(meal: PartnerMealKey): boolean { return meal in (form.meal_plans ?? {}); }
-  function toggleMeal(meal: PartnerMealKey) {
-    const u: MealPlans = { ...(form.meal_plans ?? {}) };
-    if (meal in u) delete u[meal]; else u[meal] = MEAL_DEFAULT_PRICES[meal];
-    set("meal_plans", u);
-  }
-  function setMealPrice(meal: PartnerMealKey, price: number) { set("meal_plans", { ...(form.meal_plans ?? {}), [meal]: price }); }
 
   function validate(): boolean {
     const e: Record<string, string> = {};
-    if (!form.name.trim())      e.name          = "Room name is required";
-    if (form.base_price <= 0)   e.base_price    = "Base price must be greater than 0";
-    if (form.max_occupancy < 1) e.max_occupancy = "At least 1 guest required";
-    if (form.count < 1)         e.count         = "At least 1 room required";
-    for (const meal of MEAL_PLAN_CODES) {
-      if (meal in (form.meal_plans ?? {}) && (form.meal_plans?.[meal] ?? 0) <= 0) {
-        e.meal_plans = `${PARTNER_MEAL_PLAN_LABELS[meal]} price must be greater than 0`; break;
-      }
-    }
+    if (!form.name.trim())          e.name          = "Room name is required";
+    if (form.rate_plans.website.room.ep <= 0)
+                                     e.rate_plans    = "Website EP (Room only rate) must be greater than 0";
+    if (form.max_occupancy < 1)     e.max_occupancy = "At least 1 guest required";
+    if (form.count < 1)             e.count         = "At least 1 room required";
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -729,65 +720,27 @@ function RoomFormInline({ initial, onSave, onCancel }: RoomFormInlineProps) {
         </div>
       </div>
 
-      {/* Pricing */}
-      <div style={sectionCard}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: "#0C0C0C", marginBottom: -4 }}>Pricing</div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div>
-            <label style={rLabelStyle}>Base Price / Night (₹) *</label>
-            <FocusInput type="number" min={0} value={form.base_price} onChange={e => set("base_price", Number(e.target.value))} />
-            {errors.base_price && <p style={{ fontSize: 11, color: "#dc2626", marginTop: 4 }}>{errors.base_price}</p>}
-          </div>
-          <div>
-            <label style={rLabelStyle}>Weekend Price / Night (₹)</label>
-            <FocusInput type="number" min={0} value={form.weekend_price ?? ""} placeholder="Optional" onChange={e => set("weekend_price", e.target.value ? Number(e.target.value) : undefined)} />
-          </div>
-        </div>
-      </div>
-
-      {/* Meal Options */}
+      {/* Pricing — Rate Plans (Website EP/CP/MAP/AP × Room Rate / Extra Bed) */}
       <div style={sectionCard}>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#0C0C0C", marginBottom: 4 }}>Meal Options</div>
-          <p style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.6, margin: 0 }}>Optional — enable each meal you want to offer and set a price per person per night.</p>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#0C0C0C", marginBottom: 4 }}>Rate Plans ₹/night</div>
+          <p style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.6, margin: 0 }}>
+            Enter your direct rate for each meal plan, per row. Website EP (Room Rate) is required — it&apos;s your base room price.
+          </p>
         </div>
-        <div style={{ padding: "10px 14px", borderRadius: 8, fontSize: 12, background: "rgba(201,168,76,0.06)", border: "1px solid rgba(201,168,76,0.2)", color: "#6B7280", lineHeight: 1.6 }}>
-          🍽️ Prices are per person per night and added on top of the room rate.
+        <RatePlanEditor
+          value={form.rate_plans.website}
+          onChange={website => set("rate_plans", { ...form.rate_plans, website })}
+          error={errors.rate_plans}
+        />
+        <div>
+          <label style={rLabelStyle}>Weekend Markup (%)</label>
+          <FocusInput
+            type="number" min={0} max={100} style={{ maxWidth: 200 }}
+            value={form.weekend_markup_percent ?? ""} placeholder="Optional"
+            onChange={e => set("weekend_markup_percent", e.target.value ? Number(e.target.value) : undefined)}
+          />
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {MEAL_PLAN_CODES.map(meal => {
-            const enabled = isMealEnabled(meal);
-            const price   = form.meal_plans?.[meal] ?? 0;
-            return (
-              <div key={meal} style={{ padding: "14px 16px", borderRadius: 10, border: `1.5px solid ${enabled ? "#C9A84C" : "#E5E5E5"}`, background: enabled ? "rgba(201,168,76,0.04)" : "#fafaf9", transition: "all 0.15s" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 }}>
-                    <input type="checkbox" checked={enabled} onChange={() => toggleMeal(meal)} style={{ width: 16, height: 16, accentColor: "#C9A84C", cursor: "pointer" }} />
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#0C0C0C" }}>{MEAL_ICONS[meal]} {PARTNER_MEAL_PLAN_LABELS[meal]}</div>
-                      <div style={{ fontSize: 11, color: "#9B9B9B", marginTop: 1 }}>{PARTNER_MEAL_DESCRIPTIONS[meal]}</div>
-                    </div>
-                  </label>
-                  {enabled && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                      <span style={{ fontSize: 13, color: "#6B7280", fontWeight: 500 }}>₹</span>
-                      <input type="number" min={1} value={price} onChange={e => setMealPrice(meal, Number(e.target.value))}
-                        style={{ width: 100, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #C9A84C", fontSize: 13, fontFamily: "inherit", outline: "none", textAlign: "right" as const }}
-                      />
-                      <span style={{ fontSize: 11, color: "#9B9B9B", whiteSpace: "nowrap" as const }}>/person/night</span>
-                    </div>
-                  )}
-                </div>
-                {enabled && price > 0 && (
-                  <div style={{ marginTop: 8, fontSize: 11, color: "#7A5F18", paddingLeft: 26 }}>
-                    Example: 2 guests × 2 nights = {formatRoomPrice(price * 2 * 2)} extra
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {errors.meal_plans && <p style={{ fontSize: 11, color: "#dc2626", marginTop: -4 }}>{errors.meal_plans}</p>}
       </div>
 
       {/* Status */}
@@ -846,8 +799,8 @@ function Step6Rooms({ data, setField }: StepProps) {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                 <div style={{ textAlign: "right" as const }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#0C0C0C" }}>₹{room.base_price.toLocaleString()}</div>
-                  <div style={{ fontSize: 11, color: "#9B9B9B" }}>per night</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#0C0C0C" }}>₹{room.rate_plans.website.room.ep.toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: "#9B9B9B" }}>per night (EP)</div>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="button" onClick={() => { setEditIndex(i); setShowForm(true); }}
@@ -1029,6 +982,16 @@ const OPTIONAL_CATEGORIES: CategoryDef[] = [
   { key: "rooftop",    label: "Rooftop",         required: false, icon: <IconRooftop />    },
   { key: "views",      label: "Views",           required: false, icon: <IconViews />      },
   { key: "kids",       label: "Kids Area",       required: false, icon: <IconKids />       },
+  // AUDIT FIX (photo category audit) — these 8 exist on the backend
+  // (PHOTO_CATEGORIES) but had no button here until now.
+  { key: "reception",  label: "Reception",       required: false, icon: <IconReception />  },
+  { key: "restaurant", label: "Restaurant",      required: false, icon: <IconRestaurant /> },
+  { key: "entrance",   label: "Entrance",        required: false, icon: <IconEntrance />   },
+  { key: "facade",     label: "Facade",          required: false, icon: <IconFacade />     },
+  { key: "outdoors",   label: "Outdoors",        required: false, icon: <IconOutdoors />   },
+  { key: "washroom",   label: "Washroom",        required: false, icon: <IconWashroom />   },
+  { key: "parking",    label: "Parking",         required: false, icon: <IconParking />    },
+  { key: "other",      label: "Other",           required: false, icon: <IconOther />      },
 ];
 
 // Photo uploader — parallel uploads, correct category key, live progress
@@ -1482,7 +1445,7 @@ function Step8Photos({ data, setField, pendingUploads, onPendingChange, token }:
                             <span style={{ fontSize: 9, fontWeight: 700, color: "#9B7D32", background: "#FBF3DE", border: "1px solid #C9A84C", padding: "1px 6px", borderRadius: 4, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Required</span>
                           </div>
                           <div style={{ fontSize: 11, color: "#9B9B9B", marginTop: 2 }}>
-                            {room.bed_type} · Max {room.max_occupancy} guests · ₹{room.base_price.toLocaleString("en-IN")}/night · Min {MIN_ROOM_PHOTOS} · Max {MAX_ROOM_PHOTOS} photos
+                            {room.bed_type} · Max {room.max_occupancy} guests · ₹{room.rate_plans.website.room.ep.toLocaleString("en-IN")}/night · Min {MIN_ROOM_PHOTOS} · Max {MAX_ROOM_PHOTOS} photos
                           </div>
                         </div>
                       </div>

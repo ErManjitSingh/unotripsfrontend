@@ -253,7 +253,7 @@ export function HotelRoomsGuestsField({
         <div
           role="dialog"
           aria-label="Rooms and guests"
-          className="absolute right-0 top-[calc(100%-2px)] z-[200] mt-0 w-[min(calc(100vw-1.5rem),300px)] rounded-xl border border-[#E0E0E0] bg-white p-4 shadow-[0_12px_40px_-8px_rgba(15,23,42,0.25)]"
+          className="absolute bottom-full right-0 z-[220] mb-2 w-[min(calc(100vw-1.5rem),300px)] rounded-xl border border-[#E0E0E0] bg-white p-4 shadow-[0_12px_40px_-8px_rgba(15,23,42,0.25)]"
         >
           <CounterRow
             label="Rooms"

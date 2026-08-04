@@ -29,39 +29,84 @@ import { cn } from "@/lib/utils";
 type NavItem = { id: string; label: string; href: string; icon: typeof Plane };
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "holidays",   label: "Holidays",   href: "/",           icon: Palmtree },
+  { id: "holidays",   label: "Holidays",   href: "/packages",   icon: Palmtree },
   { id: "hotels",     label: "Hotels",     href: "/hotels",     icon: Building2 },
+  { id: "cabs",       label: "Cabs",       href: "/cabs",       icon: Car },
   { id: "activities", label: "Activities", href: "/activities", icon: TicketCheck },
   { id: "flights",    label: "Flights",    href: "/flights",    icon: Plane },
   { id: "trains",     label: "Trains",     href: "/trains",     icon: TrainFront },
   { id: "bus",        label: "Bus",        href: "/bus",        icon: Bus },
-  { id: "cabs",       label: "Cabs",       href: "/cabs",       icon: Car },
 ];
 
-const SOON_IDS = new Set(["flights", "trains", "bus", "cabs"]);
+const SOON_IDS = new Set(["flights", "trains", "bus"]);
 
 export type HeroGlassNavbarProps = {
   activeId?: string;
+  solid?: boolean;
+  combinedAuth?: boolean;
+  showActiveUnderline?: boolean;
+  /** Keep navigation labels dark when the navbar sits over a light hero. */
+  darkText?: boolean;
+  /**
+   * Keep glass chrome + light (white) labels even after scroll.
+   * Use on immersive pages (login/signup) where the backdrop stays dark.
+   */
+  forceOverlay?: boolean;
+  /** Detail pages can hand off the viewport to their own sticky booking bar. */
+  hideOnScroll?: boolean;
+  /** A flush top shell with only lower corners, used on booking detail pages. */
+  flushDetailShell?: boolean;
 };
 
-export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps) {
+export function HeroGlassNavbar({
+  activeId,
+  solid = false,
+  combinedAuth = false,
+  showActiveUnderline = true,
+  hideOnScroll = false,
+  darkText = false,
+  forceOverlay = false,
+  flushDetailShell = false,
+}: HeroGlassNavbarProps) {
   const [scrolled, setScrolled] = useState(false);
+  const [hiddenOnScroll, setHiddenOnScroll] = useState(false);
   const [open, setOpen] = useState(false);
   const [logoSrc, setLogoSrc] = useState(TRAVEL_HOME_LOGO_SRC);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 72);
+    if (forceOverlay) {
+      setScrolled(false);
+      return;
+    }
+    const onScroll = () => {
+      setScrolled(solid || window.scrollY > 72);
+      // On detail pages the booking rail is the scroll-stage header. Hide the
+      // navigation immediately, before the rail reaches the sticky position.
+      if (hideOnScroll) setHiddenOnScroll(window.scrollY > 8);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [solid, hideOnScroll, forceOverlay]);
+
+  const resolvedScrolled = forceOverlay ? false : solid || scrolled;
+  const useLightLabels = forceOverlay || (!resolvedScrolled && !darkText);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 w-full px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8">
+    <header className={cn(
+      "fixed top-0 left-0 right-0 z-50 w-full transition-[transform,opacity] duration-150 ease-out",
+      flushDetailShell
+        ? "px-0 pt-0"
+        : "px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8 max-[900px]:pt-3",
+      hiddenOnScroll && "pointer-events-none -translate-y-[calc(100%+1rem)] opacity-0",
+    )}>
       <div
         className={cn(
-          "mx-auto flex w-full max-w-[1320px] items-center gap-2 rounded-2xl border px-3 py-2 transition-all duration-500 sm:gap-3 sm:px-4",
-          scrolled
+          "mx-auto flex w-full max-w-[1320px] items-center gap-2 border px-3 py-2 transition-all duration-500 sm:gap-3 sm:px-4 max-[900px]:max-w-[1180px] max-[900px]:py-1.5",
+          flushDetailShell
+            ? "min-h-[92px] rounded-b-[26px] rounded-t-none px-5 py-3 sm:px-6"
+            : "rounded-2xl",
+          resolvedScrolled
             ? "border-slate-200/80 bg-white/95 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.25)] backdrop-blur-md"
             : "border-white/20 bg-white/[0.14] shadow-[0_8px_32px_-12px_rgba(0,0,0,0.4),inset_0_1px_0_0_rgba(255,255,255,0.25)] backdrop-blur-xl",
         )}
@@ -70,10 +115,10 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
           href="/"
           className={cn(
             "flex shrink-0 items-center rounded-xl transition-all",
-            !scrolled && "bg-white/95 px-2 py-1.5 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)]",
+            !resolvedScrolled && "bg-white/95 px-2 py-1.5 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.3)]",
           )}
         >
-          <span className="relative block h-8 w-[100px] shrink-0 sm:h-9 sm:w-[116px]">
+          <span className="relative block h-8 w-[100px] shrink-0 sm:h-9 sm:w-[116px] max-[900px]:h-8 max-[900px]:w-[104px]">
             <Image
               src={logoSrc}
               alt={TRAVEL_HOME_BRAND.name}
@@ -81,7 +126,7 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
               className="object-contain object-left"
               sizes="116px"
               priority
-              onError={() => setLogoSrc("/images/homelogo.webp")}
+              onError={() => setLogoSrc("/images/homelogo-transparent.png")}
             />
           </span>
         </Link>
@@ -94,20 +139,20 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
                 <Link
                   href={href}
                   className={cn(
-                    "relative flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-semibold tracking-wide transition-colors xl:px-4",
-                    scrolled
-                      ? active ? "text-primary" : "text-[#424242] hover:text-primary"
-                      : active ? "text-white" : "text-white/75 hover:text-white",
+                    "relative flex items-center gap-2 rounded-full px-3.5 py-2.5 text-sm font-semibold tracking-wide transition-colors xl:px-4 max-[900px]:gap-1.5 max-[900px]:px-2.5 max-[900px]:py-2 max-[900px]:text-[13px]",
+                    useLightLabels
+                      ? active && showActiveUnderline ? "text-white" : "text-white hover:text-white"
+                      : active && showActiveUnderline ? "text-primary" : "text-[#424242] hover:text-primary",
                   )}
                 >
                   <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={2} aria-hidden />
                   {label}
-                  {active && (
+                  {active && showActiveUnderline && (
                     <motion.span
                       layoutId="hero-nav-underline"
                       className={cn(
                         "absolute inset-x-3 -bottom-0.5 h-[2.5px] rounded-full",
-                        scrolled ? "bg-primary" : "bg-amber-300 shadow-[0_0_8px_1px_rgba(252,211,77,0.7)]",
+                        resolvedScrolled && !forceOverlay ? "bg-primary" : "bg-amber-300 shadow-[0_0_8px_1px_rgba(252,211,77,0.7)]",
                       )}
                       transition={{ type: "spring", stiffness: 500, damping: 40 }}
                     />
@@ -129,18 +174,22 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              "hidden items-center gap-2 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition lg:inline-flex",
-              scrolled
-                ? "border-slate-200 text-[#424242] hover:border-primary/40 hover:text-primary"
-                : "border-white/20 text-white/85 hover:border-white/40 hover:bg-white/10",
+              "hidden items-center gap-2 rounded-full border px-3.5 py-2 text-[13px] font-semibold transition lg:inline-flex max-[900px]:px-3 max-[900px]:py-1.5 max-[900px]:text-[12px]",
+              useLightLabels
+                ? "border-white/25 text-white hover:border-white/45 hover:bg-white/10"
+                : "border-slate-200 text-[#424242] hover:border-primary/40 hover:text-primary",
             )}
           >
             <Building2 className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden />
             List Your Property
-            <span className={cn("text-[10px] font-bold uppercase", scrolled ? "text-primary" : "text-amber-300")}>Free</span>
+            <span className={cn("text-[10px] font-bold uppercase", useLightLabels ? "text-amber-300" : "text-primary")}>Free</span>
           </Link>
 
-          <AuthNavActions variant={scrolled ? "ease" : "overlay"} combined className="hidden sm:flex" />
+          <AuthNavActions
+            variant={useLightLabels ? "overlay" : "ease"}
+            combined={combinedAuth}
+            className="hidden sm:flex"
+          />
 
           <button
             type="button"
@@ -148,7 +197,7 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
             onClick={() => setOpen((v) => !v)}
             className={cn(
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition lg:hidden",
-              scrolled ? "text-[#424242] hover:bg-slate-100" : "text-white hover:bg-white/10",
+              useLightLabels ? "text-white hover:bg-white/10" : "text-[#424242] hover:bg-slate-100",
             )}
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -157,7 +206,7 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
       </div>
 
       {open && (
-        <div className="mx-auto mt-2 w-full max-w-[1400px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl lg:hidden">
+        <div className="mx-auto mt-2 w-full max-w-[1400px] overflow-visible rounded-2xl border border-slate-200 bg-white shadow-xl lg:hidden">
           <nav className="grid grid-cols-4 gap-1 p-3" aria-label="Services">
             {NAV_ITEMS.map(({ id, label, href, icon: Icon }) => (
               <Link
@@ -177,8 +226,13 @@ export function HeroGlassNavbar({ activeId = "holidays" }: HeroGlassNavbarProps)
               </Link>
             ))}
           </nav>
-          <div className="flex items-center justify-between gap-2 border-t border-slate-100 p-3">
-            <AuthNavActions variant="ease" combined onNavigate={() => setOpen(false)} />
+          <div className="border-t border-slate-100 p-3">
+            <AuthNavActions
+              variant="ease"
+              combined={combinedAuth}
+              layout="inline"
+              onNavigate={() => setOpen(false)}
+            />
           </div>
         </div>
       )}

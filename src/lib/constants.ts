@@ -32,9 +32,9 @@ export const SITE = {
   name: "UNO Trips",
   tagline: "Luxury travel, distilled — curated journeys across India and the world.",
   url: resolveSiteUrl(),
-  phone: "+91 83530 96965",
+  phone: "+91 8353057000",
   /** For `https://wa.me/{digits}` — India country code + 10-digit mobile, no plus. */
-  whatsappPhoneDigits: "918353096965",
+  whatsappPhoneDigits: "918353057000",
   email: "info@unotrips.com",
   /** Office address shown in footer, schema.org, and contact blocks. */
   address:
@@ -60,6 +60,8 @@ export type TourItineraryDay = {
   day: number;
   title: string;
   body: string;
+  image?: string;
+  location?: string;
 };
 
 export type TourPackage = {
@@ -73,6 +75,8 @@ export type TourPackage = {
   reviewCount: number;
   priceINR: number;
   oldPriceINR?: number;
+  /** Whether the stored package price is per traveller or for the whole trip. */
+  pricePer?: "per_person" | "per_couple" | "per_group";
   discountPct?: number;
   description?: string;
   countries?: number;
@@ -179,10 +183,10 @@ export const FOOTER_COLUMNS = [
   {
     title: "Policies",
     links: [
-      { label: "Privacy Policy", href: "#" },
-      { label: "Terms of Service", href: "#" },
-      { label: "Cancellation Policy", href: "#" },
-      { label: "Cookie Policy", href: "#" },
+      { label: "Privacy Policy", href: "/privacy-policy" },
+      { label: "Terms of Service", href: "/terms" },
+      { label: "Cancellation Policy", href: "/cancellation-policy" },
+      { label: "Cookie Policy", href: "/cookie-policy" },
     ],
   },
 ] as const;

@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Heart, MapPin, Plane, Star, TreePalm } from "lucide-react";
+import { Heart, MapPin, Plane, Quote, Star, TreePalm } from "lucide-react";
 import type { Testimonial } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -11,31 +11,31 @@ function TripIcon({ icon }: { icon: Testimonial["tripIcon"] }) {
 
 export function TestimonialCard({ item: t }: { item: Testimonial }) {
   return (
-    <figure className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-      {/* Avatar + name + location */}
-      <div className="flex items-center gap-4">
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full ring-2 ring-primary/20">
+    <figure className="relative flex h-full flex-col overflow-hidden rounded-[22px] border border-orange-100/80 bg-white/90 p-5 shadow-[0_16px_44px_-34px_rgba(15,23,42,0.55)]">
+      <Quote className="absolute -right-1 -top-1 h-12 w-12 rotate-6 text-orange-50" strokeWidth={1.5} />
+
+      <div className="relative flex items-center gap-3.5">
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-2xl ring-4 ring-orange-50">
           <Image
             src={t.avatar}
             alt={t.name}
             fill
             className="object-cover"
-            sizes="56px"
+            sizes="48px"
             loading="lazy"
           />
         </div>
         <div className="min-w-0">
-          <figcaption className="text-[15px] font-bold text-slate-900">{t.name}</figcaption>
-          <p className="mt-0.5 flex items-center gap-1 text-[12px] text-slate-500">
-            <MapPin className="h-3 w-3 shrink-0 text-primary" aria-hidden />
+          <figcaption className="text-[15px] font-black text-slate-950">{t.name}</figcaption>
+          <p className="mt-1 flex items-center gap-1 text-[12px] font-medium text-slate-500">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
             {t.location}
           </p>
         </div>
       </div>
 
-      {/* Stars */}
       <div
-        className="mt-5 flex gap-1"
+        className="mt-4 flex gap-0.5"
         aria-label={`${t.rating} out of 5 stars`}
       >
         {Array.from({ length: 5 }).map((_, i) => (
@@ -50,15 +50,13 @@ export function TestimonialCard({ item: t }: { item: Testimonial }) {
         ))}
       </div>
 
-      {/* Quote */}
-      <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-slate-600">
+      <blockquote className="mt-3 flex-1 text-sm font-medium leading-relaxed text-slate-600">
         &ldquo;{t.text}&rdquo;
       </blockquote>
 
-      {/* Trip tag */}
       {t.trip && (
-        <div className="mt-6">
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-[12px] font-semibold text-primary">
+        <div className="mt-5">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 text-[12px] font-bold text-primary">
             <TripIcon icon={t.tripIcon} />
             {t.trip}
           </span>

@@ -80,7 +80,6 @@ export function HotelViewClient() {
       roomTypes={bundle.roomTypes}
       policies={bundle.policies}
       apiReviews={bundle.reviews}
-      similarHotels={bundle.similarHotels}
     />
   );
 }

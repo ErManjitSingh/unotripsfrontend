@@ -11,7 +11,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import type { Metadata } from "next";
-import { Navbar }          from "@/components/layout/Navbar";
+import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
 import { Footer }          from "@/components/layout/Footer";
 import { ActivitiesClient } from "@/components/activities/ActivitiesClient";
 
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 export default function ActivitiesPage() {
   return (
     <>
-      <Navbar variant="ease" easeActiveNavId="activities" />
+      <HeroGlassNavbar activeId="activities" darkText />
       <main>
         <ActivitiesClient />
       </main>

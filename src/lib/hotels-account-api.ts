@@ -54,6 +54,12 @@ export type UserBooking = {
   };
   total_amount: number;
   currency: string;
+  payment_plan?: "full" | "advance_40" | "pay_at_hotel";
+  amount_paid?: number;
+  balance_due_amount?: number;
+  balance_due_date?: string | null;
+  balance_status?: string;
+  balance_payment_method?: string | null;
   created_at: string;
   updated_at: string;
 };

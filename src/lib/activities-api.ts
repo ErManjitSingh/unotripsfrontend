@@ -14,6 +14,7 @@ export type Activity = {
   name:              string;
   slug:              string;
   short_description: string | null;
+  full_description?: string | null;
   featured_image:    string | null;
   gallery_images:    string[];
   category:          string | null;
@@ -27,6 +28,8 @@ export type Activity = {
   starting_price:    number | null;
   max_price:         number | null;
   price_type:        string;   // "per_person" | "per_group"
+  included?:         string | null;
+  excluded?:         string | null;
   is_featured:       boolean;
   package_count:     number;
 };
@@ -74,6 +77,10 @@ export type FetchActivitiesParams = {
   limit?:      number;
   category?:   string;
   destination?: string;
+  difficulty?: string;
+  search?:     string;
+  minPrice?:   number;
+  maxPrice?:   number;
   featured?:   boolean;
 };
 
@@ -83,6 +90,10 @@ export async function fetchActivities(params: FetchActivitiesParams = {}): Promi
   if (params.limit)       qs.set("limit",       String(params.limit));
   if (params.category)    qs.set("category",    params.category);
   if (params.destination) qs.set("destination", params.destination);
+  if (params.difficulty)  qs.set("difficulty",  params.difficulty);
+  if (params.search)      qs.set("search",      params.search);
+  if (params.minPrice !== undefined) qs.set("min_price", String(params.minPrice));
+  if (params.maxPrice !== undefined) qs.set("max_price", String(params.maxPrice));
   if (params.featured)    qs.set("featured",    "true");
 
   const res = await fetch(`/api/packages/activities?${qs}`, {
@@ -110,11 +121,15 @@ export async function fetchActivitiesServer(params: FetchActivitiesParams = {}):
   if (params.limit)       qs.set("limit",       String(params.limit));
   if (params.category)    qs.set("category",    params.category);
   if (params.destination) qs.set("destination", params.destination);
+  if (params.difficulty)  qs.set("difficulty",  params.difficulty);
+  if (params.search)      qs.set("search",      params.search);
+  if (params.minPrice !== undefined) qs.set("min_price", String(params.minPrice));
+  if (params.maxPrice !== undefined) qs.set("max_price", String(params.maxPrice));
   if (params.featured)    qs.set("featured",    "true");
 
   try {
     const res = await fetch(`${BACKEND}/v1/packages/activities?${qs}`, {
-      next: { revalidate: 300 },
+      cache: "no-store",
       headers: { Accept: "application/json" },
     });
     if (!res.ok) return { items: [], total: 0, page: 1, limit: 12, total_pages: 0 };

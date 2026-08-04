@@ -161,10 +161,13 @@ export function PackageListRow({
 
         {/* Price + CTA */}
         <div className="flex flex-col justify-center border-t border-slate-100 bg-slate-50/70 p-5 lg:border-l lg:border-t-0">
-          <p className="text-xs leading-snug text-slate-600">
-            Starts from{" "}
-            <span className="block text-xl font-bold text-slate-900">₹{formatInrAmount(tour.priceINR)}</span>
-            <span className="text-[11px] text-slate-500">per person on twin sharing</span>
+          <p className="text-xs text-slate-500">Starts from</p>
+          <p className="mt-1 text-xl font-bold text-slate-900">
+            ₹{formatInrAmount(Math.round(tour.priceINR / 2))}
+            <span className="ml-1 text-sm font-medium text-slate-500">/Person</span>
+          </p>
+          <p className="mt-0.5 text-[11px] text-slate-500">
+            Total Price ₹{formatInrAmount(tour.priceINR)}
           </p>
           <Button
             asChild

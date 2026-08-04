@@ -139,7 +139,8 @@
       chat: JSON.stringify(transcript),
       user_name: '',
       user_email: '',
-      user_phone: userMobile || ''
+      user_phone: userMobile || '',
+      destination: 'Himachal'
     };
     var payloadStr = JSON.stringify(payload);
 

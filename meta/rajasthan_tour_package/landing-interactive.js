@@ -126,6 +126,8 @@
         _subject: "New Callback Request - Rajasthan Landing",
         source: "Callback Modal",
         phone: "+91" + d,
+        destination: "Rajasthan",
+        name: "Rajasthan Callback",
         message: msg,
       }),
     })

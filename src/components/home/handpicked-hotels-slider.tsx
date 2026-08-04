@@ -4,14 +4,9 @@ import Link from "next/link";
 import { useRef } from "react";
 import {
   Building2,
-  CalendarCheck2,
   ChevronLeft,
   ChevronRight,
-  Headphones,
-  ShieldCheck,
-  Tag,
 } from "lucide-react";
-import { Navigation } from "swiper/modules";
 import type { Swiper as SwiperType } from "swiper";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
@@ -23,13 +18,6 @@ type HandpickedHotelsSliderProps = {
   hotels: HotelListing[];
   total: number;
 };
-
-const TRUST_BADGES = [
-  { icon: ShieldCheck, title: "Best Price Guarantee", sub: "Find a lower price? We'll match it" },
-  { icon: Tag,         title: "Exclusive Deals",       sub: "Get access to member-only prices" },
-  { icon: Headphones,  title: "24/7 Customer Support", sub: "We're here to help anytime" },
-  { icon: CalendarCheck2, title: "Free Cancellation",  sub: "On most bookings" },
-] as const;
 
 export function HandpickedHotelsSlider({ hotels, total }: HandpickedHotelsSliderProps) {
   const swiperRef = useRef<SwiperType | null>(null);
@@ -90,39 +78,19 @@ export function HandpickedHotelsSlider({ hotels, total }: HandpickedHotelsSlider
             <Swiper
               onSwiper={(s) => { swiperRef.current = s; }}
               spaceBetween={16}
-              slidesPerView={1.08}
+              slidesPerView="auto"
               slidesPerGroup={1}
               watchOverflow
-              breakpoints={{
-                640: { slidesPerView: 2, slidesPerGroup: 2, spaceBetween: 14 },
-                1024: { slidesPerView: 3, slidesPerGroup: 3, spaceBetween: 16 },
-                1280: { slidesPerView: 4, slidesPerGroup: 4, spaceBetween: 16 },
-              }}
               className="!pb-4 !pt-1"
             >
               {hotels.map((hotel) => (
-                <SwiperSlide key={hotel.id} className="!h-auto">
+                <SwiperSlide key={hotel.id} className="!h-auto !w-[66%] sm:!w-[calc(50%-7px)] lg:!w-[calc(33.333%-11px)] xl:!w-[calc(25%-12px)]">
                   <div className="flex h-full flex-col">
                     <HotelGridCard hotel={hotel} />
                   </div>
                 </SwiperSlide>
               ))}
             </Swiper>
-          </div>
-
-          {/* Trust badges */}
-          <div className="mt-6 grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-5 sm:grid-cols-4">
-            {TRUST_BADGES.map(({ icon: Icon, title, sub }) => (
-              <div key={title} className="flex items-center gap-3 px-4 first:pl-0 last:pr-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{title}</p>
-                  <p className="text-xs text-slate-500">{sub}</p>
-                </div>
-              </div>
-            ))}
           </div>
 
         </div>

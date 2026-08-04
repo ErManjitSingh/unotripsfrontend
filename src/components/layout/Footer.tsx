@@ -1,6 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Facebook, Instagram, Linkedin, Mail, MapPin, Phone } from "lucide-react";
+import {
+  Facebook,
+  Instagram,
+  Linkedin,
+  Mail,
+  MapPin,
+  Phone,
+  Youtube,
+} from "lucide-react";
 import { FOOTER_COLUMNS, SITE } from "@/lib/constants";
 import { siteTelHref } from "@/lib/site-contact";
 import { cn } from "@/lib/utils";
@@ -10,9 +18,26 @@ export type FooterProps = {
 };
 
 const SOCIAL = [
-  { href: "https://www.instagram.com/", icon: Instagram, label: "Instagram" },
-  { href: "https://www.facebook.com/",  icon: Facebook,  label: "Facebook"  },
-  { href: "https://www.linkedin.com/",  icon: Linkedin,  label: "LinkedIn"  },
+  {
+    href: "https://www.instagram.com/uno_trips/",
+    icon: Instagram,
+    label: "Instagram",
+  },
+  {
+    href: "https://www.youtube.com/@UnoTrips",
+    icon: Youtube,
+    label: "YouTube",
+  },
+  {
+    href: "https://www.facebook.com/profile.php?id=61585094895115",
+    icon: Facebook,
+    label: "Facebook",
+  },
+  {
+    href: "https://www.linkedin.com/in/uno-trips-4b05833b1",
+    icon: Linkedin,
+    label: "LinkedIn",
+  },
 ] as const;
 
 export function Footer({ className }: FooterProps) {
@@ -24,15 +49,15 @@ export function Footer({ className }: FooterProps) {
       <div className="mx-auto w-full max-w-[1320px] px-4 sm:px-6 lg:px-8">
 
         {/* Main grid */}
-        <div className="flex flex-col gap-10 py-10 lg:flex-row lg:gap-12">
+        <div className="flex flex-col gap-8 py-8 lg:flex-row lg:gap-12 lg:py-10">
 
           {/* ── Left column ── */}
-          <div className="flex flex-col gap-7 lg:w-[35%]">
+          <div className="flex flex-col gap-6 lg:w-[35%]">
 
             {/* Logo — sits naturally on white */}
             <Link href="/">
               <Image
-                src="/images/homelogo.webp"
+                src="/images/homelogo-transparent.png"
                 alt="UNO Trips"
                 width={180}
                 height={56}
@@ -132,10 +157,10 @@ export function Footer({ className }: FooterProps) {
         </div>
 
         {/* Bottom bar */}
-        <div className="flex items-center justify-between border-t border-slate-100 py-5">
+        <div className="flex flex-col gap-3 border-t border-slate-100 py-4 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/">
             <Image
-              src="/images/homelogo.webp"
+              src="/images/homelogo-transparent.png"
               alt="UNO Trips"
               width={80}
               height={26}
@@ -148,7 +173,6 @@ export function Footer({ className }: FooterProps) {
             <span suppressHydrationWarning>{new Date().getFullYear()}</span>{" "}
             {SITE.name}. Crafted for discerning travelers.
           </p>
-          <div className="w-20" aria-hidden />
         </div>
 
       </div>

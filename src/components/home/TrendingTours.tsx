@@ -6,10 +6,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
-  Shield,
-  Clock,
-  Headphones,
-  Lock,
 } from "lucide-react";
 import type { Swiper as SwiperType } from "swiper";
 import { TrendingTourCard } from "@/components/home/trending-tour-card";
@@ -21,13 +17,6 @@ export type TrendingToursProps = {
   tours: TourPackage[];
   className?: string;
 };
-
-const TRUST_BADGES = [
-  { icon: Shield,     title: "Best Price Guarantee", sub: "We match any price" },
-  { icon: Clock,      title: "Flexible Booking",     sub: "Free cancellation on many trips" },
-  { icon: Headphones, title: "24/7 Support",          sub: "We're here to help" },
-  { icon: Lock,       title: "Secure Payments",       sub: "100% safe & secure" },
-] as const;
 
 export function TrendingTours({ tours, className }: TrendingToursProps) {
   const swiperRef = useRef<SwiperType | null>(null);
@@ -100,19 +89,6 @@ export function TrendingTours({ tours, className }: TrendingToursProps) {
           </div>
 
           {/* ── Trust badges ── */}
-          <div className="mt-6 grid grid-cols-2 divide-x divide-slate-100 border-t border-slate-100 pt-5 sm:grid-cols-4">
-            {TRUST_BADGES.map(({ icon: Icon, title, sub }) => (
-              <div key={title} className="flex items-center gap-3 px-4 first:pl-0 last:pr-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{title}</p>
-                  <p className="text-xs text-slate-500">{sub}</p>
-                </div>
-              </div>
-            ))}
-          </div>
 
         </div>
       </div>

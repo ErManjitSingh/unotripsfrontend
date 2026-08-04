@@ -4,6 +4,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 
 require 'vendor/autoload.php';
+require_once __DIR__ . '/crm_lead_push.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -15,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $city = isset($_POST['cityy']) ? trim($_POST['cityy']) : '';
   $subject = isset($_POST['subjecty']) ? trim($_POST['subjecty']) : 'Arunachal Tour Query';
   $packageTitle = isset($_POST['package-title']) ? trim($_POST['package-title']) : '';
+  $destination = isset($_POST['destinationy']) ? trim($_POST['destinationy']) : 'Arunachal';
 
   if (empty($name) || empty($mobile)) {
     echo "<script>alert('Please enter your name and phone number.');</script>";
@@ -23,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   $lines = [];
   $lines[] = "New Arunachal Enquiry";
+  $lines[] = "Destination: " . $destination;
   if (!empty($packageTitle)) {
     $lines[] = "Package: " . $packageTitle;
   }
@@ -33,8 +36,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
   $message = implode("\n", $lines) . "\n";
 
-  $mail = new PHPMailer(true);
+  $crmResult = uno_crm_push_lead([
+    'name' => $name,
+    'phone' => $mobile,
+    'destination' => $destination !== '' ? $destination : 'Arunachal',
+    'city' => $city,
+    'source' => 'Arunachal Landing Page',
+    'sourceLabel' => 'Arunachal Landing Page',
+    'package' => $packageTitle,
+    'captureType' => 'form',
+    'channel' => 'meta',
+  ]);
+  $crmOk = !empty($crmResult['success']);
 
+  $mailOk = false;
+  $mail = new PHPMailer(true);
   try {
     $mail->isSMTP();
     $mail->Host = 'smtp.gmail.com';
@@ -44,22 +60,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $mail->SMTPSecure = 'tls';
     $mail->Port = 587;
     $mail->setFrom('query@ptwhotels.com', 'Uno Trips');
-
     $mail->addAddress('unotripsit@gmail.com');
     $mail->addAddress('manjitsingh012345@gmail.com');
     $mail->Subject = !empty($packageTitle) ? ($subject . " - " . $packageTitle) : $subject;
     $mail->Body = $message;
+    $mailOk = $mail->send();
+  } catch (Exception $e) {
+    error_log('[arunachal form] mail failed: ' . $e->getMessage());
+  }
 
-    if (!$mail->send()) {
-      echo 'Mailer Error: ' . $mail->ErrorInfo;
-      exit();
-    }
+  if ($crmOk || $mailOk) {
     header('Location: thankyou.html');
     exit();
-  } catch (Exception $e) {
-    echo "Message could not be sent. Mailer Error: " . $e->getMessage();
-    exit();
   }
+
+  echo 'Could not save enquiry. Please call us or try WhatsApp.';
+  exit();
 }
 
 ?>

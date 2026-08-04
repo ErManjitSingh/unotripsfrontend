@@ -2,18 +2,11 @@
 
 /**
  * components/cabs/CabOffersSection.tsx
- * ─────────────────────────────────────────────────────────────────────────────
- * "Offers" section — exact replica of the EaseMyTrip-style offers block.
  *
- * Layout:
- *   • Header row: "Offers" title + tab pills + "VIEW ALL →" + prev/next arrows
- *   • 2-row × 3-col grid of offer cards (horizontal scroll pages on arrow click)
- *   • Each card: left image thumbnail + right text (T&C'S APPLY / title / red
- *     underline / subtitle / BOOK NOW)
+ * DEPRECATED — not used on the live UnoCabs traveller surface.
+ * Quote marketplace lives at /cabs. Safe to delete in a later cleanup.
  *
- * Tabs: Cabs | All Offers | Hotels | Flights | Holidays | Bus | Trains
- * Static data — swap for API call when ready.
- * ─────────────────────────────────────────────────────────────────────────────
+ * Was an EaseMyTrip-style offers block (static marketing cards).
  */
 
 import Image from "next/image";
