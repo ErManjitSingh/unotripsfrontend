@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Bus, Building2, Car, Menu, Palmtree,
+  Bus, Building2, Car, Menu, Trees,
   Plane, TicketCheck, TrainFront, X,
 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 type NavItem = { id: string; label: string; href: string; icon: typeof Plane };
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "holidays",   label: "Holidays",   href: "/packages",   icon: Palmtree },
+  { id: "holidays",   label: "Holidays",   href: "/packages",   icon: Trees },
   { id: "hotels",     label: "Hotels",     href: "/hotels",     icon: Building2 },
   { id: "cabs",       label: "Cabs",       href: "/cabs",       icon: Car },
   { id: "activities", label: "Activities", href: "/activities", icon: TicketCheck },
