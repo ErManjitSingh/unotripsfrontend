@@ -21,8 +21,11 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiData } from "@/lib/api";
-import { searchHotels, type HotelListing } from "@/lib/hotels-api";
 import { NEW_DATA_PREVIEW } from "@/lib/new-data-preview";
+// Retained for origin/main's client-side hotel enrichment (attachHotelDetails).
+// Currently unused: this branch takes upgrade prices from the date-aware
+// backend PricingEngine instead. Kept so the fallback can be re-enabled.
+import { searchHotels, type HotelListing } from "@/lib/hotels-api";
 import {
   DEMO_HOTELS,
   DEMO_CABS,
@@ -84,6 +87,8 @@ export type DayOption = {
     stars: number;
     description: string;
     image_url: string | null;
+    thumbnail_url?: string | null;
+    images?: string[];
     price_delta: number;
     is_default: boolean;
     is_popular: boolean;
@@ -98,6 +103,26 @@ export type DayOption = {
   sightseeing: DaySightseeing[];
   activities: DayActivity[];
 };
+
+function firstImage(
+  ...candidates: Array<string | null | undefined | Array<string | null | undefined>>
+): string | undefined {
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      const url = candidate.find(
+        (item): item is string => typeof item === "string" && item.trim().length > 0,
+      );
+      if (url) return url.trim();
+      continue;
+    }
+
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  return undefined;
+}
 
 export type DayOptionsData = {
   package_id: string;
@@ -115,24 +140,52 @@ export type DayOptionsData = {
     is_active?: boolean;
     default_hotel_id?: string | null;
     default_hotel_name?: string | null;
-    default_hotel_image_url?: string | null;
-    /** Client-enriched from the Hotels API when the package API has no delta. */
-    default_hotel_starting_price?: number | null;
-    default_hotel_slug?: string | null;
     default_room_type_name?: string | null;
     default_meal_plan?: string | null;
+    /** Hotel Master data for the default hotel, sent by the backend. */
+    default_hotel_info?: {
+      star_category?: number | null;
+      thumbnail_url?: string | null;
+      images?: string[];
+      amenities?: string[];
+      address?: string | null;
+      description?: string | null;
+      rating?: number | null;
+      review_count?: number;
+      check_in_time?: string | null;
+      check_out_time?: string | null;
+      /** Property.slug — used by the frontend for the Change Room flow. */
+      hotel_slug?: string | null;
+      /** Active room types — lets the UI show "Change room" without waiting. */
+      room_count?: number;
+    } | null;
     hotel_options?: Array<{
       id: string;
       hotel_id: string;
       hotel_name: string;
       default_room_type_name?: string | null;
       sort_order?: number;
-      /** Authoritative package-specific delta, when configured by the backend. */
+      /** Live upgrade price from PricingEngine (cheapest room delta). */
       upgrade_price?: number | null;
-      image_url?: string | null;
-      /** Client-enriched live hotel starting rate, per night. */
+      /** Per-night starting price from PricingEngine (display only). */
       starting_price?: number | null;
+      /** Number of active room types at this hotel. */
+      room_count?: number;
+      image_url?: string | null;
+      images?: string[];
       hotel_slug?: string | null;
+      // Hotel Master enrichment from backend
+      star_category?: number | null;
+      thumbnail_url?: string | null;
+      amenities?: string[];
+      address?: string | null;
+      city?: string | null;
+      state?: string | null;
+      description?: string | null;
+      rating?: number | null;
+      review_count?: number;
+      check_in_time?: string | null;
+      check_out_time?: string | null;
     }>;
   }>;
   // Trip-level, not per-day — mirrors backend PackageDayOptionsOut.cabs
@@ -144,7 +197,10 @@ export type DayOptionsData = {
     description: string | null;
     seats: number;
     image_url?: string | null;
+    /** Absolute price of this vehicle for the whole trip. */
     price_delta: number;
+    /** Price difference vs the package's default vehicle — 0 for the default. */
+    upgrade_price?: number | null;
     is_default: boolean;
     is_popular: boolean;
     sort_order: number;
@@ -255,7 +311,7 @@ function buildHotelGroups(days: DayOption[]): DestinationHotels[] {
         name: h.name,
         stars: h.stars,
         desc: h.description,
-        img: h.image_url ?? undefined,
+        img: firstImage(h.thumbnail_url, h.images, h.image_url),
         extra: h.price_delta,
         pop: h.is_popular,
         roomType: h.room_type || undefined,
@@ -285,25 +341,45 @@ function buildHotelGroupsFromStays(
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     .map((stay) => {
       const configuredOptions = [...(stay.hotel_options ?? [])];
-      // The new payload carries the selected hotel separately from its
-      // alternatives. Put it back into the choice list so the page shows the
-      // actual included hotel first instead of silently selecting option #1.
-      if (
-        stay.default_hotel_id &&
-        !configuredOptions.some(
-          (option) => option.hotel_id === stay.default_hotel_id,
-        )
-      ) {
+      // The default hotel is included in the options list by the backend
+      // when it has alternates. If the default hotel is not in the list
+      // (e.g. no alternates configured), add it so the UI always shows
+      // the included hotel.
+      const hasDefault = configuredOptions.some(
+        (option) => option.hotel_id === stay.default_hotel_id,
+      );
+      if (stay.default_hotel_id && !hasDefault) {
+        const info = stay.default_hotel_info;
+        // Resolve the best available image from default_hotel_info so
+        // all three image fields on the synthetic option are populated.
+        // firstImage() in buildHotelGroupsFromStays checks thumbnail_url
+        // first, then images[], then image_url — fill all three so at least
+        // one of them survives the cascade.
+        const resolvedDefaultImg = firstImage(info?.thumbnail_url, info?.images) ?? null;
         configuredOptions.unshift({
           id: `${stay.id}-default`,
           hotel_id: stay.default_hotel_id,
           hotel_name: stay.default_hotel_name ?? "Selected hotel",
           default_room_type_name: stay.default_room_type_name,
-          image_url: stay.default_hotel_image_url,
-          starting_price: stay.default_hotel_starting_price,
-          hotel_slug: stay.default_hotel_slug,
+          thumbnail_url: info?.thumbnail_url ?? resolvedDefaultImg,
+          images: info?.images?.length ? info.images : (resolvedDefaultImg ? [resolvedDefaultImg] : undefined),
+          image_url: resolvedDefaultImg,
+          starting_price: null,
           sort_order: -1,
           upgrade_price: 0,
+          star_category: info?.star_category,
+          amenities: info?.amenities,
+          address: info?.address,
+          description: info?.description,
+          rating: info?.rating,
+          review_count: info?.review_count,
+          check_in_time: info?.check_in_time,
+          check_out_time: info?.check_out_time,
+          // hotel_slug from default_hotel_info — needed for Change Room flow
+          hotel_slug: info?.hotel_slug ?? null,
+          // Without this the default hotel reports 0 room types and the
+          // customiser hides its "Change room" control entirely.
+          room_count: info?.room_count ?? 0,
         });
       }
       const options = configuredOptions.sort((a, b) => {
@@ -317,14 +393,23 @@ function buildHotelGroupsFromStays(
         stayId: stay.id,
         opts: options.map((hotel, index) => {
           const isIncludedHotel = hotel.hotel_id === stay.default_hotel_id;
-          const catalogRateDifference =
-            hotel.starting_price != null &&
-            stay.default_hotel_starting_price != null
-              ? Math.round(
-                  (hotel.starting_price - stay.default_hotel_starting_price) *
-                    Math.max(1, stay.nights),
-                )
-              : 0;
+          const defaultInfo = isIncludedHotel ? stay.default_hotel_info : null;
+
+          // Image resolution — cascade through every available field so we
+          // always show something. For the default/included hotel the backend
+          // stores the authoritative photo in default_hotel_info; for upgrade
+          // options it lives on the option row itself.
+          const optionImages = firstImage(
+            hotel.thumbnail_url,   // Hotel Master thumbnail (most reliable)
+            hotel.images,          // Hotel Master gallery array
+            hotel.image_url,       // Legacy image_url field
+          );
+          // When the option is the default hotel but its Hotel Master fields
+          // are empty, use default_hotel_info as a last resort.
+          const resolvedImg = optionImages ?? firstImage(
+            isIncludedHotel ? (defaultInfo?.thumbnail_url ?? null) : null,
+            isIncludedHotel ? (defaultInfo?.images ?? null) : null,
+          );
 
           return {
             id: hotel.id,
@@ -333,19 +418,31 @@ function buildHotelGroupsFromStays(
               hotel.default_room_type_name ||
               stay.default_room_type_name ||
               "Comfortable stay",
-            stars: 3,
-            // The Hotels API rate is per night. Compare it with the included
-            // hotel's rate for this exact stay; package-specific overrides
-            // still take precedence whenever the API supplies one.
+            stars: hotel.star_category ?? defaultInfo?.star_category ?? 3,
             extra: isIncludedHotel
               ? 0
-              : (hotel.upgrade_price ?? catalogRateDifference),
-            priceStatus: "confirmed",
-            catalogPrice: hotel.starting_price ?? undefined,
+              : (hotel.upgrade_price ?? 0),
+            priceStatus: "confirmed" as const,
+            startingPrice: hotel.starting_price ?? undefined,
+            roomCount: hotel.room_count,
             hotelId: hotel.hotel_id,
             hotelSlug: hotel.hotel_slug ?? undefined,
             pop: isIncludedHotel || index === 0,
-            img: hotel.image_url ?? undefined,
+            img: resolvedImg,
+            // Gallery for the stay card's thumbnail strip. Same cascade as
+            // `img`: option-level gallery first, then default_hotel_info for
+            // the included hotel, then whatever single image we resolved.
+            images: (() => {
+              const gallery = hotel.images?.length
+                ? hotel.images
+                : isIncludedHotel && defaultInfo?.images?.length
+                  ? defaultInfo.images
+                  : [];
+              const cleaned = gallery.filter(
+                (url): url is string => typeof url === "string" && url.trim().length > 0,
+              );
+              return cleaned.length ? cleaned : resolvedImg ? [resolvedImg] : [];
+            })(),
             roomType:
               hotel.default_room_type_name ||
               stay.default_room_type_name ||
@@ -353,6 +450,14 @@ function buildHotelGroupsFromStays(
             mealsIncluded: stay.default_meal_plan
               ? [stay.default_meal_plan.toUpperCase()]
               : [],
+            // Hotel Master enrichment
+            hotelDescription: hotel.description ?? defaultInfo?.description ?? null,
+            rating: hotel.rating ?? defaultInfo?.rating ?? null,
+            reviewCount: hotel.review_count ?? defaultInfo?.review_count ?? 0,
+            address: hotel.address ?? defaultInfo?.address ?? null,
+            amenities: hotel.amenities ?? defaultInfo?.amenities ?? [],
+            checkInTime: hotel.check_in_time ?? defaultInfo?.check_in_time ?? null,
+            checkOutTime: hotel.check_out_time ?? defaultInfo?.check_out_time ?? null,
           };
         }),
       };
@@ -371,7 +476,12 @@ function buildCabOptions(cabs: DayOptionsData["cabs"]): CabOption[] {
       name: c.name,
       desc: c.description ?? "",
       seats: c.seats,
-      extra: c.price_delta,
+      // CabOption.extra is a DELTA vs the included vehicle (same contract as
+      // hotel upgrade_price), not the vehicle's absolute price. Using
+      // price_delta here made every vehicle show its full cost as a "+₹"
+      // upgrade. The real total still comes from the fulfillment price API.
+      extra: c.upgrade_price ?? 0,
+      price: c.price_delta,
       pop: c.is_popular,
       img: c.image_url ?? undefined,
     }));
@@ -390,15 +500,18 @@ function buildAddonOptions(addons: DayOptionsData["addons"]): AddonOption[] {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
-export function useDayOptions(slug: string) {
+export function useDayOptions(slug: string, travelDate?: string | null) {
   const previewEnabled =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("preview") === "new-data";
   const query = useQuery({
+    // travelDate is part of the key: hotel upgrade prices are date-dependent,
+    // so changing the date must refetch rather than serve stale prices.
     queryKey: [
       "packages",
       "day-options",
       slug,
+      travelDate ?? "no-date",
       previewEnabled ? "new-data-preview" : "live",
     ],
     queryFn: async () => {
@@ -408,9 +521,15 @@ export function useDayOptions(slug: string) {
         previewEnabled && slug === "test-packages"
           ? (NEW_DATA_PREVIEW as unknown as DayOptionsData)
           : await apiData<DayOptionsData>(
-              `/v1/packages/${encodeURIComponent(slug)}/day-options`,
+              // Without travel_date the backend cannot price rooms and every
+              // upgrade_price comes back null — the customiser then renders
+              // "₹0 change to package price" for every hotel.
+              `/v1/packages/${encodeURIComponent(slug)}/day-options` +
+                (travelDate
+                  ? `?travel_date=${encodeURIComponent(travelDate)}`
+                  : ""),
             );
-      return attachHotelDetails(previewData);
+      return previewData;
     },
     staleTime: 5 * 60 * 1000, // 5 min — matches backend cache TTL
     gcTime: 10 * 60 * 1000,

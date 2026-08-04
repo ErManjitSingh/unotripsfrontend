@@ -25,8 +25,8 @@ export default async function PackageCheckoutPage({ params, searchParams }: Prop
     ? { ...tour, priceINR: NEW_DATA_PREVIEW.base_price, oldPriceINR: undefined }
     : tour;
   const similar = await getRelatedPackages(tour, 1);
-  const initialHotels = query.hotels
-    ? query.hotels.split(",").map(Number).filter(Number.isFinite)
+  const initialHotelOptionIds = query.hotels
+    ? query.hotels.split(",").filter(Boolean)
     : [];
 
   return (
@@ -36,7 +36,7 @@ export default async function PackageCheckoutPage({ params, searchParams }: Prop
       initialRooms={decodeRooms(query.rooms)}
       initialDate={query.date ?? null}
       initialCab={Math.max(0, Number(query.cab) || 0)}
-      initialHotels={initialHotels}
+      initialHotelOptionIds={initialHotelOptionIds}
       checkoutOnly
     />
   );

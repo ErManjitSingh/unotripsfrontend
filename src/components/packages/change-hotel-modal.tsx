@@ -12,12 +12,10 @@ import {
   ChevronDown,
   ImageIcon,
   MapPin,
-  ParkingSquare,
   Search,
   Sparkles,
   Star,
   UtensilsCrossed,
-  Wifi,
   X,
 } from "lucide-react";
 import type {
@@ -26,6 +24,7 @@ import type {
 } from "@/lib/package-customizer-data";
 import { fmtINR } from "@/lib/package-customizer-data";
 import { getHotelDetailBundle } from "@/lib/hotels-api";
+import { apiData } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export type ChangeHotelModalProps = {
@@ -34,8 +33,37 @@ export type ChangeHotelModalProps = {
   destination: DestinationHotels | undefined;
   selectedIndex: number;
   checkIn: Date | null;
-  onSelect: (index: number) => void;
+  /**
+   * Receives the chosen hotel AND room. The room was previously dropped on
+   * commit, which left room_type_id null and made the backend fall back to
+   * the cheapest room without telling the customer which one they got.
+   */
+  onSelect: (index: number, roomTypeId?: string | null, roomName?: string | null) => void;
   mode?: "hotel" | "room";
+  /** Room currently applied to this stay, so the commit button knows if it changed. */
+  selectedRoomTypeId?: string | null;
+  /** Package slug — needed to load the package-priced room list for a stay. */
+  slug?: string;
+  /** Travel date, so room prices match the customer's actual dates. */
+  travelDate?: string | null;
+};
+
+/** One room as returned by GET /v1/packages/{slug}/stays/{id}/hotel-rooms. */
+type StayRoom = {
+  room_type_id: string;
+  name: string;
+  /** Package-priced total for this stay (not per night). */
+  price: number | null;
+  max_occupancy?: number | null;
+  bed_type?: string | null;
+  description?: string | null;
+  images?: string[];
+  /**
+   * Per-meal pricing from RoomType.meal_plans. Empty for every room in the
+   * current data, so the stay's own meal plan is displayed instead of being
+   * made selectable.
+   */
+  meal_plans?: Record<string, number>;
 };
 
 type SortValue = "popularity" | "price_asc" | "price_desc";
@@ -46,6 +74,15 @@ type HotelGroup = {
   stars: number;
   popular: boolean;
   rooms: Array<{ option: HotelOption; index: number }>;
+  // Hotel Master fields
+  rating?: number | null;
+  reviewCount?: number;
+  address?: string | null;
+  amenities?: string[];
+  startingPrice?: number | null;
+  roomCount?: number;
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
 };
 
 const STARS = [3, 4, 5] as const;
@@ -62,10 +99,19 @@ function groupHotels(options: HotelOption[]): HotelGroup[] {
     groups.set(option.name, {
       name: option.name,
       image: option.img,
-      description: option.desc,
+      // Use hotel description from Hotel Master; fall back to room type name
+      description: option.hotelDescription || option.desc,
       stars: option.stars,
       popular: option.pop,
       rooms: [{ option, index }],
+      rating: option.rating,
+      reviewCount: option.reviewCount,
+      address: option.address,
+      amenities: option.amenities,
+      startingPrice: option.startingPrice,
+      roomCount: option.roomCount,
+      checkInTime: option.checkInTime,
+      checkOutTime: option.checkOutTime,
     });
   }
   return [...groups.values()];
@@ -125,6 +171,9 @@ export function ChangeHotelModal({
   selectedIndex,
   onSelect,
   mode = "hotel",
+  selectedRoomTypeId,
+  slug,
+  travelDate,
 }: ChangeHotelModalProps) {
   const mounted = useMounted();
   const [query, setQuery] = useState("");
@@ -134,6 +183,14 @@ export function ChangeHotelModal({
   const [roomTab, setRoomTab] = useState<
     "about" | "rooms" | "facilities" | "location"
   >("rooms");
+  const [pendingRoomTypeId, setPendingRoomTypeId] = useState<string | null>(null);
+  // Rooms stay collapsed behind an explicit "Change room" click: the hotel
+  // list is long, and a deliberate click reads as disclosure rather than noise.
+  const [roomPickerOpen, setRoomPickerOpen] = useState(false);
+  // True once the guest picks a room themselves. Until then the summary shows
+  // the package's configured room, so the label cannot change under them when
+  // the room list finishes loading.
+  const [roomTouched, setRoomTouched] = useState(false);
   const [pendingRoomPlan, setPendingRoomPlan] = useState<{
     roomId: string;
     planId: string;
@@ -150,8 +207,17 @@ export function ChangeHotelModal({
       setSort("popularity");
       setRoomTab("rooms");
       setPendingRoomPlan(null);
+      setRoomPickerOpen(false);
+      setRoomTouched(false);
     }
   }, [open, selectedIndex]);
+
+  // Collapse the room list again when the guest moves to a different hotel, so
+  // each hotel starts from the same clean summary row.
+  useEffect(() => {
+    setRoomPickerOpen(false);
+    setRoomTouched(false);
+  }, [pendingIndex]);
 
   // The drawer has its own scroll container. Lock the page underneath so it
   // cannot move while a hotel/room selector is open.
@@ -217,6 +283,56 @@ export function ChangeHotelModal({
   });
   const roomCatalog = roomCatalogQuery.data?.roomTypes ?? [];
 
+  // ── Inline room picker for the hotel the guest is currently considering ────
+  // Loads the package-priced rooms for `pendingIndex`'s hotel so the guest can
+  // see (and change) which room they are getting before committing.
+  const pendingHotelId = destination?.opts[pendingIndex]?.hotelId;
+  const stayId = destination?.stayId;
+  const stayRoomsQuery = useQuery({
+    queryKey: ["package-stay-rooms", slug, stayId, pendingHotelId, travelDate],
+    queryFn: async () => {
+      const qs = new URLSearchParams({ hotel_id: String(pendingHotelId) });
+      if (travelDate) qs.set("travel_date", travelDate);
+      return apiData<{ rooms: StayRoom[] }>(
+        `/v1/packages/${encodeURIComponent(String(slug))}/stays/${encodeURIComponent(
+          String(stayId),
+        )}/hotel-rooms?${qs.toString()}`,
+      );
+    },
+    enabled: open && Boolean(slug && stayId && pendingHotelId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const stayRooms = useMemo(
+    () => (stayRoomsQuery.data?.rooms ?? []).filter((r) => r.price != null),
+    [stayRoomsQuery.data],
+  );
+  const cheapestRoomPrice = stayRooms.length
+    ? Math.min(...stayRooms.map((r) => Number(r.price)))
+    : null;
+  const selectedRoomName =
+    stayRooms.find((r) => r.room_type_id === pendingRoomTypeId)?.name ?? null;
+
+  // Preselect a room once the list arrives. Cheapest matches what the hotel
+  // card quotes and what the backend charges when no room is chosen — but it
+  // must never override a room already applied to this stay, which silently
+  // downgraded a configured Superior Room to a Deluxe on load.
+  useEffect(() => {
+    if (!stayRooms.length || cheapestRoomPrice == null) {
+      setPendingRoomTypeId(null);
+      return;
+    }
+    const alreadyApplied = stayRooms.find(
+      (r) => r.room_type_id === selectedRoomTypeId,
+    );
+    if (alreadyApplied) {
+      setPendingRoomTypeId(alreadyApplied.room_type_id);
+      return;
+    }
+    const cheapest = stayRooms.find((r) => Number(r.price) === cheapestRoomPrice);
+    setPendingRoomTypeId(cheapest?.room_type_id ?? null);
+  }, [stayRooms, cheapestRoomPrice, selectedRoomTypeId]);
+
   if (!mounted || !destination) return null;
 
   const selectedExtra = destination.opts[selectedIndex]?.extra ?? 0;
@@ -224,14 +340,32 @@ export function ChangeHotelModal({
   const pendingDelta = (pendingOption?.extra ?? selectedExtra) - selectedExtra;
   const hasPricedChange = pendingIndex !== selectedIndex;
   const hasRoomChange = mode === "room" && pendingRoomPlan !== null;
-  const canCommit = mode === "room" ? hasRoomChange : hasPricedChange;
+  // Switching room without switching hotel is a real change too, so the
+  // commit button must not stay disabled for it.
+  const hasInlineRoomChange =
+    mode === "hotel" &&
+    pendingRoomTypeId != null &&
+    pendingRoomTypeId !== (selectedRoomTypeId ?? null);
+  const canCommit =
+    mode === "room" ? hasRoomChange : hasPricedChange || hasInlineRoomChange;
   const activeHotel =
     groupHotels(destination.opts).find((hotel) =>
       hotel.rooms.some((room) => room.index === selectedIndex),
     ) ?? groupHotels(destination.opts)[0];
   const commit = () => {
     if (!canCommit) return;
-    onSelect(pendingIndex);
+    // In the legacy "room" drawer the choice lives in pendingRoomPlan; the
+    // inline picker uses pendingRoomTypeId. Honour whichever this mode owns,
+    // so a deliberate room choice is never replaced by the cheapest room.
+    const roomTypeId =
+      mode === "room" ? (pendingRoomPlan?.roomId ?? pendingRoomTypeId) : pendingRoomTypeId;
+    const roomName =
+      mode === "room"
+        ? (pendingRoomPlan?.roomName ??
+           stayRooms.find((r) => r.room_type_id === roomTypeId)?.name ??
+           null)
+        : (stayRooms.find((r) => r.room_type_id === roomTypeId)?.name ?? null);
+    onSelect(pendingIndex, roomTypeId, roomName);
     onClose();
   };
 
@@ -252,7 +386,7 @@ export function ChangeHotelModal({
             role="dialog"
             aria-modal="true"
             aria-label={mode === "room" ? "Change room" : "Change hotel"}
-            className="fixed bottom-0 right-0 top-0 z-[230] flex w-full min-h-0 flex-col overflow-hidden rounded-l-[14px] bg-white shadow-2xl lg:w-[78vw] lg:max-w-[1280px]"
+            className="fixed bottom-0 right-0 top-0 z-[230] flex w-full min-h-0 flex-col overflow-hidden rounded-l-[14px] bg-white shadow-2xl md:w-[86vw] lg:w-[50vw] lg:min-w-[620px] lg:max-w-[820px]"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
@@ -324,6 +458,7 @@ export function ChangeHotelModal({
                         src={activeHotel.image}
                         alt={activeHotel.name}
                         fill
+                        unoptimized
                         className="object-cover"
                         sizes="380px"
                       />
@@ -379,24 +514,18 @@ export function ChangeHotelModal({
                       Hotel Facilities
                     </h4>
                     <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                      {[
-                        [Wifi, "Free Wi-Fi"],
-                        [UtensilsCrossed, "Restaurant"],
-                        [ParkingSquare, "Parking"],
-                        [Building2, "Room Service"],
-                        [BedDouble, "Comfortable Rooms"],
-                        [MapPin, "Local Assistance"],
-                      ].map(([Icon, label]) => (
+                      {(activeHotel.amenities ?? []).map((amenity) => (
                         <div
-                          key={label as string}
+                          key={amenity}
                           className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700"
                         >
-                          {typeof Icon === "function" && (
-                            <Icon className="h-4 w-4 text-primary" />
-                          )}
-                          {label as string}
+                          <Check className="h-4 w-4 text-primary" />
+                          {amenity}
                         </div>
                       ))}
+                      {(activeHotel.amenities ?? []).length === 0 && (
+                        <p className="col-span-full text-sm text-slate-500">Facilities information not available.</p>
+                      )}
                     </div>
                   </section>
                 )}
@@ -408,11 +537,10 @@ export function ChangeHotelModal({
                     <div className="mt-4 rounded-2xl border border-orange-100 bg-[#fffaf7] p-5">
                       <MapPin className="h-6 w-6 text-primary" />
                       <p className="mt-3 text-base font-bold text-slate-800">
-                        {destination.dest}
+                        {activeHotel.name}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
-                        Your stay is arranged close to the planned sightseeing
-                        and transfers in your itinerary.
+                        {activeHotel.address || destination.dest}
                       </p>
                     </div>
                   </section>
@@ -422,11 +550,11 @@ export function ChangeHotelModal({
                     <div className="flex gap-6 rounded-xl bg-slate-50 px-4 py-3 text-xs text-slate-600">
                       <span>
                         Check In:{" "}
-                        <b className="ml-1 text-slate-800">12:00 PM</b>
+                        <b className="ml-1 text-slate-800">{activeHotel.checkInTime ?? "14:00"}</b>
                       </span>
                       <span>
                         Check Out:{" "}
-                        <b className="ml-1 text-slate-800">11:00 AM</b>
+                        <b className="ml-1 text-slate-800">{activeHotel.checkOutTime ?? "11:00"}</b>
                       </span>
                     </div>
                     <h4 className="mt-5 text-lg font-extrabold text-[#172033]">
@@ -451,6 +579,7 @@ export function ChangeHotelModal({
                                     src={room.image}
                                     alt={room.name}
                                     fill
+                                    unoptimized
                                     className="object-cover"
                                     sizes="112px"
                                   />
@@ -531,7 +660,7 @@ export function ChangeHotelModal({
               </main>
             ) : (
               <>
-                <div className="grid shrink-0 grid-cols-1 gap-2 border-b border-[#e9edf3] px-4 py-2 md:grid-cols-[230px_minmax(300px,1fr)_180px_180px] md:items-center md:gap-0">
+                <div className="grid shrink-0 grid-cols-1 gap-2 border-b border-[#e9edf3] px-4 py-2 sm:grid-cols-2 sm:items-center sm:gap-x-4 sm:gap-y-2">
                   <label className="relative flex h-9 items-center md:pr-4">
                     <Search className="absolute left-3.5 h-4.5 w-4.5 text-[#475467]" />
                     <input
@@ -541,7 +670,7 @@ export function ChangeHotelModal({
                       className="h-full w-full rounded-xl border border-[#dce2ea] bg-white pl-11 pr-3.5 text-sm text-[#172033] outline-none placeholder:text-[#98a2b3] focus:border-primary"
                     />
                   </label>
-                  <div className="border-l-0 border-[#edf0f4] md:flex md:items-center md:gap-2 md:border-l md:px-4">
+                  <div className="border-[#edf0f4] sm:flex sm:items-center sm:gap-2">
                     <p className="mb-1 text-[11px] font-bold text-[#475467] md:mb-0 md:shrink-0">
                       Star Rating
                     </p>
@@ -577,7 +706,7 @@ export function ChangeHotelModal({
                       ))}
                     </div>
                   </div>
-                  <label className="border-l-0 border-[#edf0f4] md:flex md:items-center md:gap-2 md:border-l md:px-4">
+                  <label className="border-[#edf0f4] sm:flex sm:items-center sm:gap-2">
                     <p className="mb-1 text-[11px] font-bold text-[#475467] md:mb-0 md:shrink-0">
                       Sort by
                     </p>
@@ -596,7 +725,7 @@ export function ChangeHotelModal({
                       <ChevronDown className="pointer-events-none absolute right-3 top-2.5 h-4 w-4 text-[#344054]" />
                     </span>
                   </label>
-                  <label className="border-l-0 border-[#edf0f4] md:flex md:items-center md:gap-2 md:border-l md:pl-4">
+                  <label className="border-[#edf0f4] sm:flex sm:items-center sm:gap-2">
                     <p className="mb-1 text-[11px] font-bold text-[#475467] md:mb-0 md:shrink-0">
                       Hotel Type
                     </p>
@@ -641,15 +770,16 @@ export function ChangeHotelModal({
                               : "border-[#e5eaf0]",
                           )}
                         >
-                          <div className="grid min-h-[190px] grid-cols-1 gap-4 p-3 md:grid-cols-[280px_minmax(0,1fr)]">
-                            <div className="relative min-h-[175px] overflow-hidden rounded-xl bg-slate-100">
+                          <div className="grid min-h-[170px] grid-cols-1 gap-4 p-3 md:grid-cols-[200px_minmax(0,1fr)]">
+                            <div className="relative min-h-[155px] overflow-hidden rounded-xl bg-slate-100">
                               {hotel.image ? (
                                 <Image
                                   src={hotel.image}
                                   alt={hotel.name}
                                   fill
+                                  unoptimized
                                   className="object-cover"
-                                  sizes="342px"
+                                  sizes="220px"
                                 />
                               ) : (
                                 <Building2 className="m-auto h-full w-10 text-slate-300" />
@@ -658,6 +788,14 @@ export function ChangeHotelModal({
                                 <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-white">
                                   <Check className="h-3.5 w-3.5" />
                                   SELECTED
+                                </span>
+                              )}
+                              {hotel.image && (
+                                <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-lg bg-black/75 px-2 py-1 text-xs font-bold text-white">
+                                  <ImageIcon className="h-3.5 w-3.5" />
+                                  {hotel.roomCount != null && hotel.roomCount > 0
+                                    ? `1 / ${hotel.roomCount}`
+                                    : "1"}
                                 </span>
                               )}
                               <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-lg bg-black/75 px-2 py-1 text-xs font-bold text-white">
@@ -679,40 +817,48 @@ export function ChangeHotelModal({
                               <div className="mt-2 flex items-center gap-4">
                                 <StarRating value={hotel.stars} />
                                 <span className="text-xs font-medium text-[#667085]">
-                                  {room.roomType ?? "Deluxe"}
+                                  {room.roomType || "Room"}
                                 </span>
+                                {hotel.roomCount != null && hotel.roomCount > 0 && (
+                                  <span className="text-xs text-[#667085]">
+                                    · {hotel.roomCount} room type{hotel.roomCount === 1 ? "" : "s"}
+                                  </span>
+                                )}
                               </div>
+                              {hotel.address && (
+                                <p className="mt-1.5 flex items-center gap-1 text-xs text-[#667085] truncate">
+                                  <MapPin className="h-3 w-3 shrink-0" />
+                                  {hotel.address}
+                                </p>
+                              )}
                               <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-[#667085]">
-                                <span className="inline-flex items-center gap-1.5">
-                                  <Wifi className="h-3.5 w-3.5" />
-                                  Free Wi-Fi
-                                </span>
-                                <span className="inline-flex items-center gap-1.5">
-                                  <UtensilsCrossed className="h-3.5 w-3.5" />
-                                  Restaurant
-                                </span>
-                                <span className="inline-flex items-center gap-1.5">
-                                  <ParkingSquare className="h-3.5 w-3.5" />
-                                  Parking
-                                </span>
-                                <span className="inline-flex items-center gap-1.5">
-                                  <Building2 className="h-3.5 w-3.5" />
-                                  Room Service
-                                </span>
-                                <span className="rounded-full border border-[#e5eaf0] px-2 py-0.5 text-[10px] font-bold">
-                                  +6
-                                </span>
+                                {(hotel.amenities ?? []).slice(0, 4).map((amenity) => (
+                                  <span key={amenity} className="inline-flex items-center gap-1.5">
+                                    <Check className="h-3.5 w-3.5 text-[#1b9c5a]" />
+                                    {amenity}
+                                  </span>
+                                ))}
+                                {(hotel.amenities ?? []).length > 4 && (
+                                  <span className="rounded-full border border-[#e5eaf0] px-2 py-0.5 text-[10px] font-bold">
+                                    +{(hotel.amenities ?? []).length - 4}
+                                  </span>
+                                )}
                               </div>
                               <div className="mt-auto flex min-h-[58px] items-center justify-between gap-4 rounded-xl bg-[#fffaf7] px-4 py-2.5">
                                 <div>
                                   <p className="inline-flex items-center gap-2 text-xs font-bold text-[#344054]">
                                     <BedDouble className="h-3.5 w-3.5" />
-                                    {room.roomType ?? "Deluxe"} Room
+                                    {room.roomType ? `${room.roomType} Room` : `${hotel.roomCount ?? 0} room type${(hotel.roomCount ?? 0) === 1 ? "" : "s"} available`}
                                   </p>
                                   <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-bold text-[#1b9c5a]">
-                                    <MapPin className="h-3.5 w-3.5" />
+                                    <UtensilsCrossed className="h-3.5 w-3.5" />
                                     {friendlyMealPlanLabel(room.mealsIncluded)}
                                   </p>
+                                  {hotel.startingPrice != null && hotel.startingPrice > 0 && (
+                                    <p className="mt-0.5 text-[10px] text-[#667085]">
+                                      Starting from ₹{fmtINR(hotel.startingPrice)}/night
+                                    </p>
+                                  )}
                                 </div>
                                 {isSelectedHotel ? (
                                   <span className="text-xs font-bold text-primary">
@@ -746,6 +892,170 @@ export function ChangeHotelModal({
                               </div>
                             </div>
                           </div>
+
+                          {/* Inline room picker — only for the hotel the guest
+                              is considering. Cheapest room is preselected so
+                              "Update" stays one click, but the guest can see
+                              exactly which room they are getting and trade up
+                              without leaving this drawer. */}
+                          {mode === "hotel" && isSelectedHotel && (
+                            <div className="border-t border-[#eef2f6] bg-[#fbfcfe] px-4 py-3">
+                              {/* Collapsed summary — mirrors the "Room Type X /
+                                  CHANGE ROOM" line guests know from other OTAs. */}
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="inline-flex min-w-0 items-center gap-2 text-xs text-[#475467]">
+                                  <BedDouble className="h-3.5 w-3.5 shrink-0 text-[#98a2b3]" />
+                                  <span className="font-semibold text-[#98a2b3]">Room type</span>
+                                  <span className="truncate font-extrabold text-[#172033]">
+                                    {(roomTouched ? selectedRoomName : null) ??
+                                      room.roomType ??
+                                      selectedRoomName ??
+                                      (stayRoomsQuery.isLoading ? "Loading…" : "Standard room")}
+                                  </span>
+                                </p>
+                                {/* Gated on roomCount, which arrives with
+                                    day-options, NOT on the fetched room list.
+                                    Waiting for the fetch made the control appear
+                                    seconds late, so guests never saw it. */}
+                                {(hotel.roomCount ?? 0) > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setRoomPickerOpen((prev) => !prev)}
+                                    aria-expanded={roomPickerOpen}
+                                    className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-[0.08em] text-primary"
+                                  >
+                                    {roomPickerOpen ? "Hide rooms" : "Change room"}
+                                    <ChevronDown
+                                      className={cn(
+                                        "h-3.5 w-3.5 transition-transform",
+                                        roomPickerOpen && "rotate-180",
+                                      )}
+                                    />
+                                  </button>
+                                )}
+                              </div>
+
+                              {roomPickerOpen && (
+                                <div className="mt-3 space-y-2">
+                                  {stayRoomsQuery.isLoading ? (
+                                    <p className="text-xs font-semibold text-[#667085]">
+                                      Loading room options…
+                                    </p>
+                                  ) : stayRooms.length === 0 ? (
+                                    <p className="text-xs font-semibold text-[#667085]">
+                                      Room details unavailable — the cheapest room will be applied.
+                                    </p>
+                                  ) : (
+                                    [...stayRooms]
+                                      .sort((a, b) => Number(a.price) - Number(b.price))
+                                      .map((stayRoom) => {
+                                        // This room's effect on the package total:
+                                        // the hotel's own upgrade plus whatever
+                                        // this room costs over the cheapest one.
+                                        const roomImpact =
+                                          room.extra +
+                                          (Number(stayRoom.price) - Number(cheapestRoomPrice ?? 0)) -
+                                          selectedExtra;
+                                        const isRoomSelected =
+                                          pendingRoomTypeId === stayRoom.room_type_id;
+                                        const roomImage = stayRoom.images?.[0];
+                                        return (
+                                          <button
+                                            key={stayRoom.room_type_id}
+                                            type="button"
+                                            onClick={() => {
+                                              setPendingIndex(activeRoom.index);
+                                              setPendingRoomTypeId(stayRoom.room_type_id);
+                                              setRoomTouched(true);
+                                            }}
+                                            className={cn(
+                                              "flex w-full gap-3 rounded-xl border bg-white p-3 text-left transition",
+                                              isRoomSelected
+                                                ? "border-primary ring-1 ring-primary/15"
+                                                : "border-[#e5eaf0] hover:border-[#ffb27a]",
+                                            )}
+                                          >
+                                            <span className="relative h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                                              {roomImage ? (
+                                                <Image
+                                                  src={roomImage}
+                                                  alt={stayRoom.name}
+                                                  fill
+                                                  unoptimized
+                                                  className="object-cover"
+                                                  sizes="96px"
+                                                />
+                                              ) : (
+                                                <BedDouble className="m-auto h-full w-6 text-slate-300" />
+                                              )}
+                                            </span>
+                                            <span className="flex min-w-0 flex-1 flex-col">
+                                              <span className="flex items-start justify-between gap-3">
+                                                <span className="flex min-w-0 items-center gap-2">
+                                                  <span
+                                                    className={cn(
+                                                      "grid h-4 w-4 shrink-0 place-items-center rounded-full border-2",
+                                                      isRoomSelected
+                                                        ? "border-primary bg-primary"
+                                                        : "border-slate-300 bg-white",
+                                                    )}
+                                                  >
+                                                    {isRoomSelected && (
+                                                      <Check className="h-2.5 w-2.5 text-white" />
+                                                    )}
+                                                  </span>
+                                                  <span className="truncate text-sm font-extrabold text-[#172033]">
+                                                    {stayRoom.name}
+                                                  </span>
+                                                </span>
+                                                <span className="shrink-0 text-right">
+                                                  <span className="block text-sm font-extrabold text-[#344054]">
+                                                    ₹{fmtINR(Number(stayRoom.price))}
+                                                  </span>
+                                                  <span
+                                                    className={cn(
+                                                      "block text-[10px] font-extrabold",
+                                                      roomImpact > 0
+                                                        ? "text-primary"
+                                                        : roomImpact < 0
+                                                          ? "text-[#1b9c5a]"
+                                                          : "text-[#98a2b3]",
+                                                    )}
+                                                  >
+                                                    {roomImpact === 0
+                                                      ? "No change"
+                                                      : roomImpact > 0
+                                                        ? `+₹${fmtINR(roomImpact)}`
+                                                        : `Save ₹${fmtINR(Math.abs(roomImpact))}`}
+                                                  </span>
+                                                </span>
+                                              </span>
+                                              <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] font-semibold text-[#667085]">
+                                                {stayRoom.bed_type && (
+                                                  <span className="capitalize">{stayRoom.bed_type} bed</span>
+                                                )}
+                                                {stayRoom.max_occupancy ? (
+                                                  <span>Sleeps {stayRoom.max_occupancy}</span>
+                                                ) : null}
+                                              </span>
+                                              <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-[#1b9c5a]">
+                                                <UtensilsCrossed className="h-3 w-3" />
+                                                {friendlyMealPlanLabel(room.mealsIncluded)}
+                                              </span>
+                                              {stayRoom.description && (
+                                                <span className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-[#98a2b3]">
+                                                  {stayRoom.description}
+                                                </span>
+                                              )}
+                                            </span>
+                                          </button>
+                                        );
+                                      })
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </article>
                       );
                     })}

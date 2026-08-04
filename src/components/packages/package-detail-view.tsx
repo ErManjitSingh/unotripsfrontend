@@ -21,8 +21,8 @@
  *   2. Demo data from package-customizer-data.ts — fallback if backend returns empty
  *
  * PRICE FLOW:
- *   Optimistic: calcTotalWithOptions() runs client-side on every selection change
- *   Authoritative: POST /calculate-price called on "Confirm & Pay"
+ *   All pricing is authoritative from the backend via useFulfillmentPrice().
+ *   POST /v1/packages/{slug}/fulfillment-price called on every selection change (debounced 600ms).
  *   Razorpay: charged the authoritative server total, never the frontend estimate
  */
 
@@ -65,12 +65,22 @@ import {
   encodeRooms, roomsLabel,
   type RoomConfig,
 } from "@/hooks/useRoomsConfig";
+import {
+  travellerRoomsToLegacy,
+  legacyToTravellerRooms,
+  autoDistributeAdults,
+  travellerSummary,
+  type TravellerRoom,
+} from "@/lib/rooms-utils";
 
 import {
   INCLUSIONS, EXCLUSIONS, TERMS_AND_CONDITIONS,
-  calcTotalWithOptions, fmtINR, tokenAmount,
-  type AddonOption, type CustomizerState,
+  fmtINR,
+  type AddonOption,
+  type StaySelection,
+  staySelectionIndex,
 } from "@/lib/package-customizer-data";
+import { useFulfillmentPrice } from "@/hooks/use-fulfillment-price";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -99,7 +109,8 @@ export type PackageDetailViewProps = {
   initialRooms?: RoomConfig[];
   initialDate?:  string | null;
   initialCab?: number;
-  initialHotels?: number[];
+  /** Pre-selected hotel option IDs from checkout URL — resolved to StaySelections on init. */
+  initialHotelOptionIds?: string[];
   checkoutOnly?: boolean;
 };
 
@@ -217,19 +228,28 @@ function ItinerarySetupLoader({ tour }: { tour: TourPackage }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PackageDetailView({
-  tour, similar, initialRooms, initialDate, initialCab = 0, initialHotels = [], checkoutOnly = false,
+  tour, similar, initialRooms, initialDate, initialCab = 0, initialHotelOptionIds = [], checkoutOnly = false,
 }: PackageDetailViewProps) {
   const router = useRouter();
   const slug      = tour.slug ?? tour.id;
   const packageId = tour.packageId ?? tour.id;
 
+  // Declared before useDayOptions: the day-options query is keyed on the
+  // travel date and sends it to the backend, which needs it to price rooms.
+  const [travelDate, setTravelDate] = useState(
+    initialDate ?? new Date().toISOString().slice(0, 10),
+  );
+
   // ── Day options from backend ──────────────────────────────────────────────
   const {
     isLoading: optLoading,
-    hotelGroups, cabOptions, addonOptions, days, basePrice,
-    usingDemo,
-    tokenType, tokenAmount: pkgTokenConfig, balanceDays,
-  } = useDayOptions(slug);
+    hotelGroups, cabOptions, addonOptions, days,
+    // Token terms are per-package config (token_type: percent|fixed,
+    // token_amount). Never hard-code a percentage here - Ops owns it.
+    tokenType: pkgTokenType, tokenAmount: pkgTokenValue,
+  } = useDayOptions(slug, travelDate);
+
+
 
   // New package payloads carry the authoritative selling price in
   // day-options.base_price. The package list/detail summary can still be
@@ -242,10 +262,43 @@ export function PackageDetailView({
     // A package's quoted price is built for its standard two-adult booking.
     initialRooms ?? [{ adults: 2, children: 0 }],
   );
-  const [travelDate, setTravelDate] = useState(
-    initialDate ?? new Date().toISOString().slice(0, 10),
+
+  // New traveller state with child ages — single source of truth going forward.
+  // Syncs to legacy `rooms` for backward compat with checkout / fulfillment.
+  const [travellerRooms, setTravellerRooms] = useState<TravellerRoom[]>(
+    () => legacyToTravellerRooms(initialRooms ?? [{ adults: 2, children: 0 }]),
   );
-  const [selectedHotels, setSelectedHotels] = useState<number[]>(initialHotels);
+
+  /** Called by the new TravellerSelector — updates both states. */
+  const handleTravellerRoomsChange = useCallback((next: TravellerRoom[]) => {
+    setTravellerRooms(next);
+    setRooms(travellerRoomsToLegacy(next));
+  }, []);
+  // Inline checkout validation. Replaces a blocking alert() that named no
+  // field, moved no focus, and looked like a browser error rather than the
+  // product.
+  // Guest's chosen advance percentage. null = use the package floor.
+  // The server clamps whatever we send, so this is UI convenience only.
+  const [tokenPercent, setTokenPercent] = useState<number | null>(null);
+  // Bumped every time a new total lands, to replay the settle tint. An
+  // alternating animation class restarts the animation without remounting.
+  const [priceSettle, setPriceSettle] = useState(0);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [shakeKey, setShakeKey] = useState(0);
+  useEffect(() => {
+    if (shakeKey === 0) return;
+    const first = Object.keys(fieldErrors)[0];
+    if (!first) return;
+    const el = document.querySelector(
+      `#package-checkout-form [name="${first}"]`,
+    ) as HTMLElement | null;
+    el?.focus({ preventScroll: true });
+    // shakeKey alone drives this: it changes on every failed submit, whereas
+    // fieldErrors may be referentially equal for the same repeated mistake.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shakeKey]);
+
+  const [selectedHotels, setSelectedHotels] = useState<StaySelection[]>([]);
   const [selectedCab,    setSelectedCab]    = useState<number>(initialCab);
   const [addons,         setAddons]         = useState<AddonOption[]>([]);
   const [payType,        setPayType]        = useState<"token" | "full">("token");
@@ -254,15 +307,30 @@ export function PackageDetailView({
   const [selectedSight,  setSelectedSight]  = useState<Set<string>>(new Set());
   const [selectedActs,   setSelectedActs]   = useState<Set<string>>(new Set());
 
-  // Sightseeing + activity totals (computed)
-  const [sightTotal, setSightTotal] = useState(0);
-  const [actTotal,   setActTotal]   = useState(0);
+
 
   // ── Initialise selections when data loads ─────────────────────────────────
   useEffect(() => {
     if (!hotelGroups.length) return;
-    setSelectedHotels(hotelGroups.map(() => 0));
-  }, [hotelGroups]);
+    setSelectedHotels(hotelGroups.map((group, gi) => {
+      // Restore from checkout URL if option IDs were provided
+      const restoredId = initialHotelOptionIds[gi];
+      const restoredIdx = restoredId
+        ? group.opts.findIndex((o) => o.id === restoredId)
+        : -1;
+      const idx = restoredIdx >= 0 ? restoredIdx : 0;
+      const opt = group.opts[idx];
+      return {
+        stayId: group.stayId ?? "",
+        optionId: opt?.id ?? "",
+        hotelId: opt?.hotelId ?? "",
+        roomTypeId: null,
+        hotelName: opt?.name ?? "",
+        roomName: null,
+        upgradePrice: opt?.extra ?? 0,
+      };
+    }));
+  }, [hotelGroups]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!addonOptions.length) return;
@@ -285,28 +353,7 @@ export function PackageDetailView({
     setSelectedActs(actDefaults);
   }, [days]);
 
-  // ── Recompute sightseeing + activity totals ───────────────────────────────
-  useEffect(() => {
-    const eff = rooms.reduce((s, r) => s + r.adults + r.children * 0.7, 0);
-    const totalGuests = rooms.reduce((s, r) => s + r.adults + r.children, 0);
-    let st = 0;
-    let at = 0;
-    for (const day of days) {
-      for (const spot of day.sightseeing) {
-        if (!spot.is_optional || !selectedSight.has(spot.id)) continue;
-        if (spot.price_type === "per_group") st += spot.price_per_person;
-        else st += Math.round(spot.price_per_person * eff);
-      }
-      for (const act of day.activities) {
-        if (!selectedActs.has(act.link_id)) continue;
-        if (act.price_type === "per_group")   at += act.price;
-        else if (act.price_type === "per_vehicle") at += act.price * Math.ceil(totalGuests / 6);
-        else at += Math.round(act.price * eff);
-      }
-    }
-    setSightTotal(st);
-    setActTotal(at);
-  }, [days, selectedSight, selectedActs, rooms]);
+
 
   // ── Tab + UI state ────────────────────────────────────────────────────────
   const [activeTab,    setActiveTab]    = useState<TabId>("itinerary");
@@ -349,14 +396,9 @@ export function PackageDetailView({
   }, []);
 
   const updateTravellers = useCallback((adults: number) => {
-    let remaining = Math.max(1, Math.min(12, adults));
-    const nextRooms: RoomConfig[] = [];
-    while (remaining > 0) {
-      const roomAdults = Math.min(4, remaining);
-      nextRooms.push({ adults: roomAdults, children: 0 });
-      remaining -= roomAdults;
-    }
-    setRooms(nextRooms);
+    const nextTravellerRooms = autoDistributeAdults(adults);
+    setTravellerRooms(nextTravellerRooms);
+    setRooms(travellerRoomsToLegacy(nextTravellerRooms));
   }, []);
 
   const toggleAddon = useCallback((id: string) => {
@@ -379,46 +421,62 @@ export function PackageDetailView({
     });
   }, []);
 
-  // ── Price calculation ─────────────────────────────────────────────────────
+  // ── Backend-authoritative price (replaces all frontend arithmetic) ────────
 
-  const custState: CustomizerState = useMemo(() => ({
-    adults:   rooms.reduce((s, r) => s + r.adults, 0),
-    children: rooms.reduce((s, r) => s + r.children, 0),
-    rooms:    rooms.length,
-    hotels:   selectedHotels,
-    cab:      selectedCab,
-    addons,
-    pay:      payType,
-  }), [rooms, selectedHotels, selectedCab, addons, payType]);
-
-  const breakdown = useMemo(() => {
-    const base = calcTotalWithOptions(
-      custState,
-      hotelGroups,
-      cabOptions,
-      effectiveBasePrice,
-      tour.oldPriceINR,
-      tour.pricePer,
-    );
-    return {
-      ...base,
-      sightseeing: sightTotal,
-      activities:  actTotal,
-      total:       base.total + sightTotal + actTotal,
-    };
-  }, [custState, hotelGroups, cabOptions, effectiveBasePrice, tour.oldPriceINR, tour.pricePer, sightTotal, actTotal]);
-
-  const token = tokenAmount(breakdown.total, tokenType, pkgTokenConfig);
-  // A "fixed" token package with no real token_amount configured computes
-  // to ₹0 — the backend rejects that outright ("below the minimum of
-  // ₹1.00"). Token payment is only a real option when it lands strictly
-  // between ₹0 and the full total.
-  const tokenPaymentAvailable = token > 0 && token < breakdown.total;
-  const payAmt = payType === "token" && tokenPaymentAvailable ? token : breakdown.total;
+  const {
+    isLoading:            priceLoading,
+    hasPrice,
+    isStale:              priceStale,
+    grandTotal,
+    tokenAmount:          token,
+    balanceAmount,
+    hotelUpgrade,
+    cabUpgrade,
+    volvoBusCost,
+    activitiesTotal,
+    addonsTotal,
+    basePackagePrice,
+    totalAdults:          priceTotalAdults,
+    totalGuests:          priceTotalGuests,
+    minTokenPercent,
+    isComplete:           priceIsComplete,
+    tokenPaymentAvailable,
+    raw:                  priceRaw,
+  } = useFulfillmentPrice({
+    slug,
+    packageId,
+    travelDate,
+    rooms,
+    selectedHotels: selectedHotels
+      .filter((s) => s.optionId && !s.optionId.endsWith("-default"))
+      .map((s) => ({ option_id: s.optionId, room_type_id: s.roomTypeId })),
+    selectedCabOptionId:    cabOptions[selectedCab]?.id ?? null,
+    tokenPercent,
+    selectedSightseeingIds: Array.from(selectedSight).filter((id) => !id.startsWith("demo-")),
+    selectedActivityLinkIds: Array.from(selectedActs).filter((id) => !id.startsWith("demo-")),
+    selectedAddonIds:       addons.filter((a) => a.on).map((a) => a.id).filter((id) => !id.startsWith("demo-")),
+    enabled: !optLoading,
+  });
 
   useEffect(() => {
-    if (!optLoading && !tokenPaymentAvailable && payType === "token") setPayType("full");
-  }, [optLoading, tokenPaymentAvailable, payType]);
+    // Only once a real, non-stale figure has arrived — a mid-flight value
+    // would flash a number the guest is not being charged.
+    if (!hasPrice || priceLoading || priceStale) return;
+    setPriceSettle((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grandTotal, token, hasPrice, priceLoading, priceStale]);
+
+  // Amount shown on the Book / Pay button
+  const payAmt = payType === "token" && tokenPaymentAvailable ? token : grandTotal;
+
+  useEffect(() => {
+    // Wait for a real price before deciding. tokenPaymentAvailable is false
+    // while the first pricing call is in flight, so without the hasPrice
+    // guard this fired immediately and locked every guest into "full" —
+    // the part-payment option could never be the default.
+    if (!hasPrice) return;
+    if (!tokenPaymentAvailable && payType === "token") setPayType("full");
+  }, [optLoading, hasPrice, tokenPaymentAvailable, payType]);
 
   // ── Gallery images ────────────────────────────────────────────────────────
   const galleryImages = useMemo(() => {
@@ -447,15 +505,15 @@ export function PackageDetailView({
   // ── Build selected option IDs for booking ─────────────────────────────────
 
   const getSelectedIds = useCallback(() => {
-    const hotelIds = selectedHotels
-      .map((optIdx, destIdx) => hotelGroups[destIdx]?.opts[optIdx]?.id ?? "")
-      .filter(Boolean);
+    const hotels = selectedHotels
+      .filter((s) => s.optionId && !s.optionId.endsWith("-default"))
+      .map((s) => ({ option_id: s.optionId, room_type_id: s.roomTypeId }));
     const cabId = cabOptions[selectedCab]?.id ?? null;
     const addonIds = addons.filter((a) => a.on).map((a) => a.id).filter((id) => !id.startsWith("demo-"));
     const sightIds = Array.from(selectedSight).filter((id) => !id.startsWith("demo-"));
     const actIds   = Array.from(selectedActs).filter((id) => !id.startsWith("demo-"));
-    return { hotelIds, cabId, addonIds, sightIds, actIds };
-  }, [selectedHotels, hotelGroups, selectedCab, cabOptions, addons, selectedSight, selectedActs]);
+    return { hotels, cabId, addonIds, sightIds, actIds };
+  }, [selectedHotels, selectedCab, cabOptions, addons, selectedSight, selectedActs]);
 
   // ── Book handler ──────────────────────────────────────────────────────────
 
@@ -468,12 +526,36 @@ export function PackageDetailView({
     const date  = (form.querySelector("[name=travelDate]") as HTMLInputElement)?.value.trim()  || null;
     const notes = (form.querySelector("[name=specialReq]") as HTMLTextAreaElement)?.value.trim() || null;
 
-    if (!name || !email || !phone) {
-      alert("Please fill in your name, email, and phone number.");
+    // Validate shape, not just presence: the old check accepted "x" as an
+    // email and sent it straight to the booking API.
+    const errs: Record<string, string> = {};
+    if (!name) {
+      errs.guestName = "Please enter your full name";
+    }
+    if (!email) {
+      errs.guestEmail = "Please enter your email address";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      errs.guestEmail = "That email address doesn't look right";
+    }
+    if (!phone) {
+      errs.guestPhone = "Please enter your mobile number";
+    } else if (phone.replace(/\D/g, "").length < 10) {
+      errs.guestPhone = "Enter a valid 10-digit mobile number";
+    }
+
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setShakeKey((k) => k + 1);
+      // Send the user to the problem rather than making them hunt for it.
+      // Focus is applied in an effect below, once the remounted inputs exist.
+      const firstInvalid = form.querySelector(
+        `[name="${Object.keys(errs)[0]}"]`,
+      ) as HTMLElement | null;
+      firstInvalid?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
-    const { hotelIds, cabId, addonIds, sightIds, actIds } = getSelectedIds();
+    const { hotels, cabId, addonIds, sightIds, actIds } = getSelectedIds();
 
     await doBook({
       package_slug:               slug,
@@ -483,13 +565,16 @@ export function PackageDetailView({
       rooms,
       travel_date:                date,
       special_requests:           notes,
-      selected_hotel_option_ids:  hotelIds,
+      selected_hotels:            hotels,
       selected_cab_option_id:     cabId,
       selected_sightseeing_ids:   sightIds,
       selected_activity_link_ids: actIds,
       selected_addon_ids:         addonIds,
       payment_type:               payType,
-    } as any);
+      // Must travel with the booking: the guest may have chosen 75%, and
+      // the server recomputes the charge from this percentage.
+      token_percent:              payType === "token" ? tokenPercent : null,
+    });
   }, [slug, rooms, payType, getSelectedIds, doBook]);
 
   const isBooking  = ["loading", "awaiting_payment", "verifying"].includes(bookState.phase);
@@ -552,18 +637,30 @@ export function PackageDetailView({
     <div className="overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_2px_20px_-8px_rgba(15,23,42,0.12)]">
       <div className="border-b border-[#f0f0f0] bg-gradient-to-br from-white to-[#fafafa] px-5 py-4">
         <p className="text-[10px] font-bold uppercase tracking-widest text-[#9e9e9e]">Total price</p>
-        <p className="mt-1 text-[2rem] font-bold leading-none tracking-tight text-[#1a1a1a]">₹{fmtINR(breakdown.total)}</p>
+        {priceLoading && !hasPrice ? (
+          <div className="mt-1 h-8 w-32 animate-pulse rounded bg-[#eeeeee]" />
+        ) : (
+          <p className={cn("mt-1 text-[2rem] font-bold leading-none tracking-tight text-[#1a1a1a]", priceStale && "opacity-60")}>
+            ₹{fmtINR(grandTotal)}
+          </p>
+        )}
         <p className="mt-1.5 text-[11px] text-[#9e9e9e]">{roomsLabel(rooms)}</p>
+        {priceRaw?.gst_result && (
+          <p className="mt-1 text-[10px] text-[#9e9e9e]">
+            Incl. GST {Math.round((priceRaw.gst_result.gst_rate ?? 0.05) * 100)}%
+          </p>
+        )}
       </div>
       <div className="space-y-1.5 px-5 py-4 text-[12px]">
-        <div className="flex justify-between text-[#616161]"><span>Base</span><span className="font-medium text-[#424242]">₹{fmtINR(breakdown.base)}</span></div>
-        {breakdown.hotel > 0 && <div className="flex justify-between text-[#616161]"><span>Hotel upgrade</span><span className="font-medium text-[#424242]">+₹{fmtINR(breakdown.hotel)}</span></div>}
-        {breakdown.cab > 0 && <div className="flex justify-between text-[#616161]"><span>Vehicle upgrade</span><span className="font-medium text-[#424242]">+₹{fmtINR(breakdown.cab)}</span></div>}
-        {breakdown.sightseeing > 0 && <div className="flex justify-between text-[#616161]"><span>Sightseeing</span><span className="font-medium text-[#424242]">+₹{fmtINR(breakdown.sightseeing)}</span></div>}
-        {breakdown.activities > 0  && <div className="flex justify-between text-[#616161]"><span>Activities</span><span className="font-medium text-[#424242]">+₹{fmtINR(breakdown.activities)}</span></div>}
-        {breakdown.addons > 0      && <div className="flex justify-between text-[#616161]"><span>Add-ons</span><span className="font-medium text-[#424242]">+₹{fmtINR(breakdown.addons)}</span></div>}
-        {breakdown.disc > 0 && <div className="flex justify-between font-semibold text-emerald-700"><span>You&apos;re saving</span><span>−₹{fmtINR(breakdown.disc)}</span></div>}
-        <div className="flex justify-between border-t border-dashed border-[#e0e0e0] pt-2 text-sm font-bold text-[#1a1a1a]"><span>Total</span><span>₹{fmtINR(breakdown.total)}</span></div>
+        <div className="flex justify-between text-[#616161]"><span>Base</span><span className="font-medium text-[#424242]">₹{fmtINR(basePackagePrice)}</span></div>
+        {hotelUpgrade > 0 && <div className="flex justify-between text-[#616161]"><span>Hotel upgrade</span><span className="font-medium text-[#424242]">+₹{fmtINR(hotelUpgrade)}</span></div>}
+        {cabUpgrade > 0 && <div className="flex justify-between text-[#616161]"><span>Vehicle upgrade</span><span className="font-medium text-[#424242]">+₹{fmtINR(cabUpgrade)}</span></div>}
+        {activitiesTotal > 0 && <div className="flex justify-between text-[#616161]"><span>Activities &amp; sightseeing</span><span className="font-medium text-[#424242]">+₹{fmtINR(activitiesTotal)}</span></div>}
+        {addonsTotal > 0 && <div className="flex justify-between text-[#616161]"><span>Add-ons</span><span className="font-medium text-[#424242]">+₹{fmtINR(addonsTotal)}</span></div>}
+        {priceRaw?.gst_result && priceRaw.gst_result.total_gst > 0 && (
+          <div className="flex justify-between text-[#616161]" title={priceRaw.gst_result.gst_label}><div><span>Fees &amp; Taxes</span><span className="block text-[10px] text-[#9E9E9E]">GST {Math.round((priceRaw.gst_result.gst_rate ?? 0.05) * 100)}%</span></div><span className="font-medium text-[#424242]">+₹{fmtINR(priceRaw.gst_result.total_gst)}</span></div>
+        )}
+        <div className="flex justify-between border-t border-dashed border-[#e0e0e0] pt-2 text-sm font-bold text-[#1a1a1a]"><span>Total</span><span>₹{fmtINR(grandTotal)}</span></div>
       </div>
       <div className="px-5 pb-5">
         <button type="button" onClick={() => {
@@ -576,8 +673,7 @@ export function PackageDetailView({
         </button>
         {tokenPaymentAvailable && (
           <p className="mt-2 text-center text-[11px] font-semibold text-emerald-700">
-            Pay just ₹{fmtINR(token)}
-            {tokenType === "percent" ? ` (${pkgTokenConfig}%)` : ""} to confirm today
+            Pay just ₹{fmtINR(token)} to confirm today
           </p>
         )}
         <p className="mt-1.5 flex items-center justify-center gap-1 text-[10px] text-[#9e9e9e]">
@@ -592,7 +688,7 @@ export function PackageDetailView({
       rooms: encodeRooms(rooms),
       date: travelDate,
       cab: String(selectedCab),
-      hotels: selectedHotels.join(","),
+      hotels: selectedHotels.map((s) => s.optionId).filter(Boolean).join(","),
     });
     router.push(`/packages/${encodeURIComponent(slug)}/checkout?${params.toString()}`);
   }, [router, slug, rooms, travelDate, selectedCab, selectedHotels]);
@@ -622,10 +718,11 @@ export function PackageDetailView({
               </div>
               <form id="package-checkout-form" onSubmit={handleConfirmAndPay} noValidate className="rounded-xl border border-[#e8e8e8] bg-white shadow-sm">
                 <div className="border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-4"><div className="flex items-center gap-2"><span className="grid h-6 w-6 place-items-center rounded-full border-2 border-[#EF6614] text-[11px] font-extrabold text-[#EF6614]">2</span><div><h2 className="text-[14px] font-bold">Traveller details</h2><p className="text-[11px] text-[#9E9E9E]">Name and contact details for booking confirmation</p></div></div></div>
-                <div className="p-5 sm:p-6"><div className="grid gap-4 sm:grid-cols-2">{[{ name: "guestName", label: "Full name", type: "text", value: user?.name ?? "" }, { name: "guestEmail", label: "Email address", type: "email", value: user?.email ?? "" }, { name: "guestPhone", label: "Mobile number", type: "tel", value: user?.phone ?? "" }, { name: "travelDate", label: "Travel date", type: "date", value: travelDate }].map((field) => <label key={field.name} className="block text-[12px] font-semibold text-[#424242]">{field.label} <span className="text-[#EF6614]">*</span><input name={field.name} required type={field.type} defaultValue={field.value} className="mt-1.5 h-11 w-full rounded-lg border border-[#e0e0e0] px-3 text-[13px] outline-none focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10" /></label>)}</div><label className="mt-4 block text-[12px] font-semibold text-[#424242]">Special requests <span className="font-normal text-[#9E9E9E]">(optional)</span><textarea name="specialReq" rows={3} className="mt-1.5 w-full resize-none rounded-lg border border-[#e0e0e0] px-3 py-2.5 text-[13px] outline-none focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10" placeholder="Any dietary needs or special requests" /></label>{bookState.phase === "error" && <p className="mt-4 rounded-lg bg-[#fff5f5] p-3 text-[12px] font-medium text-[#c62828]">{bookState.message}</p>}</div>
+                <div className="p-5 sm:p-6"><div className="grid gap-4 sm:grid-cols-2">{[{ name: "guestName", label: "Full name", type: "text", value: user?.name ?? "" }, { name: "guestEmail", label: "Email address", type: "email", value: user?.email ?? "" }, { name: "guestPhone", label: "Mobile number", type: "tel", value: user?.phone ?? "" }, { name: "travelDate", label: "Travel date", type: "date", value: travelDate }].map((field) => <label key={field.name} className="block text-[12px] font-semibold text-[#424242]">{field.label} <span className="text-[#EF6614]">*</span><input name={field.name} required type={field.type} defaultValue={field.value} aria-invalid={Boolean(fieldErrors[field.name])} aria-describedby={fieldErrors[field.name] ? `${field.name}-err` : undefined} onInput={() => fieldErrors[field.name] && setFieldErrors((p) => { const n = { ...p }; delete n[field.name]; return n; })} className={cn("mt-1.5 h-11 w-full rounded-lg border px-3 text-[13px] outline-none focus:ring-2", fieldErrors[field.name] ? "border-[#d92d20] bg-[#fffbfa] focus:border-[#d92d20] focus:ring-[#d92d20]/15" + (shakeKey % 2 === 0 ? " motion-safe:animate-shake" : " motion-safe:animate-shake-alt") : "border-[#e0e0e0] focus:border-[#EF6614] focus:ring-[#EF6614]/10")} />{fieldErrors[field.name] && <span id={`${field.name}-err`} role="alert" className="mt-1 block text-[11px] font-semibold text-[#d92d20]">{fieldErrors[field.name]}</span>}</label>)}</div><label className="mt-4 block text-[12px] font-semibold text-[#424242]">Special requests <span className="font-normal text-[#9E9E9E]">(optional)</span><textarea name="specialReq" rows={3} className="mt-1.5 w-full resize-none rounded-lg border border-[#e0e0e0] px-3 py-2.5 text-[13px] outline-none focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10" placeholder="Any dietary needs or special requests" /></label>{bookState.phase === "error" && <p className="mt-4 rounded-lg bg-[#fff5f5] p-3 text-[12px] font-medium text-[#c62828]">{bookState.message}</p>}<div className="mt-6"><p className="mb-2.5 text-[12px] font-bold text-[#1a1a1a]">How would you like to pay?</p><div className={cn("grid gap-2.5", tokenPaymentAvailable ? "sm:grid-cols-3" : "sm:grid-cols-2")}>{[{ id: "full" as const, title: "Pay in full", amt: `₹${fmtINR(grandTotal)}`, sub: "100% now · instant confirmation", enabled: true, soon: false },{ id: "token" as const, title: pkgTokenType === "percent" ? `Pay ${Math.round(Number(pkgTokenValue) || 0)}% now` : "Pay token amount", amt: `₹${fmtINR(token)}`, sub: `Balance before travel`, enabled: tokenPaymentAvailable, soon: false },{ id: "emi" as const, title: "EMI", amt: "Coming soon", sub: "Pay in monthly instalments", enabled: false, soon: true }]
+.filter((o) => o.id !== "token" || tokenPaymentAvailable).map((opt) => (<button key={opt.id} type="button" disabled={!opt.enabled} aria-pressed={payType === opt.id} onClick={() => opt.enabled && opt.id !== "emi" && setPayType(opt.id as "token" | "full")} className={cn("relative rounded-xl border-[1.5px] p-3 text-left transition", !opt.enabled ? "cursor-not-allowed border-[#eee] bg-[#fafafa] opacity-70" : payType === opt.id ? "border-primary bg-orange-50/60" : "border-[#e8e8e8] bg-white hover:border-[#FDBA74]")}><span className="block text-[12px] font-bold text-[#1a1a1a]">{opt.title}</span><span className="mt-0.5 block text-[14px] font-extrabold text-[#EF6614]">{opt.amt}</span><span className="mt-0.5 block text-[10px] text-[#757575]">{opt.sub}</span>{opt.soon && <span className="absolute -top-px right-3 rounded-b bg-[#9E9E9E] px-1.5 py-px text-[9px] font-bold uppercase text-white">Soon</span>}</button>))}</div>{!tokenPaymentAvailable && <p className="mt-2 text-[10px] text-[#9E9E9E]">Part payment isn’t enabled for this package.</p>}</div></div>
               </form>
             </section>
-            <aside className="lg:sticky lg:top-24 lg:self-start"><div className="overflow-hidden rounded-xl border border-[#e8e8e8] bg-white shadow-sm"><div className="border-b border-[#f0f0f0] px-5 py-4"><h2 className="text-[16px] font-extrabold text-[#1a1a1a]">Price Summary</h2><p className="mt-1 text-[11px] text-[#9E9E9E]">Final price for your selected trip</p></div><div className="space-y-3 p-5 text-[13px]"><div className="flex justify-between text-[#616161]"><span>Package price</span><span>₹{fmtINR(breakdown.base)}</span></div>{breakdown.hotel > 0 && <div className="flex justify-between text-[#616161]"><span>Hotel upgrades</span><span>+₹{fmtINR(breakdown.hotel)}</span></div>}{breakdown.cab > 0 && <div className="flex justify-between text-[#616161]"><span>Vehicle upgrade</span><span>+₹{fmtINR(breakdown.cab)}</span></div>}<div className="flex justify-between border-t border-[#f0f0f0] pt-3 text-[15px] font-extrabold text-[#1a1a1a]"><span>Total trip price</span><span>₹{fmtINR(breakdown.total)}</span></div><p className="text-right text-[11px] text-[#757575]">₹{fmtINR(Math.round(breakdown.total / Math.max(1, rooms.reduce((s, r) => s + r.adults, 0))))} per person</p>{tokenPaymentAvailable && <div className="rounded-lg border border-[#ffe0cc] bg-[#fff8f3] p-3"><p className="text-[11px] font-bold text-[#E65100]">Pay only today</p><p className="mt-1 text-xl font-extrabold text-[#EF6614]">₹{fmtINR(token)}</p><p className="mt-1 text-[10px] text-[#757575]">Remaining balance can be paid later.</p></div>}<button type="submit" form="package-checkout-form" disabled={isBooking} className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-[#EF6614] text-[14px] font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(239,102,20,.65)] disabled:opacity-60">{isBooking ? "Preparing booking…" : `Continue to payment · ₹${fmtINR(payAmt)}`}</button><p className="text-center text-[10px] text-[#9E9E9E]">Secure payment · Instant confirmation</p></div></div></aside>
+            <aside className="lg:sticky lg:top-24 lg:self-start"><div className="overflow-hidden rounded-xl border border-[#e8e8e8] bg-white shadow-sm"><div className="border-b border-[#f0f0f0] px-5 py-4"><h2 className="text-[16px] font-extrabold text-[#1a1a1a]">Price Summary</h2><p className="mt-1 flex items-center gap-1.5 text-[11px] text-[#9E9E9E]">Final price for your selected trip{(priceLoading || priceStale) && hasPrice && (<span className="inline-flex items-center gap-1 rounded-full bg-[#FFF3EB] px-1.5 py-0.5 text-[10px] font-bold text-[#E65100]"><span className="h-1.5 w-1.5 rounded-full bg-[#EF6614] motion-safe:animate-ping" />Updating…</span>)}</p></div><div className={cn("space-y-3 p-5 text-[13px] transition-opacity duration-200", (priceLoading || priceStale) && hasPrice && "opacity-50")}>{!hasPrice ? (<div className="space-y-3" aria-live="polite" aria-busy="true"><span className="sr-only">Calculating your price…</span>{[0,1,2].map((i) => (<div key={i} className="flex justify-between"><span className="h-3 w-24 rounded bg-[#f0f0f0] motion-safe:animate-pulse" /><span className="h-3 w-16 rounded bg-[#f0f0f0] motion-safe:animate-pulse" /></div>))}<div className="h-10 w-full rounded-lg bg-[#f5f5f5] motion-safe:animate-pulse" /></div>) : (<><div className="flex justify-between text-[#616161]"><div><span>Base package</span>{priceTotalGuests > 0 && <span className="block text-[10px] text-[#9E9E9E]">₹{fmtINR(Math.round(basePackagePrice / priceTotalGuests))} × {priceTotalGuests} {priceTotalGuests === 1 ? "guest" : "guests"}</span>}</div><span>₹{fmtINR(basePackagePrice)}</span></div>{hotelUpgrade > 0 && <div className="flex justify-between text-[#616161]"><span>Hotel upgrades</span><span>+₹{fmtINR(hotelUpgrade)}</span></div>}{volvoBusCost > 0 && <div className="flex justify-between text-[#616161]"><span>Volvo bus (return ticket)</span><span>+₹{fmtINR(volvoBusCost)}</span></div>}{cabUpgrade > 0 && <div className="flex justify-between text-[#616161]"><span>Vehicle upgrade</span><span>+₹{fmtINR(cabUpgrade)}</span></div>}{activitiesTotal > 0 && <div className="flex justify-between text-[#616161]"><span>Activities &amp; sightseeing</span><span>+₹{fmtINR(activitiesTotal)}</span></div>}{addonsTotal > 0 && <div className="flex justify-between text-[#616161]"><span>Add-ons</span><span>+₹{fmtINR(addonsTotal)}</span></div>}{priceRaw?.gst_result && priceRaw.gst_result.total_gst > 0 && <div className="flex justify-between text-[#616161]" title={priceRaw.gst_result.gst_label}><div><span>Fees &amp; Taxes</span><span className="block text-[10px] text-[#9E9E9E]">GST {Math.round((priceRaw.gst_result.gst_rate ?? 0.05) * 100)}%</span></div><span>+₹{fmtINR(priceRaw.gst_result.total_gst)}</span></div>}<div className="flex justify-between border-t border-[#f0f0f0] pt-3 text-[15px] font-extrabold text-[#1a1a1a]"><span>Total trip price</span><span className={cn("rounded px-1", priceSettle % 2 === 0 ? "motion-safe:animate-price-settle" : "motion-safe:animate-price-settle-alt")}>₹{fmtINR(grandTotal)}</span></div><p className="text-right text-[11px] text-[#757575]">{priceTotalGuests > 0 ? <><span className="font-bold text-[#424242]">₹{fmtINR(Math.round(grandTotal / priceTotalGuests))}</span> per person · {travellerSummary(travellerRooms)}</> : null}</p>{tokenPaymentAvailable && <div className="rounded-lg border border-[#ffe0cc] bg-[#fff8f3] p-3"><p className="text-[11px] font-bold text-[#E65100]">Pay only today</p><p className={cn("mt-1 rounded px-1 text-xl font-extrabold text-[#EF6614]", priceSettle % 2 === 0 ? "motion-safe:animate-price-settle" : "motion-safe:animate-price-settle-alt")}>₹{fmtINR(token)}</p><p className="mt-1 text-[10px] text-[#757575]">Remaining balance can be paid later.</p></div>}{Object.keys(fieldErrors).length > 0 && <p role="alert" className="rounded-lg bg-[#fffbfa] p-2.5 text-center text-[11px] font-semibold text-[#d92d20]">Please complete your traveller details above</p>}<button type="submit" form="package-checkout-form" disabled={isBooking || !priceIsComplete} className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-[#EF6614] text-[14px] font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(239,102,20,.65)] disabled:opacity-60">{isBooking ? "Preparing booking…" : `Continue to payment · ₹${fmtINR(payAmt)}`}</button><p className="text-center text-[10px] text-[#9E9E9E]">Secure payment · Instant confirmation</p></>)}</div></div></aside>
           </>}
           </div>
         </main>
@@ -647,22 +744,32 @@ export function PackageDetailView({
           tour={tour}
           images={galleryImages}
           roomsLabel={roomsLabel(rooms)}
-          total={breakdown.total}
-          tokenType={tokenType}
-          tokenAmount={pkgTokenConfig}
+          total={grandTotal}
+          tokenType={pkgTokenType}
+          tokenAmount={token}
           loadingJourney={optLoading}
           initialDate={travelDate}
           hotelGroups={hotelGroups as any[]}
           cabOptions={cabOptions as any[]}
           selectedHotels={selectedHotels}
           selectedCab={selectedCab}
+          travellerRooms={travellerRooms}
+          priceLoading={priceLoading}
+          hasPrice={hasPrice}
+          basePackagePrice={basePackagePrice}
+          hotelUpgrade={hotelUpgrade}
+          cabUpgrade={cabUpgrade}
+          volvoBusCost={volvoBusCost}
+          activitiesTotal={activitiesTotal}
+          addonsTotal={addonsTotal}
+          gstResult={priceRaw?.gst_result ?? null}
           onBook={goToPackageCheckout}
           onViewBrochure={() => setShowBrochure(true)}
           onEnquire={() => setShowLoginModal(true)}
           onChangeHotel={(index) => { setChangeHotelMode("hotel"); setChangeHotelDestIdx(index); }}
           onChangeRoom={(index) => { setChangeHotelMode("room"); setChangeHotelDestIdx(index); }}
           onChangeCab={() => setChangeVehicleOpen(true)}
-          onChangeTravellers={updateTravellers}
+          onChangeTravellerRooms={handleTravellerRoomsChange}
           onChangeDate={setTravelDate}
         />
       <Footer />
@@ -671,9 +778,9 @@ export function PackageDetailView({
         onClose={() => setShowBrochure(false)}
         tour={tour}
         stays={hotelGroups.map((group) => ({
-          name: group?.opts?.[selectedHotels[hotelGroups.indexOf(group)] ?? 0]?.name ?? group?.dest ?? "",
+          name: group?.opts?.[staySelectionIndex(selectedHotels[hotelGroups.indexOf(group)], group)]?.name ?? group?.dest ?? "",
           location: group?.dest,
-          image: group?.opts?.[selectedHotels[hotelGroups.indexOf(group)] ?? 0]?.img,
+          image: group?.opts?.[staySelectionIndex(selectedHotels[hotelGroups.indexOf(group)], group)]?.img,
         })).filter((stay) => stay.name)}
       />
       <BookingAuthModal
@@ -688,13 +795,37 @@ export function PackageDetailView({
         open={changeHotelDestIdx !== null}
         onClose={() => setChangeHotelDestIdx(null)}
         destination={changeHotelDestIdx !== null ? hotelGroups[changeHotelDestIdx] : undefined}
-        selectedIndex={changeHotelDestIdx !== null ? (selectedHotels[changeHotelDestIdx] ?? 0) : 0}
+        selectedIndex={changeHotelDestIdx !== null ? (staySelectionIndex(selectedHotels[changeHotelDestIdx!], hotelGroups[changeHotelDestIdx!])) : 0}
         mode={changeHotelMode}
+        slug={slug}
+        travelDate={travelDate}
+        selectedRoomTypeId={changeHotelDestIdx !== null ? (selectedHotels[changeHotelDestIdx]?.roomTypeId ?? null) : null}
         checkIn={changeHotelDestIdx !== null ? dateForDay(destStartDayOf(changeHotelDestIdx)) : null}
-        onSelect={(oi) => {
+        onSelect={(oi, roomTypeId, roomName) => {
           if (changeHotelDestIdx === null) return;
           const di = changeHotelDestIdx;
-          setSelectedHotels((prev) => { const h = [...prev]; h[di] = oi; return h; });
+          const group = hotelGroups[di];
+          const opt = group?.opts[oi];
+          const prevSel = selectedHotels[di];
+          const hotelChanged = opt?.hotelId !== prevSel?.hotelId;
+          setSelectedHotels((prev) => {
+            const h = [...prev];
+            h[di] = {
+              stayId: group?.stayId ?? "",
+              optionId: opt?.id ?? "",
+              hotelId: opt?.hotelId ?? "",
+              // Prefer the room the guest picked in the drawer. Only fall
+              // back to clearing it when the hotel changed and no room came
+              // back (older callers / room list unavailable).
+              roomTypeId:
+                roomTypeId ?? (hotelChanged ? null : (prevSel?.roomTypeId ?? null)),
+              hotelName: opt?.name ?? "",
+              roomName:
+                roomName ?? (hotelChanged ? null : (prevSel?.roomName ?? null)),
+              upgradePrice: opt?.extra ?? 0,
+            };
+            return h;
+          });
         }}
       />
       <ChangeVehicleModal
@@ -899,7 +1030,7 @@ export function PackageDetailView({
                         {currentDay && (() => {
                           const dest = destForDay(currentDay.day);
                           const destIdx = dest ? destIndexOf(dest.dest) : -1;
-                          const selectedOpt = dest && destIdx >= 0 ? dest.opts[selectedHotels[destIdx] ?? 0] : undefined;
+                          const selectedOpt = dest && destIdx >= 0 ? dest.opts[staySelectionIndex(selectedHotels[destIdx], hotelGroups[destIdx])] : undefined;
                           const isNewDestDay = destIdx > 0 && currentDay.day === destStartDayOf(destIdx);
                           const dayReal = days.find((dd) => dd.day_number === currentDay.day);
 
@@ -938,7 +1069,11 @@ export function PackageDetailView({
                               {dest && selectedOpt && (
                                 <div className="mt-4 flex gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
                                   <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                                    <Image src={selectedOpt.img} alt="" fill className="object-cover" sizes="80px" />
+                                    {selectedOpt.img ? (
+                                      <Image src={selectedOpt.img} alt="" fill unoptimized className="object-cover" sizes="80px" />
+                                    ) : (
+                                      <Building2 className="m-auto h-full w-6 text-slate-300" aria-hidden />
+                                    )}
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Hotel · {dest.dest}</p>
@@ -1019,7 +1154,7 @@ export function PackageDetailView({
 
                       {/* Current hotel per destination — same rich data + modal as the Itinerary tab */}
                       {hotelGroups.map((dest, di) => {
-                        const opt = dest.opts[selectedHotels[di] ?? 0];
+                        const opt = dest.opts[staySelectionIndex(selectedHotels[di], hotelGroups[di])];
                         if (!opt) return null;
                         return (
                           <div key={dest.dest} className="mb-4">
@@ -1030,7 +1165,11 @@ export function PackageDetailView({
                             </div>
                             <div className="flex gap-3 rounded-xl border-[1.5px] border-[#e8e8e8] bg-white p-3.5">
                               <div className="relative h-16 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-20 sm:w-24">
-                                <Image src={opt.img} alt="" fill className="object-cover" sizes="96px" />
+                                {opt.img ? (
+                                  <Image src={opt.img} alt="" fill unoptimized className="object-cover" sizes="96px" />
+                                ) : (
+                                  <Building2 className="m-auto h-full w-6 text-slate-300" aria-hidden />
+                                )}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-bold text-[#1a1a1a]">{opt.name}</p>
@@ -1111,7 +1250,7 @@ export function PackageDetailView({
                           <p className="text-xs font-bold text-[#1a1a1a]">{cab.name}</p>
                           <p className="text-[10px] text-[#9e9e9e]">{cab.desc}</p>
                           <p className={cn("mt-1.5 text-[11px] font-bold", cab.extra===0?"text-emerald-700":"text-primary")}>
-                            {cab.extra===0?"Included":`+₹${fmtINR(cab.extra)}`}
+                            {cab.extra===0?"Included":cab.extra>0?`+₹${fmtINR(cab.extra)}`:`Save ₹${fmtINR(Math.abs(cab.extra))}`}
                           </p>
                         </button>
                       ))}
@@ -1128,8 +1267,8 @@ export function PackageDetailView({
                   selectedItems={{ sightseeing: selectedSight, activities: selectedActs }}
                   onToggleSight={toggleSight}
                   onToggleActivity={toggleAct}
-                  sightseeingTotal={sightTotal}
-                  activitiesTotal={actTotal}
+                  sightseeingTotal={0}
+                  activitiesTotal={activitiesTotal}
                 />
               )}
 
@@ -1155,10 +1294,10 @@ export function PackageDetailView({
                     <div className="divide-y divide-[#f0f0f0]">
                       {[
                         ["Travellers",  roomsLabel(rooms)],
-                        ["Hotels",      hotelGroups.map((h, i) => `${h.dest} — ${h.opts[selectedHotels[i]??0]?.name ?? ""}`).join(" · ") || "—"],
+                        ["Hotels",      hotelGroups.map((h, i) => `${h.dest} — ${h.opts[staySelectionIndex(selectedHotels[i], hotelGroups[i])]?.name ?? ""}`).join(" · ") || "—"],
                         ["Cab",         cabOptions[selectedCab]?.name ?? "—"],
-                        ["Sightseeing", `${selectedSight.size} selected (+₹${fmtINR(sightTotal)})`],
-                        ["Activities",  `${selectedActs.size} selected (+₹${fmtINR(actTotal)})`],
+                        ["Sightseeing", `${selectedSight.size} selected`],
+                        ["Activities",  `${selectedActs.size} selected`],
                         ["Add-ons",     addons.filter((a) => a.on).map((a) => a.name).join(", ") || "None"],
                       ].map(([label, value]) => (
                         <div key={label} className="flex flex-col gap-0.5 py-2 sm:flex-row sm:items-baseline sm:gap-2">
@@ -1288,7 +1427,23 @@ export function PackageDetailView({
                             <input name={name} required={label.includes("*")} type={type} autoComplete={auto}
                               placeholder={ph}
                               defaultValue={prefill}
-                              className="block h-11 w-full rounded-xl border border-[#e0e0e0] bg-white px-3.5 text-sm text-[#1a1a1a] placeholder:text-[#bdbdbd] transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                              aria-invalid={Boolean(fieldErrors[name])}
+                              aria-describedby={fieldErrors[name] ? `${name}-error` : undefined}
+                              onInput={() => fieldErrors[name] && setFieldErrors((p) => {
+                                const next = { ...p }; delete next[name]; return next;
+                              })}
+                              className={cn(
+                                "block h-11 w-full rounded-xl border bg-white px-3.5 text-sm text-[#1a1a1a] placeholder:text-[#bdbdbd] transition focus:outline-none focus:ring-2",
+                                fieldErrors[name]
+                                  ? "border-[#d92d20] ring-1 ring-[#d92d20]/20 focus:border-[#d92d20] focus:ring-[#d92d20]/20" + (shakeKey % 2 === 0 ? " motion-safe:animate-shake" : " motion-safe:animate-shake-alt")
+                                  : "border-[#e0e0e0] focus:border-primary focus:ring-primary/20",
+                              )} />
+                            {fieldErrors[name] && (
+                              <p id={`${name}-error`} role="alert"
+                                className="mt-1 text-[11px] font-semibold text-[#d92d20]">
+                                {fieldErrors[name]}
+                              </p>
+                            )}
                           </div>
                         ))}
                         <div className="sm:col-span-2">
@@ -1303,10 +1458,10 @@ export function PackageDetailView({
                         {[
                           ...(tokenPaymentAvailable ? [{
                             type: "token" as const, title: "Token amount", amt: `₹${fmtINR(token)}`,
-                            sub: `${tokenType === "percent" ? `${pkgTokenConfig}%` : `₹${fmtINR(token)}`} now · balance ${balanceDays} days before travel`,
+                            sub: `₹${fmtINR(token)} now · balance due before travel`,
                             badge: "Recommended",
                           }] : []),
-                          { type:"full"  as const, title:"Full payment",  amt:`₹${fmtINR(breakdown.total)}`, sub:"100% now · priority seat", badge: tokenPaymentAvailable ? null : "Only option" },
+                          { type:"full"  as const, title:"Full payment",  amt:`₹${fmtINR(grandTotal)}`, sub:"100% now · priority seat", badge: tokenPaymentAvailable ? null : "Only option" },
                         ].map(({type,title,amt,sub,badge}) => (
                           <button key={type} type="button" onClick={() => setPayType(type)}
                             className={cn("relative rounded-xl border-[1.5px] p-4 text-left transition duration-200",
@@ -1330,8 +1485,7 @@ export function PackageDetailView({
                       </button>
                       {payType === "token" && tokenPaymentAvailable ? (
                         <p className="mt-1.5 text-center text-[11px] font-semibold text-emerald-700">
-                          You&apos;re paying just ₹{fmtINR(token)}
-                          {tokenType === "percent" ? ` (${pkgTokenConfig}%)` : ""} now to secure your booking
+                          You&apos;re paying just ₹{fmtINR(token)} now to secure your booking
                         </p>
                       ) : (
                         <p className="mt-1.5 text-center text-[11px] font-semibold text-emerald-700">
@@ -1397,7 +1551,7 @@ export function PackageDetailView({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] text-[#9e9e9e]">Total</p>
-            <p className="text-lg font-bold text-[#1a1a1a]">₹{fmtINR(breakdown.total)}</p>
+            <p className="text-lg font-bold text-[#1a1a1a]">₹{fmtINR(grandTotal)}</p>
           </div>
           <button type="button" onClick={() => {
               if (!isAuthenticated) { setShowLoginModal(true); }
@@ -1425,13 +1579,36 @@ export function PackageDetailView({
         open={changeHotelDestIdx !== null}
         onClose={() => setChangeHotelDestIdx(null)}
         destination={changeHotelDestIdx !== null ? hotelGroups[changeHotelDestIdx] : undefined}
-        selectedIndex={changeHotelDestIdx !== null ? (selectedHotels[changeHotelDestIdx] ?? 0) : 0}
+        selectedIndex={changeHotelDestIdx !== null ? (staySelectionIndex(selectedHotels[changeHotelDestIdx!], hotelGroups[changeHotelDestIdx!])) : 0}
         mode={changeHotelMode}
+        slug={slug}
+        travelDate={travelDate}
+        selectedRoomTypeId={changeHotelDestIdx !== null ? (selectedHotels[changeHotelDestIdx]?.roomTypeId ?? null) : null}
         checkIn={changeHotelDestIdx !== null ? dateForDay(destStartDayOf(changeHotelDestIdx)) : null}
-        onSelect={(oi) => {
+        onSelect={(oi, roomTypeId, roomName) => {
           if (changeHotelDestIdx === null) return;
           const di = changeHotelDestIdx;
-          setSelectedHotels((prev) => { const h = [...prev]; h[di] = oi; return h; });
+          const group = hotelGroups[di];
+          const opt = group?.opts[oi];
+          const prevSel = selectedHotels[di];
+          const hotelChanged = opt?.hotelId !== prevSel?.hotelId;
+          setSelectedHotels((prev) => {
+            const h = [...prev];
+            h[di] = {
+              stayId: group?.stayId ?? "",
+              optionId: opt?.id ?? "",
+              hotelId: opt?.hotelId ?? "",
+              // Prefer the room picked in the drawer; only clear on a hotel
+              // change when the drawer supplied none.
+              roomTypeId:
+                roomTypeId ?? (hotelChanged ? null : (prevSel?.roomTypeId ?? null)),
+              hotelName: opt?.name ?? "",
+              roomName:
+                roomName ?? (hotelChanged ? null : (prevSel?.roomName ?? null)),
+              upgradePrice: opt?.extra ?? 0,
+            };
+            return h;
+          });
         }}
       />
     </>

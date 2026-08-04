@@ -206,9 +206,12 @@ export function TrendingTourCard({ tour }: { tour: TourPackage }) {
           <div className="min-w-0 flex-1 text-left">
             <p className="text-[11px] text-slate-500">Starting from</p>
             <p className="text-lg font-bold text-slate-900 sm:text-xl">
-              ₹ {formatInrAmount(tour.priceINR)}
+              ₹{formatInrAmount(Math.round(tour.priceINR / 2))}
+              <span className="ml-0.5 text-xs font-medium text-slate-500">/Person</span>
             </p>
-            <p className="text-[10px] text-slate-400">per person</p>
+            <p className="text-[10px] text-slate-400">
+              Total Price ₹{formatInrAmount(tour.priceINR)}
+            </p>
           </div>
 
           <span className="flex shrink-0 items-center gap-1 rounded-lg border-2 border-primary bg-white px-3 py-2 text-xs font-bold text-primary shadow-sm transition group-hover:bg-primary group-hover:text-white sm:text-sm">

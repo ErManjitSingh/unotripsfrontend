@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   BedDouble,
   BookOpen,
+  Building2,
   CalendarDays,
   Car,
   ChevronLeft,
@@ -25,6 +26,9 @@ import {
 import { cn } from "@/lib/utils";
 import type { TourPackage } from "@/lib/constants";
 import { DatePickerPopover } from "@/components/hotels/hotel-date-range-picker";
+import { TravellerSelector } from "@/components/packages/traveller-selector";
+import { travellerSummary, type TravellerRoom } from "@/lib/rooms-utils";
+import { staySelectionIndex, type DestinationHotels } from "@/lib/package-customizer-data";
 
 type AnyRecord = Record<string, any>;
 
@@ -39,15 +43,37 @@ type Props = {
   initialDate?: string | null;
   hotelGroups: AnyRecord[];
   cabOptions: AnyRecord[];
-  selectedHotels: number[];
+  selectedHotels: Array<{ optionId: string }>;
   selectedCab: number;
+  /** New traveller rooms with child ages. */
+  travellerRooms: TravellerRoom[];
+  /** Whether the fulfillment price is currently loading. */
+  priceLoading?: boolean;
+  /** Whether at least one successful price response has been received. */
+  hasPrice?: boolean;
+  /** Pre-tax base package price. */
+  basePackagePrice?: number;
+  /** Hotel upgrade cost. */
+  hotelUpgrade?: number;
+  /** Cab upgrade cost. */
+  cabUpgrade?: number;
+  /** Volvo bus return-ticket cost (0 for non-Volvo packages). */
+  volvoBusCost?: number;
+  /** Activities + sightseeing total. */
+  activitiesTotal?: number;
+  /** Add-ons total. */
+  addonsTotal?: number;
+  /** GST result from the fulfillment pipeline. */
+  gstResult?: { total_gst: number; gst_label: string } | null;
   onBook: () => void;
   onViewBrochure: () => void;
+  /** From origin/main: opens the enquiry flow via the secondary CTA. */
   onEnquire: () => void;
   onChangeHotel: (index: number) => void;
   onChangeRoom: (index: number) => void;
   onChangeCab: () => void;
-  onChangeTravellers: (adults: number) => void;
+  /** New: receives full TravellerRoom[] from the selector. */
+  onChangeTravellerRooms: (rooms: TravellerRoom[]) => void;
   onChangeDate: (date: string) => void;
 };
 
@@ -81,6 +107,50 @@ function travelDate(value?: string | null) {
       });
 }
 
+/** "2:00 PM" from a "14:00" Hotel Master time. Empty string when unset. */
+function clockLabel(hhmm?: string | null): string {
+  if (!hhmm) return "";
+  const [rawHour, rawMinute] = hhmm.split(":");
+  const hour = Number(rawHour);
+  if (!Number.isFinite(hour)) return "";
+  const minute = String(Number(rawMinute) || 0).padStart(2, "0");
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${minute} ${suffix}`;
+}
+
+/**
+ * "28 Jul 2:00 PM — 29 Jul 11:00 AM" for one stay, derived from the traveller's
+ * chosen date plus the stay's offset and length. Returns null when no valid
+ * travel date is set, so the caller can hide the line rather than show a
+ * misleading placeholder.
+ */
+function stayWindowLabel(
+  travelDateValue: string,
+  startDay: number,
+  nights: number,
+  checkInTime?: string | null,
+  checkOutTime?: string | null,
+): string | null {
+  if (!travelDateValue) return null;
+  const base = new Date(travelDateValue);
+  if (Number.isNaN(base.getTime())) return null;
+
+  const checkIn = new Date(base);
+  checkIn.setDate(checkIn.getDate() + Math.max(0, startDay - 1));
+  const checkOut = new Date(checkIn);
+  checkOut.setDate(checkOut.getDate() + Math.max(1, nights));
+
+  const dayLabel = (value: Date) =>
+    value.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  const inTime = clockLabel(checkInTime);
+  const outTime = clockLabel(checkOutTime);
+
+  return `${dayLabel(checkIn)}${inTime ? ` ${inTime}` : ""} — ${dayLabel(checkOut)}${
+    outTime ? ` ${outTime}` : ""
+  }`;
+}
+
 function todayDateValue() {
   const now = new Date();
   const year = now.getFullYear();
@@ -102,13 +172,23 @@ export function GlacialStylePackageDetail({
   cabOptions,
   selectedHotels,
   selectedCab,
+  travellerRooms,
+  priceLoading = false,
+  hasPrice = false,
+  basePackagePrice = 0,
+  hotelUpgrade = 0,
+  cabUpgrade = 0,
+  volvoBusCost = 0,
+  activitiesTotal = 0,
+  addonsTotal = 0,
+  gstResult = null,
   onBook,
   onViewBrochure,
   onEnquire,
   onChangeHotel,
   onChangeRoom,
   onChangeCab,
-  onChangeTravellers,
+  onChangeTravellerRooms,
   onChangeDate,
 }: Props) {
   const [imageIndex, setImageIndex] = useState(0);
@@ -116,19 +196,22 @@ export function GlacialStylePackageDetail({
   const [selectedTravelDate, setSelectedTravelDate] = useState(
     initialDate ?? "",
   );
-  const [travellersOpen, setTravellersOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [topDateOpen, setTopDateOpen] = useState(false);
   const [noticeIndex, setNoticeIndex] = useState(0);
   const [journeyImagesReady, setJourneyImagesReady] = useState(false);
   const itinerary = tour.itinerary ?? [];
   const packageTitle = displayPackageTitle(tour.title);
-  // Room configuration is owned by PackageDetailView. Deriving the count
-  // here avoids keeping a second, temporarily stale traveller state.
-  const travellerCount = Number(roomsLabel.match(/(\d+)\s+Adult/i)?.[1] ?? 1);
-  const changeTravellerCount = (next: number) => {
-    onChangeTravellers(Math.max(1, Math.min(12, next)));
-  };
+  // Derived from the new TravellerRoom[] state owned by PackageDetailView.
+  const travellerCount = travellerRooms.reduce((s, r) => s + r.adults, 0);
+  // Children are charged too, so every "per person" figure must divide by the
+  // real head count. Dividing by adults alone overstated the price by 50% for
+  // a couple travelling with one child.
+  const guestCount = travellerRooms.reduce(
+    (s, r) => s + r.adults + (r.children?.length ?? 0),
+    0,
+  );
+  const travellerLabel = travellerSummary(travellerRooms);
   const heroImages = images.length ? images : [tour.image].filter(Boolean);
   const heroImage = heroImages[imageIndex] ?? tour.image;
   const nights = tour.durationNights || Math.max(1, itinerary.length - 1);
@@ -140,7 +223,9 @@ export function GlacialStylePackageDetail({
       const stayNights = Math.max(1, Number(group?.nights) || 1);
 
       if (day >= startDay && day < startDay + stayNights) {
-        return { group, index };
+        // startDay is returned so the stay card can derive real check-in /
+        // check-out dates from the traveller's chosen travel date.
+        return { group, index, startDay, nights: stayNights };
       }
 
       startDay += stayNights;
@@ -154,7 +239,7 @@ export function GlacialStylePackageDetail({
       [
         cab?.img,
         ...hotelGroups.map(
-          (group, index) => group?.opts?.[selectedHotels[index] ?? 0]?.img,
+          (group, index) => group?.opts?.[staySelectionIndex(selectedHotels[index], group as DestinationHotels)]?.img,
         ),
       ].filter((source): source is string => Boolean(source)),
     [cab?.img, hotelGroups, selectedHotels],
@@ -167,7 +252,6 @@ export function GlacialStylePackageDetail({
   const totalPrice = Math.max(0, Math.round(total >= 1000 ? total : (tour.priceINR >= 1000 ? tour.priceINR : 0)));
   const bookingAmount = tokenType === "percent" ? (totalPrice * tokenAmount) / 100 : tokenAmount;
   const hasBookingAmount = Number.isFinite(bookingAmount) && bookingAmount >= 1 && bookingAmount < totalPrice;
-  const travellerLabel = `${travellerCount} Adult${travellerCount === 1 ? "" : "s"}`;
   const notices = [
     "Lowest price today",
     "Limited seats available!",
@@ -248,7 +332,7 @@ export function GlacialStylePackageDetail({
 
   return (
     <main className="min-h-screen bg-[#f6f7f9] pb-28 pt-0 text-[#172033] md:pt-[92px] xl:pb-16">
-      <section className="sticky top-0 z-30 hidden pb-2.5 sm:block">
+      <section className="relative z-30 hidden pb-2.5 pt-2 sm:block">
         <div className="mx-auto w-full max-w-[1240px] px-4 lg:px-0">
           <div className="flex flex-wrap items-stretch overflow-visible rounded-b-2xl rounded-t-none border border-[#e4e8ee] bg-white shadow-[0_10px_30px_-22px_rgba(15,23,42,0.35)]">
             <div className="flex min-w-0 flex-1 items-stretch">
@@ -300,92 +384,19 @@ export function GlacialStylePackageDetail({
                   />
                 )}
               </div>
-              <div className="relative min-w-0 flex-[1.05]">
-                <button
-                  type="button"
-                  onClick={() => setTravellersOpen((open) => !open)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-orange-50/45 sm:px-5"
-                >
-                  <Users
-                    className="h-4 w-4 shrink-0 text-[#737b88]"
-                    strokeWidth={1.75}
-                  />
-                  <span className="min-w-0">
-                    <span className="block text-[9px] font-bold uppercase tracking-[0.12em] text-[#9aa1ad]">
-                      No. of travellers
-                    </span>
-                    <span className="mt-0.5 block truncate text-[14px] font-bold leading-tight text-[#20242c]">
-                      {travellerLabel}
-                    </span>
-                  </span>
-                </button>
-                {travellersOpen && (
-                  <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-[220px] rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
-                    <div className="flex items-center justify-between gap-5">
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">
-                          Adults
-                        </p>
-                        <p className="text-xs text-slate-500">Age 12+</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          aria-label="Remove adult"
-                          onClick={() => changeTravellerCount(travellerCount - 1)}
-                          className="grid h-8 w-8 place-items-center rounded-full border border-slate-300 text-lg"
-                        >
-                          −
-                        </button>
-                        <span className="w-5 text-center font-bold">
-                          {travellerCount}
-                        </span>
-                        <button
-                          type="button"
-                          aria-label="Add adult"
-                          onClick={() => changeTravellerCount(travellerCount + 1)}
-                          className="grid h-8 w-8 place-items-center rounded-full border border-primary text-lg text-primary"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setTravellersOpen(false)}
-                      className="mt-4 w-full rounded-lg bg-primary py-2 text-sm font-bold text-white"
-                    >
-                      Done
-                    </button>
-                  </div>
-                )}
+              <div className="relative min-w-0 flex-[1.3] border-r border-[#ECEEF2]">
+                <TravellerSelector
+                  rooms={travellerRooms}
+                  onChange={onChangeTravellerRooms}
+                  compact
+                />
               </div>
             </div>
-            <div className="flex min-w-[185px] items-center border-l border-[#ECEEF2] px-5 py-3">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#9aa1ad]">
-                  Total price
-                </p>
-                <p className="mt-0.5 text-[14px] font-bold leading-tight text-[#20242c]">
-                  ₹{formatMoney(totalPrice)}{" "}
-                  <span className="text-xs font-medium text-slate-500">
-                    for {travellerCount} adult{travellerCount === 1 ? "" : "s"}
-                  </span>
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 border-l border-[#ECEEF2] p-3">
-              <button
-                type="button"
-                onClick={onEnquire}
-                className="h-11 rounded-xl border border-primary px-5 text-[13px] font-bold text-primary transition hover:bg-orange-50"
-              >
-                Enquire Now
-              </button>
+            <div className="flex items-center border-l border-[#ECEEF2] p-3">
               <button
                 type="button"
                 onClick={onBook}
-                className="h-11 rounded-xl bg-[#ef5a0a] px-6 text-[13px] font-bold text-white shadow-[0_8px_16px_-8px_rgba(239,90,10,0.72)] transition hover:bg-[#d94d04]"
+                className="h-11 rounded-xl bg-[#ef5a0a] px-8 text-[13px] font-bold text-white shadow-[0_8px_16px_-8px_rgba(239,90,10,0.72)] transition hover:bg-[#d94d04]"
               >
                 Book Now
               </button>
@@ -452,10 +463,17 @@ export function GlacialStylePackageDetail({
                     <Users className="h-4 w-4 text-primary" />
                     {roomsLabel}
                   </span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 font-bold text-slate-700">
-                    {tour.rating.toFixed(1)}{" "}
-                    <Star className="inline h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                  </span>
+                  {/* Only show a score when one actually exists. Rendering
+                      `0.0 ★` for an unrated package read as "customers scored
+                      this zero" — worse for trust than showing nothing. Falls
+                      back to an honest "New" chip and swaps itself out the
+                      moment a real rating arrives. */}
+                  {tour.rating > 0 ? (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 font-bold text-slate-700">
+                      {tour.rating.toFixed(1)}{" "}
+                      <Star className="inline h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                    </span>
+                  ) : null}
                   {tour.reviewCount > 0 && (
                     <span className="font-semibold">
                       {tour.reviewCount} reviews
@@ -470,6 +488,7 @@ export function GlacialStylePackageDetail({
                     alt={packageTitle}
                     fill
                     priority
+                    unoptimized
                     className="object-cover"
                     sizes="(min-width: 1280px) 1200px, 100vw"
                   />
@@ -513,18 +532,11 @@ export function GlacialStylePackageDetail({
             </section>
 
             <section className="rounded-2xl border border-orange-100 bg-white p-4 shadow-[0_12px_28px_-20px_rgba(234,88,12,0.48)] xl:hidden">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-primary">Your trip, your way</p>
-                  <h2 className="mt-1 text-base font-extrabold text-[#172033]">Pick a date and you&apos;re ready</h2>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-[10px] font-semibold text-slate-500">total</p>
-                  <p className="text-lg font-extrabold leading-none text-primary">₹{formatMoney(totalPrice)}</p>
-                  <p className="mt-0.5 text-[10px] text-slate-500">for {travellerCount} adult{travellerCount === 1 ? "" : "s"}</p>
-                </div>
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-primary">Your trip, your way</p>
+                <h2 className="mt-1 text-base font-extrabold text-[#172033]">Pick a date and you&apos;re ready</h2>
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-1 gap-2">
                 <div className="relative">
                   <button
                     type="button"
@@ -549,32 +561,10 @@ export function GlacialStylePackageDetail({
                     />
                   )}
                 </div>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setTravellersOpen((open) => !open)}
-                    className="flex min-h-14 w-full items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 text-left"
-                  >
-                    <Users className="h-4 w-4 shrink-0 text-primary" />
-                    <span className="min-w-0">
-                      <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-400">Travellers</span>
-                      <span className="mt-0.5 block truncate text-xs font-bold text-slate-700">{travellerLabel}</span>
-                    </span>
-                  </button>
-                  {travellersOpen && (
-                    <div className="absolute right-0 top-full z-40 mt-2 w-[250px] rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
-                      <div className="flex items-center justify-between gap-4">
-                        <div><p className="text-sm font-bold text-slate-800">Adults</p><p className="text-xs text-slate-500">Age 12+</p></div>
-                        <div className="flex items-center gap-3">
-                          <button type="button" aria-label="Remove adult" onClick={() => changeTravellerCount(travellerCount - 1)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-300 text-lg">−</button>
-                          <span className="w-5 text-center font-bold">{travellerCount}</span>
-                          <button type="button" aria-label="Add adult" onClick={() => changeTravellerCount(travellerCount + 1)} className="grid h-9 w-9 place-items-center rounded-full border border-primary text-lg text-primary">+</button>
-                        </div>
-                      </div>
-                      <button type="button" onClick={() => setTravellersOpen(false)} className="mt-4 h-10 w-full rounded-lg bg-primary text-sm font-bold text-white">Done</button>
-                    </div>
-                  )}
-                </div>
+                <TravellerSelector
+                  rooms={travellerRooms}
+                  onChange={onChangeTravellerRooms}
+                />
               </div>
               <p className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-emerald-700"><ShieldCheck className="h-4 w-4" /> Free date changes before confirmation</p>
             </section>
@@ -606,6 +596,7 @@ export function GlacialStylePackageDetail({
                         src={src}
                         alt=""
                         fill
+                        unoptimized
                         className="object-cover"
                         sizes="160px"
                       />
@@ -725,8 +716,20 @@ export function GlacialStylePackageDetail({
                     const stayForDay = getStayForDay(item.day);
                     const dayHotel =
                       stayForDay?.group?.opts?.[
-                        selectedHotels[stayForDay.index] ?? 0
+                        staySelectionIndex(selectedHotels[stayForDay.index], hotelGroups[stayForDay.index] as DestinationHotels)
                       ];
+                    const stayWindow = stayForDay
+                      ? stayWindowLabel(
+                          selectedTravelDate,
+                          stayForDay.startDay,
+                          stayForDay.nights,
+                          dayHotel?.checkInTime,
+                          dayHotel?.checkOutTime,
+                        )
+                      : null;
+                    const stayGallery = (dayHotel?.images ?? []).filter(
+                      (url: string) => url && url !== dayHotel?.img,
+                    );
 
                     return (
                       <article
@@ -777,6 +780,7 @@ export function GlacialStylePackageDetail({
                                   src={cab.img}
                                   alt={cab.name ?? "Vehicle"}
                                   fill
+                                  unoptimized
                                   className="object-contain p-1"
                                   sizes="176px"
                                 />
@@ -846,19 +850,60 @@ export function GlacialStylePackageDetail({
                         </div>
                         {dayHotel && (
                           <div className="mt-5 rounded-2xl border border-[#F2F4F7] bg-gradient-to-br from-[#FFFDFC] to-[#FFF8F2] p-3 sm:p-4">
-                            <div className="flex flex-col gap-4 sm:min-h-[156px] sm:flex-row sm:gap-5">
-                              <div className="relative h-48 w-full shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-36 sm:w-56">
-                                <Image
-                                  src={dayHotel.img ?? heroImage}
-                                  alt={dayHotel.name ?? "Hotel"}
-                                  fill
-                                  className="object-cover"
-                                  sizes="(min-width: 640px) 224px, 100vw"
-                                />
+                            <div className="flex flex-col gap-4 sm:flex-row sm:gap-5">
+                              <div className="w-full shrink-0 sm:w-56">
+                                <div className="relative h-48 w-full overflow-hidden rounded-xl bg-slate-100 sm:h-36">
+                                  {dayHotel.img ? (
+                                    <Image
+                                      src={dayHotel.img}
+                                      alt={dayHotel.name ?? "Hotel"}
+                                      fill
+                                      unoptimized
+                                      className="object-cover"
+                                      sizes="(min-width: 640px) 224px, 100vw"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center">
+                                      <Building2 className="h-10 w-10 text-slate-300" />
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Gallery strip — opens the hotel drawer, which
+                                    already owns the full photo experience. */}
+                                {stayGallery.length > 0 && (
+                                  <div className="mt-2 grid grid-cols-4 gap-1.5">
+                                    {stayGallery.slice(0, 4).map((url: string, gi: number) => {
+                                      const isLast = gi === 3 && stayGallery.length > 4;
+                                      return (
+                                        <button
+                                          key={url}
+                                          type="button"
+                                          onClick={() => onChangeHotel(stayForDay.index)}
+                                          aria-label={`View ${dayHotel.name} photos`}
+                                          className="relative h-11 overflow-hidden rounded-md bg-slate-100"
+                                        >
+                                          <Image
+                                            src={url}
+                                            alt=""
+                                            fill
+                                            unoptimized
+                                            className="object-cover"
+                                            sizes="60px"
+                                          />
+                                          {isLast && (
+                                            <span className="absolute inset-0 grid place-items-center bg-black/60 text-[10px] font-extrabold text-white">
+                                              {stayGallery.length - 3}+
+                                            </span>
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </div>
                               <div className="min-w-0 flex-1 pb-1 sm:py-2 sm:pr-2">
                                 <div className="flex items-start justify-between gap-3">
-                                  <div>
+                                  <div className="min-w-0">
                                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">
                                       {index === 0
                                         ? "Your first stay"
@@ -867,22 +912,66 @@ export function GlacialStylePackageDetail({
                                     <h4 className="mt-1 text-base font-extrabold text-[#172033]">
                                       {dayHotel.name}
                                     </h4>
-                                    <div className="mt-2 flex">
-                                      {Array.from({ length: 5 }).map((_, i) => (
-                                        <Star
-                                          key={i}
-                                          className={cn(
-                                            "h-3.5 w-3.5",
-                                            i < (dayHotel.stars ?? 3)
-                                              ? "fill-amber-400 text-amber-400"
-                                              : "text-slate-200",
+                                    <div className="mt-2 flex items-center gap-2">
+                                      <span className="flex">
+                                        {Array.from({ length: 5 }).map((_, i) => (
+                                          <Star
+                                            key={i}
+                                            className={cn(
+                                              "h-3.5 w-3.5",
+                                              i < (dayHotel.stars ?? 3)
+                                                ? "fill-amber-400 text-amber-400"
+                                                : "text-slate-200",
+                                            )}
+                                          />
+                                        ))}
+                                      </span>
+                                      {/* Rating badge stays hidden until review
+                                          data exists — Property.rating is null
+                                          for every hotel today. */}
+                                      {dayHotel.rating ? (
+                                        <span className="inline-flex items-center gap-1.5">
+                                          <span className="rounded bg-[#1668E3] px-1.5 py-0.5 text-[11px] font-extrabold text-white">
+                                            {Number(dayHotel.rating).toFixed(1)}
+                                          </span>
+                                          {(dayHotel.reviewCount ?? 0) > 0 && (
+                                            <span className="text-[11px] font-medium text-slate-500">
+                                              ({dayHotel.reviewCount} ratings)
+                                            </span>
                                           )}
-                                        />
-                                      ))}
+                                        </span>
+                                      ) : (
+                                        // No review data yet. Show the official
+                                        // star classification (real, from Hotel
+                                        // Master) plus an honest "New" chip —
+                                        // never an invented score. Both vanish
+                                        // automatically once `rating` is populated.
+                                        <span className="inline-flex items-center gap-1.5">
+                                          {dayHotel.stars ? (
+                                            <span className="rounded bg-[#F2F4F7] px-1.5 py-0.5 text-[10px] font-extrabold tracking-wide text-[#475467]">
+                                              {dayHotel.stars}-STAR
+                                            </span>
+                                          ) : null}
+                                        </span>
+                                      )}
                                     </div>
-                                    <span className="mt-1 text-[11px] font-medium text-slate-500">
-                                      (128 reviews)
-                                    </span>
+                                    {dayHotel.address && (
+                                      <p className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-snug text-slate-500">
+                                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                        <span className="line-clamp-1">{dayHotel.address}</span>
+                                      </p>
+                                    )}
+                                    <p className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                                      <Users className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                      {travellerRooms.length} Room
+                                      {travellerRooms.length === 1 ? "" : "s"} · {travellerLabel}
+                                    </p>
+                                    {stayWindow && (
+                                      <p className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                                        <Clock3 className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                        {stayWindow}
+                                      </p>
+                                    )}
                                   </div>
                                   <button
                                     type="button"
@@ -896,21 +985,49 @@ export function GlacialStylePackageDetail({
                                   </button>
                                 </div>
                                 <div className="mt-3 flex flex-wrap gap-2">
-                                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F2F4F7] bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                    <UtensilsCrossed className="h-3.5 w-3.5 text-slate-500" />
-                                    Breakfast & Dinner
-                                  </span>
-                                  <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F2F4F7] bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                    <BedDouble className="h-3.5 w-3.5 text-slate-500" />
-                                    Deluxe Room
-                                  </span>
+                                  {dayHotel.mealsIncluded && dayHotel.mealsIncluded.length > 0 && (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F2F4F7] bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                      <UtensilsCrossed className="h-3.5 w-3.5 text-slate-500" />
+                                      {dayHotel.mealsIncluded.join(" & ")}
+                                    </span>
+                                  )}
+                                  {dayHotel.roomType && (
+                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F2F4F7] bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600">
+                                      <BedDouble className="h-3.5 w-3.5 text-slate-500" />
+                                      {dayHotel.roomType}
+                                    </span>
+                                  )}
                                 </div>
+                                {dayHotel.hotelDescription && (
+                                  <p className="mt-2.5 line-clamp-2 text-[11px] leading-relaxed text-slate-500">
+                                    {dayHotel.hotelDescription}
+                                  </p>
+                                )}
+                                {(dayHotel.amenities ?? []).length > 0 && (
+                                  <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    {(dayHotel.amenities ?? []).slice(0, 4).map((amenity: string) => (
+                                      <span
+                                        key={amenity}
+                                        className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600"
+                                      >
+                                        <CircleCheck className="h-3.5 w-3.5 text-[#1b9c5a]" />
+                                        {amenity}
+                                      </span>
+                                    ))}
+                                    {(dayHotel.amenities ?? []).length > 4 && (
+                                      <span className="text-[11px] font-bold text-slate-400">
+                                        +{(dayHotel.amenities ?? []).length - 4} more
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => onChangeRoom(stayForDay.index)}
-                                  className="mt-2 text-xs font-bold text-primary"
+                                  className="mt-2.5 text-xs font-bold text-primary"
                                 >
-                                  Change room
+                                  More room options{" "}
+                                  <span aria-hidden="true">→</span>
                                 </button>
                               </div>
                             </div>
@@ -939,33 +1056,103 @@ export function GlacialStylePackageDetail({
                   <span>{notices[noticeIndex]}</span>
                 </span>
               </div>
-              <div className="relative mt-3 h-[140px] overflow-hidden rounded-[12px] border border-[#D0D5DD]">
-                {heroImage && (
-                  <Image
-                    src={heroImage}
-                    alt=""
-                    fill
-                    className="object-cover object-right"
-                    sizes="704px"
-                  />
+
+              {/* Price breakdown */}
+              <div className="mt-3 rounded-xl border border-orange-100 bg-gradient-to-b from-orange-50/80 to-white p-4">
+                {priceLoading && !hasPrice ? (
+                  <>
+                    <p className="text-[11px] font-semibold text-[#667085]">Starts from</p>
+                    <p className="mt-1 text-[1.85rem] font-extrabold leading-none tracking-tight text-[#FF5A00]">
+                      ₹{formatMoney(Math.round(tour.priceINR / 2))}<span className="ml-1 text-sm font-bold text-[#667085]">/Person</span>
+                    </p>
+                    <p className="mt-1.5 text-xs text-[#667085]">
+                      Total Price ₹{formatMoney(tour.priceINR)}
+                    </p>
+                    <div className="mt-3 h-px bg-[#f0f2f5]" />
+                    <div className="mt-2 h-4 w-32 animate-pulse rounded bg-[#eee]" />
+                  </>
+                ) : hasPrice ? (
+                  <>
+                    <div className="space-y-1.5 text-[12px]">
+                      <div className="flex justify-between text-[#667085]">
+                        <div>
+                          <span>Base package</span>
+                          {guestCount > 0 && (
+                            <span className="block text-[10px] text-[#8b8fa3]">
+                              ₹{formatMoney(Math.round(basePackagePrice / guestCount))} × {guestCount} {guestCount === 1 ? "guest" : "guests"}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-medium text-[#344054]">₹{formatMoney(basePackagePrice)}</span>
+                      </div>
+                      {hotelUpgrade > 0 && (
+                        <div className="flex justify-between text-[#667085]">
+                          <span>Hotel upgrade</span>
+                          <span className="font-medium text-[#344054]">+₹{formatMoney(hotelUpgrade)}</span>
+                        </div>
+                      )}
+                      {volvoBusCost > 0 && (
+                        <div className="flex justify-between text-[#667085]">
+                          <div>
+                            <span>Volvo bus (return ticket)</span>
+                          </div>
+                          <span className="font-medium text-[#344054]">+₹{formatMoney(volvoBusCost)}</span>
+                        </div>
+                      )}
+                      {cabUpgrade > 0 && (
+                        <div className="flex justify-between text-[#667085]">
+                          <span>Vehicle upgrade</span>
+                          <span className="font-medium text-[#344054]">+₹{formatMoney(cabUpgrade)}</span>
+                        </div>
+                      )}
+                      {activitiesTotal > 0 && (
+                        <div className="flex justify-between text-[#667085]">
+                          <span>Activities</span>
+                          <span className="font-medium text-[#344054]">+₹{formatMoney(activitiesTotal)}</span>
+                        </div>
+                      )}
+                      {addonsTotal > 0 && (
+                        <div className="flex justify-between text-[#667085]">
+                          <span>Add-ons</span>
+                          <span className="font-medium text-[#344054]">+₹{formatMoney(addonsTotal)}</span>
+                        </div>
+                      )}
+                      {gstResult && gstResult.total_gst > 0 && (
+                        <div className="flex justify-between text-[#667085]">
+                          <div>
+                            <span>Fees &amp; Taxes</span>
+                            <span className="block text-[10px] text-[#8b8fa3]">GST 5%</span>
+                          </div>
+                          <span className="font-medium text-[#344054]">+₹{formatMoney(gstResult.total_gst)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t border-dashed border-[#e0e0e0] pt-2 text-[13px] font-bold text-[#1a1a2e]">
+                        <span>Total</span>
+                        <span className="text-[#FF5A00]">₹{formatMoney(totalPrice)}</span>
+                      </div>
+                      {guestCount > 0 && (
+                        <p className="text-right text-[10px] text-[#667085]">
+                          <span className="font-bold text-[#344054]">
+                            ₹{formatMoney(Math.round(totalPrice / guestCount))}
+                          </span>{" "}
+                          per person · {travellerLabel}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[11px] font-semibold text-[#667085]">Starts from</p>
+                    <p className="mt-1 text-[1.85rem] font-extrabold leading-none tracking-tight text-[#FF5A00]">
+                      ₹{formatMoney(Math.round(tour.priceINR / 2))}<span className="ml-1 text-sm font-bold text-[#667085]">/Person</span>
+                    </p>
+                    <p className="mt-1.5 text-xs text-[#667085]">
+                      Total Price ₹{formatMoney(tour.priceINR)}
+                    </p>
+                  </>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-r from-white via-white/95 via-[38%] to-transparent" />
-                <div className="relative z-10 max-w-[52%] px-5 pt-4 xl:max-w-[88%]">
-                  <p className="text-sm font-semibold text-[#667085]">
-                    Total price
-                  </p>
-                  <p className="mt-1 whitespace-nowrap text-[3rem] font-extrabold leading-none tracking-[-.05em] text-[#FF5A00] xl:text-[2.45rem]">
-                    ₹{formatMoney(totalPrice)}{" "}
-                    <span className="text-base font-semibold tracking-normal text-[#667085]">
-                      / {travellerCount} adult{travellerCount === 1 ? "" : "s"}
-                    </span>
-                  </p>
-                  <div className="mt-2 inline-flex items-center gap-2 rounded-[12px] bg-[#FFF0E6] px-3 py-2 text-sm font-semibold text-[#344054]">
-                    <Users className="h-4 w-4 text-[#FF5A00]" />
-                    Per person
-                  </div>
-                </div>
               </div>
+
               <div className="flex items-center gap-2 border-b border-[#F2F4F7] py-3">
                 <div className="flex w-[42%] shrink-0 items-center gap-2">
                   <CalendarDays className="h-7 w-7 shrink-0 text-[#FF5A00]" />
@@ -1002,10 +1189,10 @@ export function GlacialStylePackageDetail({
                   Customize your trip
                 </h3>
                 <p className="mt-1 text-xs text-[#667085]">
-                  Change travel date & rooms as per your comfort
+                  Change travel date &amp; travellers as per your comfort
                 </p>
-                <div className="mt-3 flex gap-3">
-                  <div className="relative min-w-0 flex-1">
+                <div className="mt-3">
+                  <div className="relative">
                     <button
                       onClick={() => setDateOpen(true)}
                       className="flex h-10 w-full items-center gap-2 rounded-xl border border-[#E4E7EC] px-3 text-left text-xs text-[#667085]"
@@ -1031,12 +1218,12 @@ export function GlacialStylePackageDetail({
                       />
                     )}
                   </div>
-                  <button
-                    onClick={() => setDateOpen(true)}
-                    className="h-10 rounded-xl border border-[#E4E7EC] px-5 text-sm font-bold text-[#FF5A00]"
-                  >
-                    Modify
-                  </button>
+                  <div className="mt-2">
+                    <TravellerSelector
+                      rooms={travellerRooms}
+                      onChange={onChangeTravellerRooms}
+                    />
+                  </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between rounded-xl bg-[#FFF4EC] px-4 py-1.5 text-sm font-bold text-[#FF5A00]">
                   {hasBookingAmount ? <>Book with just ₹{formatMoney(bookingAmount)}</> : <>Request your tailored quote</>}{" "}
@@ -1082,8 +1269,8 @@ export function GlacialStylePackageDetail({
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-orange-100 bg-white/95 px-3 py-2.5 shadow-[0_-10px_30px_rgba(15,23,42,0.10)] backdrop-blur xl:hidden" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
         <div className="mx-auto flex max-w-[640px] items-center gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold text-slate-500">{hasBookingAmount ? "Reserve today" : "Plan with UNO"}</p>
-            <p className="truncate text-base font-extrabold leading-tight text-[#172033]">{hasBookingAmount ? <>₹{formatMoney(bookingAmount)} <span className="text-[10px] font-medium text-slate-500">booking amount</span></> : <>Tailored quote available</>}</p>
+            <p className="text-[10px] font-semibold text-slate-500">Starts from</p>
+            <p className="truncate text-base font-extrabold leading-tight text-[#172033]">₹{formatMoney(Math.round(tour.priceINR / 2))} <span className="text-[10px] font-medium text-slate-500">/Person · Total ₹{formatMoney(tour.priceINR)}</span></p>
           </div>
           <button
             type="button"

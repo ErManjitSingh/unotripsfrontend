@@ -39,11 +39,32 @@ export type HotelOption = {
   hotelSlug?: string;
   pop: boolean;
   img?: string;
+  /** Full Hotel Master gallery — powers the thumbnail strip on the stay card. */
+  images?: string[];
   /** Real fields from the backend's per-hotel config — undefined/empty when not configured. */
   roomType?: string;
   maxGuests?: number;
   extraBedPrice?: number;
   mealsIncluded?: string[];
+  /** Starting price per night from PricingEngine (display only). */
+  startingPrice?: number | null;
+  /** Number of active room types at this hotel. */
+  roomCount?: number;
+  // ── Hotel Master fields (enriched by backend) ─────────────────────────────
+  /** Hotel description from Hotel Master. */
+  hotelDescription?: string | null;
+  /** Hotel rating (e.g. 4.2). */
+  rating?: number | null;
+  /** Number of reviews. */
+  reviewCount?: number;
+  /** Hotel address. */
+  address?: string | null;
+  /** Hotel amenities list. */
+  amenities?: string[];
+  /** Hotel check-in time. */
+  checkInTime?: string | null;
+  /** Hotel check-out time. */
+  checkOutTime?: string | null;
 };
 
 export type DestinationHotels = {
@@ -53,12 +74,57 @@ export type DestinationHotels = {
   opts: HotelOption[];
 };
 
+/**
+ * Represents the customer's explicit hotel+room selection for one stay.
+ * Business-only data — no UI indices, no array positions.
+ *
+ * Maps 1:1 with the backend's SelectedHotelSelection schema.
+ */
+export type StaySelection = {
+  /** PackageStay.id — identifies which destination stay this selection belongs to. */
+  stayId: string;
+  /** PackageStayHotelOption.id — the option the customer chose. */
+  optionId: string;
+  /** Hotel property UUID. */
+  hotelId: string;
+  /** RoomType UUID — null until the customer explicitly picks a room. */
+  roomTypeId: string | null;
+  /** Display: hotel name. */
+  hotelName: string;
+  /** Display: selected room name (null until room is picked). */
+  roomName: string | null;
+  /** Display: upgrade price delta for this selection. */
+  upgradePrice: number;
+};
+
+/**
+ * Derive the UI index of a selection within its hotelGroups destination.
+ * Used ONLY for rendering — never persisted, never sent to the backend.
+ * Accepts any object with an `optionId` — works with both full
+ * StaySelection and the minimal prop shape used by child components.
+ */
+export function staySelectionIndex(
+  selection: { optionId: string } | undefined,
+  dest: DestinationHotels | undefined,
+): number {
+  if (!selection || !dest) return 0;
+  const idx = dest.opts.findIndex((o) => o.id === selection.optionId);
+  return idx >= 0 ? idx : 0;
+}
+
 export type CabOption = {
   id: string;
   name: string;
   desc: string;
   seats: number;
   extra: number; // flat INR delta for the entire trip
+  /**
+   * The vehicle's own fare for the whole trip. Shown as a secondary line so
+   * customers can see what the transport actually costs — the included
+   * vehicle's fare is already inside the package base price, so only `extra`
+   * is ever added to the total.
+   */
+  price?: number;
   pop: boolean;
   img?: string;
 };
@@ -87,15 +153,6 @@ export type ItineraryDay = {
   loc: string;
   title: string;
   acts: ItineraryActivity[];
-};
-
-export type PriceBreakdown = {
-  base: number;
-  hotel: number;
-  cab: number;
-  addons: number;
-  disc: number;
-  total: number;
 };
 
 export type CustomizerState = {
@@ -589,8 +646,33 @@ export const TERMS_AND_CONDITIONS: Array<{ title: string; body: string }> = [
   },
 ];
 
+// ── Price breakdown type ──────────────────────────────────────────────────────
+//
+// Kept for reference while both code paths exist. Once useFulfillmentPrice()
+// is verified in production, this type and calcTotalWithOptions/tokenAmount
+// can be removed in a follow-up commit.
+
+export type PriceBreakdown = {
+  base:   number;
+  hotel:  number;
+  cab:    number;
+  addons: number;
+  disc:   number;
+  total:  number;
+};
+
 // ── Price engine ──────────────────────────────────────────────────────────────
 //
+// NOTE: These functions are PRESERVED but no longer called by the UI.
+// The frontend has switched to useFulfillmentPrice() which returns all price
+// values from the backend. These helpers remain here for:
+//   1. Safe rollback if the backend endpoint has issues.
+//   2. Audit trail of the old calculation logic.
+//
+// TODO: Remove calcTotalWithOptions(), tokenAmount(), and PriceBreakdown
+// after the backend fulfillment-price endpoint is confirmed stable in
+// production for at least one release cycle.
+
 // basePackagePrice is ALWAYS the real package.priceINR (base_price from the
 // backend) — never omit it. It used to default to a hardcoded ₹9,500 demo
 // constant, which meant the optimistic price shown while customizing never
@@ -636,17 +718,6 @@ export function calcTotalWithOptions(
   return { base, hotel: hotelDelta, cab: cabDelta, addons, disc, total };
 }
 
-/**
- * Mirrors the backend's exact token calculation (day_options_service.py's
- * take a flat configured amount capped at total. This used to always
- * assume 40% of total regardless of the package's real token_type/
- * token_amount — for a "fixed" package with no token_amount configured
- * (real_token_amount=0), that showed a token option (e.g. "₹18,400 (40%)")
- * that would always fail the backend's minimum-payment check at checkout.
- * Always pass the package's real token_type/token_amount — a package with
- * no token configured (fixed, amount=0) genuinely asks for ₹0 upfront;
- * that's an ops data gap to flag, not something to paper over here.
- */
 export function tokenAmount(
   total: number,
   tokenType: string = "percent",
