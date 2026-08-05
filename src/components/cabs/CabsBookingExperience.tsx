@@ -520,7 +520,7 @@ export function CabsBookingExperience() {
     <div className="min-h-screen bg-[#fffaf7] text-[#272129]">
       <TravelMobileTopShell activeId="cabs" showGreeting={false} compact />
 
-      <header className="sticky top-0 z-40 hidden border-b border-orange-100/70 bg-white/95 backdrop-blur md:block">
+      <header className="sticky top-[var(--uno-top-banner-height,0px)] z-40 hidden border-b border-orange-100/70 bg-white/95 backdrop-blur md:block">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link href="/" className="relative block h-9 w-[118px] shrink-0" aria-label="UNO Trips home">
             <Image src="/images/homelogo-transparent.png" alt="UNO Trips" fill sizes="118px" className="object-contain object-left" priority />

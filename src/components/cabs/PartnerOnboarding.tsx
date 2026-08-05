@@ -28,6 +28,8 @@ import {
   UserRound,
 } from "lucide-react";
 import { searchCabLocations, type CabLocation } from "@/lib/cabs-location-api";
+import { SITE } from "@/lib/constants";
+import { siteTelHref } from "@/lib/site-contact";
 import { useAuthOptional } from "@/contexts/auth-context";
 import {
   createCabPartnerApplication,
@@ -640,12 +642,33 @@ export function PartnerOnboarding() {
       const values = Object.fromEntries(
         new FormData(formRef.current).entries(),
       ) as Record<string, string>;
-      const validationError = validatePartnerDetails(businessType, values);
+      const validationError = validatePartnerDetails(businessType, values, {
+        pan: detailValues.pan_number === "Provided securely",
+        aadhaar: detailValues.aadhaar_number === "Provided securely",
+      });
       if (validationError) {
         setActionError(validationError);
         return;
       }
-      setDetailValues(values);
+      setDetailValues((current) => {
+        const next = { ...current, ...values };
+        if (!values.pan_number?.trim() && current.pan_number === "Provided securely") {
+          next.pan_number = "Provided securely";
+        }
+        if (
+          !values.aadhaar_number?.trim() &&
+          current.aadhaar_number === "Provided securely"
+        ) {
+          next.aadhaar_number = "Provided securely";
+        }
+        if (
+          !values.driving_license_number?.trim() &&
+          current.driving_license_number === "Provided securely"
+        ) {
+          next.driving_license_number = "Provided securely";
+        }
+        return next;
+      });
       if (!auth?.getAccessToken()) {
         setActionError(
           "Your session has expired. Please sign in again to continue your saved application.",
@@ -734,8 +757,13 @@ export function PartnerOnboarding() {
         ...current,
         [documentType]: file.name,
       }));
-    } catch {
+    } catch (error) {
       setUploadState((current) => ({ ...current, [documentType]: "error" }));
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Upload failed. Try a clear PDF, JPG, or PNG under 5 MB.",
+      );
     }
   };
 
@@ -755,7 +783,7 @@ export function PartnerOnboarding() {
           </span>
         </Link>
         <a
-          href="tel:+919876543210"
+          href={siteTelHref()}
           className="flex items-center gap-2 text-right"
         >
           <Headphones className="h-4 w-4 text-[#ef6614]" />
@@ -764,7 +792,7 @@ export function PartnerOnboarding() {
               24×7 Partner Support
             </small>
             <strong className="block text-[11px] text-[#283141]">
-              +91 98765 43210
+              {SITE.phone}
             </strong>
           </span>
         </a>
@@ -928,13 +956,19 @@ export function PartnerOnboarding() {
                   <BusinessTypeStep
                     type={businessType}
                     onSelect={setBusinessType}
-                    defaults={basicValues}
+                    typeLocked={draftReady}
                   />
                 )}
                 {step === 1 && (
                   <BusinessDetailsStep
                     type={businessType}
                     defaults={detailValues}
+                    secretsOnFile={{
+                      pan: detailValues.pan_number === "Provided securely",
+                      aadhaar: detailValues.aadhaar_number === "Provided securely",
+                      drivingLicense:
+                        detailValues.driving_license_number === "Provided securely",
+                    }}
                   />
                 )}
                 {step === 2 && (
@@ -1117,11 +1151,11 @@ function PartnerApplicationStatus({
 function BusinessTypeStep({
   type,
   onSelect,
-  defaults = {},
+  typeLocked = false,
 }: {
   type: BusinessType;
   onSelect: (type: BusinessType) => void;
-  defaults?: Record<string, string>;
+  typeLocked?: boolean;
 }) {
   const choices = [
     {
@@ -1160,14 +1194,11 @@ function BusinessTypeStep({
           Pick one — cab agency/fleet, or individual owner-driver.
         </p>
       </div>
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2.5 text-xs text-emerald-950">
-        <span className="flex items-center gap-1.5 font-extrabold">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Account ready
-        </span>
-        <span>{defaults.full_name}</span>
-        <span>{defaults.mobile_number}</span>
-        <span className="max-w-full truncate">{defaults.email_address}</span>
-      </div>
+      {typeLocked && (
+        <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50/80 px-3 py-2.5 text-[11px] leading-5 text-amber-950 sm:text-xs">
+          Registration type is locked for this draft. To switch between agency and individual, start a new account or contact support.
+        </div>
+      )}
       <fieldset className="mt-4">
         <legend className="text-xs font-extrabold sm:text-sm">
           I am registering as <span className="text-[#ef6614]">*</span>
@@ -1179,8 +1210,12 @@ function BusinessTypeStep({
               <button
                 key={value}
                 type="button"
-                onClick={() => onSelect(value)}
-                className={`relative min-h-[128px] rounded-xl border p-3 text-left transition sm:p-4 ${active ? "border-[#ef6614] bg-[#fffaf6] shadow-[0_14px_26px_-24px_rgba(239,102,20,0.85)]" : "border-slate-200 bg-white hover:border-orange-200"}`}
+                disabled={typeLocked && !active}
+                onClick={() => {
+                  if (typeLocked && value !== type) return;
+                  onSelect(value);
+                }}
+                className={`relative min-h-[128px] rounded-xl border p-3 text-left transition sm:p-4 ${active ? "border-[#ef6614] bg-[#fffaf6] shadow-[0_14px_26px_-24px_rgba(239,102,20,0.85)]" : "border-slate-200 bg-white hover:border-orange-200"} ${typeLocked && !active ? "cursor-not-allowed opacity-45" : ""}`}
               >
                 <span className="absolute left-3 top-3">
                   <OptionMark active={active} />
@@ -1211,7 +1246,6 @@ function BusinessTypeStep({
         <input
           name="terms"
           type="checkbox"
-          defaultChecked={Boolean(defaults.terms)}
           className="mt-0.5 h-4 w-4 accent-[#ef6614]"
         />
         I agree to the{" "}
@@ -1238,14 +1272,15 @@ function fieldName(label: string): string {
 function validatePartnerDetails(
   type: BusinessType,
   values: Record<string, string>,
+  secretsOnFile: { pan?: boolean; aadhaar?: boolean } = {},
 ): string | null {
   const value = (name: string) => values[name]?.trim() || "";
-  const required =
+  const required: Array<[string, string]> =
     type === "agency"
       ? [
           ["business_agency_name", "business / agency name"],
           ["type_of_organization", "organization type"],
-          ["pan_number", "PAN number"],
+          ...(secretsOnFile.pan ? [] : [["pan_number", "PAN number"] as [string, string]]),
           ["business_address", "business address"],
           ["city_town", "city / town"],
           ["state", "state"],
@@ -1255,7 +1290,9 @@ function validatePartnerDetails(
       : [
           ["date_of_birth", "date of birth"],
           ["gender", "gender"],
-          ["aadhaar_number", "Aadhaar number"],
+          ...(secretsOnFile.aadhaar
+            ? []
+            : [["aadhaar_number", "Aadhaar number"] as [string, string]]),
           ["address", "address"],
           ["city_town", "city / town"],
           ["state", "state"],
@@ -1268,10 +1305,8 @@ function validatePartnerDetails(
   const pan = value("pan_number").replace(/\s/g, "").toUpperCase();
   if (pan && !/^[A-Z]{5}\d{4}[A-Z]$/.test(pan))
     return "Enter a valid PAN number (for example, ABCDE1234F).";
-  if (
-    type === "individual" &&
-    !/^\d{12}$/.test(value("aadhaar_number").replace(/\s/g, ""))
-  )
+  const aadhaar = value("aadhaar_number").replace(/\s/g, "");
+  if (aadhaar && !/^\d{12}$/.test(aadhaar))
     return "Enter a valid 12-digit Aadhaar number.";
   const gst = value("gst_number").replace(/\s/g, "").toUpperCase();
   if (gst && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d][Z][A-Z\d]$/.test(gst))
@@ -1401,9 +1436,11 @@ function CabLocationField({
 function BusinessDetailsStep({
   type,
   defaults = {},
+  secretsOnFile = {},
 }: {
   type: BusinessType;
   defaults?: Record<string, string>;
+  secretsOnFile?: { pan?: boolean; aadhaar?: boolean; drivingLicense?: boolean };
 }) {
   const isAgency = type === "agency";
   return (
@@ -1422,9 +1459,9 @@ function BusinessDetailsStep({
         </p>
       </div>
       {isAgency ? (
-        <OrganisationFields defaults={defaults} />
+        <OrganisationFields defaults={defaults} secretsOnFile={secretsOnFile} />
       ) : (
-        <IndividualFields defaults={defaults} />
+        <IndividualFields defaults={defaults} secretsOnFile={secretsOnFile} />
       )}
     </section>
   );
@@ -1432,8 +1469,10 @@ function BusinessDetailsStep({
 
 function OrganisationFields({
   defaults = {},
+  secretsOnFile = {},
 }: {
   defaults?: Record<string, string>;
+  secretsOnFile?: { pan?: boolean; aadhaar?: boolean; drivingLicense?: boolean };
 }) {
   return (
     <div className="mt-4 space-y-3">
@@ -1468,13 +1507,23 @@ function OrganisationFields({
         />
         <OnboardingInput
           label="PAN number"
-          placeholder="Enter PAN number"
+          placeholder={
+            secretsOnFile.pan
+              ? "Already saved — leave blank to keep"
+              : "Enter PAN number"
+          }
+          optional={Boolean(secretsOnFile.pan)}
           defaultValue={
             defaults.pan_number === "Provided securely"
               ? ""
               : defaults.pan_number
           }
         />
+        {secretsOnFile.pan && (
+          <p className="-mt-2 text-[10px] font-medium text-emerald-700 sm:col-span-full">
+            PAN is already on file securely. Enter a new number only if you need to update it.
+          </p>
+        )}
       </div>
       <OnboardingTextarea
         label="Business address"
@@ -1527,8 +1576,10 @@ function OrganisationFields({
 
 function IndividualFields({
   defaults = {},
+  secretsOnFile = {},
 }: {
   defaults?: Record<string, string>;
+  secretsOnFile?: { pan?: boolean; aadhaar?: boolean; drivingLicense?: boolean };
 }) {
   return (
     <div className="mt-4 space-y-3">
@@ -1560,7 +1611,12 @@ function IndividualFields({
         />
         <OnboardingInput
           label="Aadhaar number"
-          placeholder="Enter 12-digit Aadhaar number"
+          placeholder={
+            secretsOnFile.aadhaar
+              ? "Already saved — leave blank to keep"
+              : "Enter 12-digit Aadhaar number"
+          }
+          optional={Boolean(secretsOnFile.aadhaar)}
           defaultValue={
             defaults.aadhaar_number === "Provided securely"
               ? ""
@@ -1570,7 +1626,11 @@ function IndividualFields({
         <OnboardingInput
           label="PAN number"
           optional
-          placeholder="Enter PAN number"
+          placeholder={
+            secretsOnFile.pan
+              ? "Already saved — leave blank to keep"
+              : "Enter PAN number"
+          }
           defaultValue={
             defaults.pan_number === "Provided securely"
               ? ""
@@ -1578,6 +1638,11 @@ function IndividualFields({
           }
         />
       </div>
+      {secretsOnFile.aadhaar && (
+        <p className="text-[10px] font-medium text-emerald-700">
+          Aadhaar is already on file securely. Enter a new number only if you need to update it.
+        </p>
+      )}
       <OnboardingTextarea
         label="Address"
         placeholder="Enter your complete address"
@@ -1605,7 +1670,11 @@ function IndividualFields({
         <OnboardingInput
           label="Driving license number"
           optional
-          placeholder="Enter driving license number"
+          placeholder={
+            secretsOnFile.drivingLicense
+              ? "Already saved — leave blank to keep"
+              : "Enter driving license number"
+          }
           defaultValue={
             defaults.driving_license_number === "Provided securely"
               ? ""
@@ -1754,7 +1823,7 @@ function DocumentsStep({
     type === "agency"
       ? [
           { title: "Address proof", required: true },
-          { title: "ID proof (Aadhaar / driving licence)", required: false },
+          { title: "ID proof (Aadhaar)", required: false },
           { title: "Vehicle RC (if available)", required: false },
         ]
       : [
@@ -1879,18 +1948,20 @@ function documentTypeFor(title: string): string {
     return "bank_proof";
   if (normalized.includes("vehicle rc")) return "vehicle_rc";
   if (normalized.includes("insurance")) return "vehicle_insurance";
-  if (
-    normalized.includes("driving licence") ||
-    normalized.includes("driving license")
-  )
-    return "driving_license";
-  if (normalized.includes("address")) return "address_proof";
+  // Match identity / id proof before "driving licence" — agency optional ID
+  // titles used to include both and were mis-tagged as driving_license.
   if (
     normalized.includes("aadhaar") ||
     normalized.includes("id proof") ||
     normalized.includes("identity")
   )
     return "identity_proof";
+  if (
+    normalized.includes("driving licence") ||
+    normalized.includes("driving license")
+  )
+    return "driving_license";
+  if (normalized.includes("address")) return "address_proof";
   return "identity_proof";
 }
 
@@ -2012,9 +2083,7 @@ function VerificationStep({
     bank_proof: "Cancelled cheque / bank proof",
     address_proof: "Address proof",
     identity_proof:
-      type === "agency"
-        ? "ID proof (Aadhaar / driving licence)"
-        : "Aadhaar card",
+      type === "agency" ? "ID proof (Aadhaar)" : "Aadhaar card",
     vehicle_rc: "Vehicle RC",
     driving_license: "Driving licence",
     vehicle_insurance: "Vehicle insurance",

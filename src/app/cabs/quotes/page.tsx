@@ -37,6 +37,8 @@ import {
   type CabQuote,
   type CabTripRequest,
 } from "@/lib/cab-quote-api";
+import { CabPromoCodeField } from "@/components/cabs/CabPromoCodeField";
+import { useCabPromoPricing } from "@/components/cabs/CabPromoPrice";
 
 const VEHICLE_CATEGORY_OPTIONS = [
   { value: "hatchback", label: "Hatchback" },
@@ -387,6 +389,7 @@ function QuoteCard({
   onSelect: (id: string) => void;
   onHighlight?: (id: string) => void;
 }) {
+  const promoPricing = useCabPromoPricing(quote.total_amount);
   const partnerLabel = quote.business_name || quote.partner_name;
   const respondedAt = quote.sent_at || quote.created_at;
 
@@ -440,10 +443,23 @@ function QuoteCard({
         </div>
 
         <div className="sm:text-right">
-          <p className="flex items-center gap-1 text-3xl font-black tracking-tight text-[#292229] sm:justify-end">
-            <IndianRupee className="h-6 w-6" />
-            {money(quote.total_amount, quote.currency).replace(/^₹\s?/, "")}
-          </p>
+          {promoPricing.isApplied ? (
+            <div className="sm:flex sm:flex-col sm:items-end">
+              <p className="text-sm font-semibold text-[#8b828a] line-through">
+                {money(quote.total_amount, quote.currency)}
+              </p>
+              <p className="flex items-center gap-1 text-3xl font-black tracking-tight text-[#292229] sm:justify-end">
+                <IndianRupee className="h-6 w-6" />
+                {money(promoPricing.finalAmount, quote.currency).replace(/^₹\s?/, "")}
+              </p>
+              <p className="mt-1 text-[11px] font-bold text-emerald-700">UNOCABS10 · 10% off</p>
+            </div>
+          ) : (
+            <p className="flex items-center gap-1 text-3xl font-black tracking-tight text-[#292229] sm:justify-end">
+              <IndianRupee className="h-6 w-6" />
+              {money(quote.total_amount, quote.currency).replace(/^₹\s?/, "")}
+            </p>
+          )}
           <p className="mt-1 text-xs text-[#746a73]">Total fare · all taxes as quoted</p>
           <p className="mt-2 text-[11px] font-semibold text-[#706771]">Valid until {dateTime(quote.valid_until)}</p>
           <div className="mt-3 sm:flex sm:justify-end">
@@ -1149,6 +1165,8 @@ export default function CabQuotesPage() {
               )}
             </div>
 
+            <CabPromoCodeField className="mt-4 rounded-xl border border-orange-100 bg-[#fffaf7] p-3" />
+
             {quotes.length === 0 ? (
               <div className="mt-4 sm:mt-5">
                 <WaitingState request={request} now={now} />
@@ -1179,26 +1197,49 @@ export default function CabQuotesPage() {
           : bestPriceId;
         const stickyQuote = quotes.find((q) => q.id === stickyId) || quotes[0];
         return (
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:hidden">
-            <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-              <span className="truncate font-semibold text-[#514953]">
-                {stickyQuote.business_name || stickyQuote.partner_name}
-                {stickyQuote.id === bestPriceId ? " · Best price" : ""}
-              </span>
-              <strong className="shrink-0 text-base font-black">{money(stickyQuote.total_amount, stickyQuote.currency)}</strong>
-            </div>
-            <button
-              type="button"
-              disabled={Boolean(accepting)}
-              onClick={() => void selectQuote(stickyQuote.id)}
-              className="flex min-h-12 w-full items-center justify-center rounded-xl bg-[#ef6614] text-sm font-extrabold text-white disabled:opacity-60"
-            >
-              {accepting === stickyQuote.id ? "Selecting…" : "Select this quote"}
-            </button>
-          </div>
+          <StickyQuoteBar
+            quote={stickyQuote}
+            isBestPrice={stickyQuote.id === bestPriceId}
+            accepting={accepting}
+            onSelect={() => void selectQuote(stickyQuote.id)}
+          />
         );
       })()}
     </main>
+  );
+}
+
+function StickyQuoteBar({
+  quote,
+  isBestPrice,
+  accepting,
+  onSelect,
+}: {
+  quote: CabQuote;
+  isBestPrice: boolean;
+  accepting: string | null;
+  onSelect: () => void;
+}) {
+  const pricing = useCabPromoPricing(quote.total_amount);
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:hidden">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+        <span className="truncate font-semibold text-[#514953]">
+          {quote.business_name || quote.partner_name}
+          {isBestPrice ? " · Best price" : ""}
+        </span>
+        <strong className="shrink-0 text-base font-black">{money(pricing.finalAmount, quote.currency)}</strong>
+      </div>
+      <button
+        type="button"
+        disabled={Boolean(accepting)}
+        onClick={onSelect}
+        className="flex min-h-12 w-full items-center justify-center rounded-xl bg-[#ef6614] text-sm font-extrabold text-white disabled:opacity-60"
+      >
+        {accepting === quote.id ? "Selecting…" : "Select this quote"}
+      </button>
+    </div>
   );
 }
 

@@ -16,6 +16,8 @@ import {
 import { verifyCabBookingPayment } from "@/lib/cabs-booking-api";
 import { getRazorpayKeyId, openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import { trackEvent, trackOnce } from "@/lib/marketing-tracking";
+import { CabPromoCodeField } from "@/components/cabs/CabPromoCodeField";
+import { useCabPromoPricing } from "@/components/cabs/CabPromoPrice";
 
 function money(amount: number, currency = "INR") {
   return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 0 }).format(amount);
@@ -55,14 +57,29 @@ function QuoteBookInner() {
   const commissionAmount = quote?.commission_payment_amount ?? null;
   const driverBalance = quote?.driver_due_amount ?? null;
   const commissionPercent = quote?.commission_percent ?? null;
+  const promoPricing = useCabPromoPricing(quote?.total_amount || 0);
+  const discountedCommission = commissionAmount !== null ? promoPricing.scaleOnline(commissionAmount) : null;
+  const discountedDriverBalance =
+    driverBalance !== null && discountedCommission !== null
+      ? Math.max(0, promoPricing.finalAmount - discountedCommission)
+      : driverBalance;
 
   const payLabel = paying
     ? "Confirming booking…"
-    : paymentOption === "commission_and_driver" && commissionAmount !== null
-      ? `Pay UNO advance · ${money(commissionAmount, quote?.currency)}`
+    : paymentOption === "commission_and_driver" && discountedCommission !== null
+      ? `Pay advance · ${money(discountedCommission, quote?.currency)}`
       : paymentOption === "direct_to_cab_owner"
         ? "Confirm — pay cab owner directly"
-        : `Pay now · ${money(quote?.total_amount || 0, quote?.currency)}`;
+        : `Pay now · ${money(promoPricing.finalAmount, quote?.currency)}`;
+
+  const PricePair = ({ original, revised }: { original: number; revised: number }) => (
+    <span className="inline-flex items-baseline gap-1.5">
+      {promoPricing.isApplied && original !== revised && (
+        <span className="text-xs font-semibold text-[#8b828a] line-through">{money(original, quote?.currency)}</span>
+      )}
+      <span>{money(revised, quote?.currency)}</span>
+    </span>
+  );
 
   useEffect(() => {
     if (!request || !quote) return;
@@ -307,12 +324,13 @@ function QuoteBookInner() {
 
             <fieldset className="rounded-2xl border border-[#eee9e5] bg-[#fffaf6] p-3">
               <legend className="px-1 text-xs font-extrabold text-[#514954]">Payment</legend>
+              <CabPromoCodeField className="mb-3" compact />
               <label className="mt-1 flex cursor-pointer gap-3 rounded-xl border border-[#ef6614] bg-white p-3">
                 <input type="radio" name="payment-option" checked={paymentOption === "full_online"} onChange={() => setPaymentOption("full_online")} className="mt-1 accent-[#ef6614]" />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2 text-sm font-extrabold text-[#292229]">
                     <span>Pay full fare online</span>
-                    <span>{money(quote.total_amount, quote.currency)}</span>
+                    <PricePair original={quote.total_amount} revised={promoPricing.finalAmount} />
                   </span>
                   <span className="mt-1 block text-xs font-medium leading-5 text-[#746a73]">
                     Recommended · Secure Razorpay checkout · UNO settles the partner after the trip.
@@ -336,11 +354,23 @@ function QuoteBookInner() {
                       <input type="radio" name="payment-option" checked={paymentOption === "commission_and_driver"} onChange={() => setPaymentOption("commission_and_driver")} className="mt-1 accent-[#ef6614]" />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2 text-sm font-extrabold text-[#292229]">
-                          <span>Pay UNO advance{commissionPercent ? ` (${commissionPercent}%)` : ""}</span>
-                          <span>{money(commissionAmount, quote.currency)}</span>
+                          <span>Pay advance{commissionPercent ? ` (${commissionPercent}%)` : ""}</span>
+                          <PricePair original={commissionAmount} revised={discountedCommission ?? commissionAmount} />
                         </span>
                         <span className="mt-1 block text-xs font-medium leading-5 text-[#746a73]">
-                          Pay the remaining <strong className="text-[#292229]">{money(driverBalance, quote.currency)}</strong> to the cab owner or driver later.
+                          Pay the remaining{" "}
+                          <strong className="text-[#292229]">
+                            {promoPricing.isApplied && (discountedDriverBalance ?? driverBalance) !== driverBalance ? (
+                              <>
+                                <span className="font-semibold text-[#8b828a] line-through">{money(driverBalance, quote.currency)}</span>
+                                {" "}
+                                {money(discountedDriverBalance ?? driverBalance, quote.currency)}
+                              </>
+                            ) : (
+                              money(discountedDriverBalance ?? driverBalance, quote.currency)
+                            )}
+                          </strong>{" "}
+                          to the cab owner or driver later.
                         </span>
                       </span>
                     </label>
@@ -350,7 +380,7 @@ function QuoteBookInner() {
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center justify-between gap-2 text-sm font-extrabold text-[#292229]">
                         <span>Pay cab owner directly</span>
-                        <span>{money(quote.total_amount, quote.currency)}</span>
+                        <PricePair original={quote.total_amount} revised={promoPricing.finalAmount} />
                       </span>
                       <span className="mt-1 block text-xs font-medium leading-5 text-[#746a73]">
                         No payment to UNO now. Pay the full quoted fare to the owner or driver.
@@ -414,16 +444,45 @@ function QuoteBookInner() {
               {quote.cab_name || "Partner vehicle"}
               {quote.driver_name ? ` · ${quote.driver_name}` : ""}
             </p>
-            <p className="mt-3 text-2xl font-black text-[#292229]">{money(quote.total_amount, quote.currency)}</p>
+            {promoPricing.isApplied ? (
+              <div className="mt-3">
+                <p className="text-sm font-semibold text-[#8b828a] line-through">{money(quote.total_amount, quote.currency)}</p>
+                <p className="text-2xl font-black text-[#292229]">{money(promoPricing.finalAmount, quote.currency)}</p>
+                <p className="mt-1 text-[11px] font-bold text-emerald-700">
+                  {promoPricing.promoCode} applied · You save {money(promoPricing.discount, quote.currency)}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-3 text-2xl font-black text-[#292229]">{money(quote.total_amount, quote.currency)}</p>
+            )}
             <p className="text-[11px] text-[#746a73]">Total fare · as quoted · taxes included</p>
             {paymentOption === "full_online" && (
               <p className="mt-2 text-[11px] font-semibold text-emerald-700">Full fare will be settled to the cab owner after the trip.</p>
             )}
             {paymentOption === "direct_to_cab_owner" && (
-              <p className="mt-2 text-[11px] font-semibold text-[#ef6614]">Pay {money(quote.total_amount, quote.currency)} directly to the cab owner or driver. No UNO payment is collected.</p>
+              <p className="mt-2 text-[11px] font-semibold text-[#ef6614]">Pay {money(promoPricing.finalAmount, quote.currency)} directly to the cab owner or driver. No UNO payment is collected.</p>
             )}
-            {paymentOption === "commission_and_driver" && commissionAmount !== null && driverBalance !== null && (
-              <div className="mt-3 rounded-xl border border-emerald-100 bg-white/80 p-3 text-xs"><div className="flex justify-between gap-3 font-bold text-[#292229]"><span>Pay UNO now</span><span>{money(commissionAmount, quote.currency)}</span></div><div className="mt-1 flex justify-between gap-3 text-[#5f565e]"><span>Pay driver later</span><span>{money(driverBalance, quote.currency)}</span></div></div>
+            {paymentOption === "commission_and_driver" && discountedCommission !== null && discountedDriverBalance !== null && (
+              <div className="mt-3 rounded-xl border border-emerald-100 bg-white/80 p-3 text-xs">
+                <div className="flex justify-between gap-3 font-bold text-[#292229]">
+                  <span>Pay advance now</span>
+                  <span className="inline-flex items-baseline gap-1.5">
+                    {promoPricing.isApplied && commissionAmount !== null && commissionAmount !== discountedCommission && (
+                      <span className="text-[11px] font-semibold text-[#8b828a] line-through">{money(commissionAmount, quote.currency)}</span>
+                    )}
+                    {money(discountedCommission, quote.currency)}
+                  </span>
+                </div>
+                <div className="mt-1 flex justify-between gap-3 text-[#5f565e]">
+                  <span>Pay driver later</span>
+                  <span className="inline-flex items-baseline gap-1.5">
+                    {promoPricing.isApplied && driverBalance !== null && driverBalance !== discountedDriverBalance && (
+                      <span className="text-[11px] font-semibold text-[#8b828a] line-through">{money(driverBalance, quote.currency)}</span>
+                    )}
+                    {money(discountedDriverBalance, quote.currency)}
+                  </span>
+                </div>
+              </div>
             )}
             {quote.inclusions.length > 0 && (
               <p className="mt-3 text-[11px] text-[#5f565e]">Includes: {quote.inclusions.join(", ")}</p>
@@ -435,7 +494,7 @@ function QuoteBookInner() {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:hidden">
         <div className="mb-2 flex items-center justify-between gap-3 text-xs">
           <span className="truncate font-semibold text-[#514953]">{quote.business_name || quote.partner_name}</span>
-          <strong className="shrink-0 text-base font-black">{money(quote.total_amount, quote.currency)}</strong>
+          <strong className="shrink-0 text-base font-black">{money(promoPricing.finalAmount, quote.currency)}</strong>
         </div>
         <button
           type="button"

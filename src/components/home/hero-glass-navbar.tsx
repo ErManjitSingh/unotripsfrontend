@@ -94,7 +94,7 @@ export function HeroGlassNavbar({
 
   return (
     <header className={cn(
-      "fixed top-0 left-0 right-0 z-50 w-full transition-[transform,opacity] duration-150 ease-out",
+      "fixed left-0 right-0 z-50 w-full transition-[transform,opacity,top] duration-150 ease-out top-[var(--uno-top-banner-height,0px)]",
       flushDetailShell
         ? "px-0 pt-0"
         : "px-4 pt-4 sm:px-6 sm:pt-5 lg:px-8 max-[900px]:pt-3",

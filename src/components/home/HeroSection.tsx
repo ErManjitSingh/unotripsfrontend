@@ -154,7 +154,7 @@ export function TravelMobileTopShell({
         </header>
 
         {menuOpen && (
-          <div className="fixed left-4 right-4 top-[66px] z-[60] max-h-[calc(100dvh-80px)] overflow-y-auto rounded-[22px] border border-white bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.55)] backdrop-blur-xl">
+          <div className="fixed left-4 right-4 top-[calc(66px+var(--uno-top-banner-height,0px))] z-[60] max-h-[calc(100dvh-80px-var(--uno-top-banner-height,0px))] overflow-y-auto rounded-[22px] border border-white bg-white/95 shadow-[0_24px_60px_-28px_rgba(15,23,42,0.55)] backdrop-blur-xl">
 
             <div className="grid grid-cols-2 gap-2 p-3">
               {mobileMenuLinks.map(({ label, href, icon: Icon }) => (
