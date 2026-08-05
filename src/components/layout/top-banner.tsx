@@ -86,9 +86,9 @@ export function TopBanner() {
     }
   };
 
-  const applyFromBanner = (event?: FormEvent) => {
+  const applyFromBanner = async (event?: FormEvent) => {
     event?.preventDefault();
-    const result = promo.applyCode(input || CAB_WELCOME_PROMO_CODE);
+    const result = await promo.applyCode(input || CAB_WELCOME_PROMO_CODE);
     if (!result.ok) {
       setError(result.error);
       return;
@@ -109,19 +109,25 @@ export function TopBanner() {
       aria-label="UNO Cabs welcome offer"
     >
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 sm:px-4">
-        {promo.isApplied ? (
+        {promo.alreadyUsed ? (
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-xs font-bold sm:text-sm">
+            <span>
+              <strong>{CAB_WELCOME_PROMO_CODE}</strong> already used on this account · first-ride offer is once per user
+            </span>
+          </div>
+        ) : promo.isApplied ? (
           <div className="flex min-w-0 flex-1 items-center gap-2 text-xs font-bold sm:text-sm">
             <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/20">
               <Check className="h-3.5 w-3.5" />
             </span>
             <span>
-              <strong>{promo.code}</strong> applied — {promo.discountPercent}% off your first ride
+              <strong>{promo.code}</strong> applied — {promo.discountPercent}% off your first ride (once per account)
             </span>
           </div>
         ) : (
           <>
             <p className="min-w-0 flex-1 text-xs font-bold leading-snug sm:text-sm">
-              First ride? Get <strong>10% off</strong> with code{" "}
+              First ride? Get <strong>10% off</strong> once with code{" "}
               <button
                 type="button"
                 onClick={() => void copyCode()}
@@ -167,9 +173,9 @@ export function TopBanner() {
         </button>
       </div>
 
-      {expanded && !promo.isApplied && (
+      {expanded && !promo.isApplied && !promo.alreadyUsed && (
         <form
-          onSubmit={applyFromBanner}
+          onSubmit={(event) => void applyFromBanner(event)}
           className="border-t border-white/20 bg-[#d95511] px-3 py-2 sm:px-4"
         >
           <div className="mx-auto flex max-w-6xl gap-2">

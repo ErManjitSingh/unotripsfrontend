@@ -147,6 +147,7 @@ export type QuoteBookingGuestPayload = {
   special_instructions?: string | null;
   flight_train_number?: string | null;
   payment_option?: "full_online" | "commission_and_driver" | "direct_to_cab_owner";
+  promo_code?: string | null;
 };
 
 export type QuoteBookingCreateResponse = {
@@ -156,6 +157,9 @@ export type QuoteBookingCreateResponse = {
   razorpay_order_id: string;
   razorpay_key_id: string;
   total_amount: number;
+  gross_amount?: number;
+  welcome_discount_amount?: number;
+  promo_code?: string | null;
   online_amount: number;
   driver_due_amount: number;
   commission_percent: number;
@@ -164,6 +168,18 @@ export type QuoteBookingCreateResponse = {
   is_mock_order?: boolean;
   is_direct_payment?: boolean;
 };
+
+export type CabOfferEligibility = {
+  code: string;
+  discount_percent: number;
+  welcome_eligible: boolean;
+  already_used: boolean;
+  message: string;
+};
+
+export function getCabOfferEligibility(accessToken: string) {
+  return cabApi<CabOfferEligibility>("/offers/eligibility", accessToken);
+}
 
 export function createBookingFromQuote(
   accessToken: string,

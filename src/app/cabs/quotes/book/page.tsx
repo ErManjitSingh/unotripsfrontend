@@ -165,6 +165,7 @@ function QuoteBookInner() {
         passengers,
         special_instructions: notes.trim() || null,
         payment_option: paymentOption,
+        promo_code: promoPricing.isApplied ? promoPricing.promoCode : null,
       });
 
       const amountPaise = Math.round(created.online_amount * 100);

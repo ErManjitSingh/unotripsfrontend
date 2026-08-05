@@ -18,9 +18,9 @@ export function CabPromoCodeField({ className = "", compact = false }: CabPromoC
 
   if (!promo) return null;
 
-  const apply = () => {
+  const apply = async () => {
     setBusy(true);
-    const result = promo.applyCode(input);
+    const result = await promo.applyCode(input);
     setBusy(false);
     if (!result.ok) {
       setError(result.error);
@@ -33,9 +33,24 @@ export function CabPromoCodeField({ className = "", compact = false }: CabPromoC
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      apply();
+      void apply();
     }
   };
+
+  if (promo.alreadyUsed) {
+    return (
+      <div
+        className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-[#5f565e] ${className}`}
+      >
+        <strong className="text-[#292229]">{CAB_WELCOME_PROMO_CODE}</strong> already used on this account
+        {!compact && (
+          <span className="mt-0.5 block text-[11px] font-medium text-[#8b828a]">
+            First-ride 10% off is once per user.
+          </span>
+        )}
+      </div>
+    );
+  }
 
   if (promo.isApplied) {
     return (
@@ -94,17 +109,17 @@ export function CabPromoCodeField({ className = "", compact = false }: CabPromoC
         <button
           type="button"
           disabled={busy}
-          onClick={apply}
+          onClick={() => void apply()}
           className="shrink-0 rounded-xl bg-[#292229] px-4 py-2.5 text-xs font-extrabold text-white transition hover:bg-[#403842] disabled:opacity-60"
         >
-          Apply
+          {busy ? "…" : "Apply"}
         </button>
       </div>
       {error ? (
         <p className="text-[11px] font-semibold text-red-600">{error}</p>
       ) : (
         <p className="text-[11px] font-medium text-[#8b828a]">
-          First ride? Use <strong className="text-[#292229]">{CAB_WELCOME_PROMO_CODE}</strong> for 10% off.
+        First ride only · Use <strong className="text-[#292229]">{CAB_WELCOME_PROMO_CODE}</strong> for 10% off (once per account).
         </p>
       )}
     </div>
