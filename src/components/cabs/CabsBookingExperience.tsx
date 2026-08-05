@@ -144,6 +144,18 @@ function earliestScheduleSlot(from = new Date()) {
   };
 }
 
+/** Product rule: "Schedule ride" is always for next day 09:00 AM only. */
+function tomorrowNineSlot(from = new Date()) {
+  const date = new Date(from);
+  date.setDate(date.getDate() + 1);
+  date.setHours(9, 0, 0, 0);
+  return {
+    date: toDateValue(date),
+    time: toTimeValue(date),
+    at: date,
+  };
+}
+
 function combineDateTime(dateValue: string, timeValue: string) {
   if (!dateValue || !timeValue) return null;
   return new Date(`${dateValue}T${timeValue}:00`);
@@ -204,21 +216,11 @@ export function CabsBookingExperience() {
 
   useEffect(() => {
     setAuthUiReady(true);
-    const nextSlot = earliestScheduleSlot();
+    const nextSlot = scheduleMode === "schedule" ? tomorrowNineSlot() : earliestScheduleSlot();
     setTravelDate((current) => current || nextSlot.date);
-    setTravelTime((current) => (current === "09:00" ? nextSlot.time : current));
+    setTravelTime(nextSlot.time);
     setReturnDate((current) => current || nextSlot.date);
   }, []);
-
-  // Keep scheduled pickup at least 30 min ahead if the user lands on an invalid combo.
-  useEffect(() => {
-    if (scheduleMode !== "schedule" || !travelDate || !travelTime) return;
-    if (isScheduleAtLeast24h(travelDate, travelTime)) return;
-    const slot = earliestScheduleSlot();
-    setTravelDate(slot.date);
-    setTravelTime(slot.time);
-    setReturnDate((current) => (!current || current < slot.date ? slot.date : current));
-  }, [scheduleMode, travelDate, travelTime]);
 
   useEffect(() => {
     const token = auth?.getAccessToken();
@@ -261,6 +263,15 @@ export function CabsBookingExperience() {
   useEffect(() => {
     if (!routeReady) setMobileStep(0);
   }, [routeReady]);
+
+  useEffect(() => {
+    // Mobile UX: when advancing to Step 3 (review), reset scroll so the new panel is visible.
+    if (typeof window === "undefined") return;
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
+    if (isMobile && mobileStep === 2) {
+      document.getElementById("cab-booking-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [mobileStep]);
 
   const summary = useMemo(() => {
     const ride = RIDE_TYPES.find((item) => item.value === rideType)?.label ?? "Hourly rental";
@@ -914,21 +925,17 @@ export function CabsBookingExperience() {
                   <label className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-bold transition ${scheduleMode === "now" ? "border-[#ef6614] bg-orange-50 text-[#b84710]" : "border-[#ebe5e2]"}`}><input className="sr-only" type="radio" name="schedule" checked={scheduleMode === "now"} onChange={() => { setScheduleMode("now"); setSubmitted(false); }} />ASAP (~20 min) <span className="mt-0.5 block text-xs font-normal text-[#766d74]">Soonest partner pickup</span></label>
                   <label className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-bold transition ${scheduleMode === "schedule" ? "border-[#ef6614] bg-orange-50 text-[#b84710]" : "border-[#ebe5e2]"}`}><input className="sr-only" type="radio" name="schedule" checked={scheduleMode === "schedule"} onChange={() => {
                     setScheduleMode("schedule");
-                    const slot = earliestScheduleSlot();
-                    setTravelDate((current) => (!current || current < slot.date ? slot.date : current));
-                    setTravelTime((current) => {
-                      const date = !travelDate || travelDate < slot.date ? slot.date : travelDate;
-                      if (date === slot.date && (!current || current < slot.time)) return slot.time;
-                      return current || slot.time;
-                    });
+                    const slot = tomorrowNineSlot();
+                    setTravelDate(slot.date);
+                    setTravelTime(slot.time);
                     setSubmitted(false);
-                  }} />Schedule ride <span className="mt-0.5 block text-xs font-normal text-[#766d74]">From 30 min ahead</span></label>
+                  }} />Schedule ride <span className="mt-0.5 block text-xs font-normal text-[#766d74]">Prefilled · tomorrow 09:00 AM</span></label>
                 </div>
               </fieldset>
 
               {scheduleMode === "schedule" && <section aria-label="Schedule your pickup" className={`order-6 mt-2 overflow-visible rounded-xl border border-orange-100 bg-orange-50/40 p-2.5 ${mobileStep !== 1 ? "hidden md:block" : ""}`}>
                 <div className="grid gap-2 sm:grid-cols-[auto_1fr_1fr] sm:items-end">
-                  <div className="flex items-center gap-2 pb-0.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#ef6614] shadow-sm"><CalendarDays className="h-4 w-4" /></span><div><h3 className="text-sm font-extrabold text-[#403842]">Schedule pickup</h3><p className="text-[11px] text-[#766d74]">From 30 minutes ahead</p></div></div>
+                  <div className="flex items-center gap-2 pb-0.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#ef6614] shadow-sm"><CalendarDays className="h-4 w-4" /></span><div><h3 className="text-sm font-extrabold text-[#403842]">Schedule pickup</h3><p className="text-[11px] text-[#766d74]">Prefilled: tomorrow 09:00 AM</p></div></div>
                   <div className="relative"><label id="cab-date-label" className="mb-1 block text-xs font-bold text-[#514953]">Date <span className="text-[#ef6614]">*</span></label><button type="button" aria-labelledby="cab-date-label" aria-haspopup="dialog" aria-expanded={calendarOpen} onClick={() => { setCalendarOpen((open) => !open); setReturnCalendarOpen(false); }} className="flex h-11 w-full items-center justify-between rounded-lg border border-[#ddd5d1] bg-white px-3 text-left text-sm font-semibold text-[#403842] outline-none transition hover:border-orange-300 focus:border-[#ef6614] focus:ring-4 focus:ring-orange-100"><span className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-[#ef6614]" />{displayDate(travelDate)}</span><ChevronRight className={`h-4 w-4 text-[#766d74] transition ${calendarOpen ? "rotate-90" : ""}`} /></button>{calendarOpen && <div role="dialog" aria-label="Choose pickup date" className={CAB_DATE_POPOVER_CLASS}><DayPicker mode="single" animate selected={parseDateValue(travelDate || earliestScheduleDate)} disabled={{ before: parseDateValue(earliestScheduleDate) }} onSelect={(date) => { if (date) { const next = toDateValue(date); setTravelDate(next); if (next === earliestScheduleDate) { setTravelTime((current) => (!current || current < earliestScheduleTimeOnMinDay ? earliestScheduleTimeOnMinDay : current)); } if (returnDate && returnDate < next) setReturnDate(next); setCalendarOpen(false); setSubmitted(false); } }} classNames={CAB_DAY_PICKER_CLASSNAMES} /></div>}</div>
                   <div><label htmlFor="cab-time" className="mb-1 block text-xs font-bold text-[#514953]">Time <span className="text-[#ef6614]">*</span></label><div className="relative min-w-0"><Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#ef6614]" /><input id="cab-time" type="time" value={travelTime} min={travelDate === earliestScheduleDate ? earliestScheduleTimeOnMinDay : undefined} onChange={(event) => { const next = event.target.value; if (travelDate === earliestScheduleDate && next < earliestScheduleTimeOnMinDay) { setTravelTime(earliestScheduleTimeOnMinDay); setError("Pickup must be at least 30 minutes from now."); } else { setTravelTime(next); setError(""); } setSubmitted(false); }} className="h-11 min-w-0 w-full max-w-full overflow-hidden rounded-lg border border-[#ddd5d1] bg-white pl-9 pr-3 text-left text-sm font-semibold text-[#403842] outline-none focus:border-[#ef6614] focus:ring-4 focus:ring-orange-100 [&::-webkit-date-and-time-value]:min-w-0 [&::-webkit-datetime-edit-fields-wrapper]:min-w-0 [&::-webkit-datetime-edit]:min-w-0" /></div></div>
                 </div>
