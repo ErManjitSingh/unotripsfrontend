@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -96,9 +96,15 @@ export function TravelMobileTopShell({
   compact?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // Keep SSR + first client paint identical ("Explorer"). Auth hydrates from
+  // localStorage synchronously, which would otherwise mismatch Digvijay vs Explorer.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const auth = useAuthOptional();
   const firstName =
-    auth?.isAuthenticated && auth.user
+    mounted && auth?.isAuthenticated && auth.user
       ? (auth.user.name?.trim().split(/\s+/)[0]
         || auth.user.email?.split("@")[0]
         || null)

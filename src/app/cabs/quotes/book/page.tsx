@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CreditCard, LockKeyhole, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ChevronDown, CreditCard, LockKeyhole, ShieldCheck } from "lucide-react";
 import { useAuthOptional } from "@/contexts/auth-context";
+import { BookingAuthModal } from "@/components/hotels/booking-auth-modal";
+import { TravelMobileTopShell } from "@/components/home/HeroSection";
 import {
   createBookingFromQuote,
   getCabTripRequest,
@@ -34,6 +36,8 @@ function QuoteBookInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [paying, setPaying] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [showOtherPayments, setShowOtherPayments] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -52,6 +56,14 @@ function QuoteBookInner() {
   const driverBalance = quote?.driver_due_amount ?? null;
   const commissionPercent = quote?.commission_percent ?? null;
 
+  const payLabel = paying
+    ? "Confirming booking…"
+    : paymentOption === "commission_and_driver" && commissionAmount !== null
+      ? `Pay UNO advance · ${money(commissionAmount, quote?.currency)}`
+      : paymentOption === "direct_to_cab_owner"
+        ? "Confirm — pay cab owner directly"
+        : `Pay now · ${money(quote?.total_amount || 0, quote?.currency)}`;
+
   useEffect(() => {
     if (!request || !quote) return;
     trackOnce(`cab_checkout_${request.id}_${quote.id}`, "cab_checkout_started", {
@@ -63,10 +75,10 @@ function QuoteBookInner() {
   }, [request, quote]);
 
   useEffect(() => {
-    const token = auth?.getAccessToken();
     if (!auth || auth.isLoading) return;
-    if (!token) {
-      window.location.assign(`/login?redirect=${encodeURIComponent(`/cabs/quotes/book?request=${requestId}&quote=${quoteId}`)}`);
+    if (!auth.getAccessToken()) {
+      setLoading(false);
+      setAuthModalOpen(true);
       return;
     }
     if (!requestId || !quoteId) {
@@ -76,7 +88,7 @@ function QuoteBookInner() {
     }
     let cancelled = false;
     setLoading(true);
-    getCabTripRequest(token, requestId)
+    getCabTripRequest(auth.getAccessToken()!, requestId)
       .then((item) => {
         if (cancelled) return;
         setRequest(item);
@@ -101,10 +113,13 @@ function QuoteBookInner() {
     };
   }, [auth, requestId, quoteId]);
 
-  const pay = async (event: FormEvent) => {
-    event.preventDefault();
+  const pay = async (event?: FormEvent) => {
+    event?.preventDefault();
     const token = auth?.getAccessToken();
-    if (!token || !request || !quote) return;
+    if (!token || !request || !quote) {
+      setAuthModalOpen(true);
+      return;
+    }
     if (!agreed) {
       setError("Please accept the terms to continue.");
       return;
@@ -187,6 +202,43 @@ function QuoteBookInner() {
     }
   };
 
+  if (!auth?.isAuthenticated && !auth?.isLoading) {
+    return (
+      <main className="min-h-screen bg-[#fbfaf9]">
+        <TravelMobileTopShell activeId="cabs" showGreeting={false} compact />
+        <div className="grid min-h-[50vh] place-items-center px-4">
+          <section className="max-w-md rounded-3xl border border-orange-100 bg-white p-7 text-center shadow-xl">
+            <h1 className="text-2xl font-black">Sign in to book</h1>
+            <p className="mt-2 text-sm text-slate-600">Your selected quote is saved. Sign in to confirm traveller details and pay.</p>
+            <button
+              type="button"
+              onClick={() => setAuthModalOpen(true)}
+              className="mt-5 inline-flex rounded-xl bg-[#ef6614] px-4 py-3 text-sm font-bold text-white"
+            >
+              Sign in to continue
+            </button>
+            {requestId && quoteId && (
+              <Link
+                href={`/cabs/quotes?request=${requestId}`}
+                className="mt-3 block text-sm font-semibold text-[#746a73]"
+              >
+                Back to quotes
+              </Link>
+            )}
+          </section>
+        </div>
+        <BookingAuthModal
+          open={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          onSuccess={() => setAuthModalOpen(false)}
+          title="Sign in to book & pay"
+          subtitle="Your quote selection is saved on this page."
+          footerNote="Sign in or sign up to complete booking."
+        />
+      </main>
+    );
+  }
+
   if (loading) {
     return (
       <div className="grid min-h-[50vh] place-items-center">
@@ -207,8 +259,9 @@ function QuoteBookInner() {
   }
 
   return (
-    <main className="min-h-screen bg-[#fbfaf9] text-[#292229]">
-      <header className="border-b border-[#eee9e5] bg-white">
+    <main className="min-h-screen bg-[#fbfaf9] pb-[calc(5.5rem+env(safe-area-inset-bottom))] text-[#292229] md:pb-0">
+      <TravelMobileTopShell activeId="cabs" showGreeting={false} compact />
+      <header className="hidden border-b border-[#eee9e5] bg-white md:block">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:px-6">
           <Link href={`/cabs/quotes?request=${request.id}`} className="inline-flex items-center gap-1.5 text-sm font-bold text-[#514954]">
             <ArrowLeft className="h-4 w-4" /> Quotes
@@ -218,13 +271,13 @@ function QuoteBookInner() {
 
       <div className="mx-auto grid max-w-5xl gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_0.9fr]">
         <section className="rounded-2xl border border-[#eee9e5] bg-white p-5 shadow-sm">
-          <p className="text-[10px] font-extrabold uppercase tracking-wide text-[#ef6614]">Step 5 · Book & pay</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-wide text-[#ef6614]">Step 3 of 4 · Book</p>
           <h1 className="mt-1 text-2xl font-black tracking-tight">Traveller details</h1>
           <p className="mt-1 text-sm text-[#746a73]">
             Confirm who is travelling, then pay the partner quote securely.
           </p>
 
-          <form onSubmit={(e) => void pay(e)} className="mt-5 space-y-3">
+          <form id="cab-quote-pay-form" onSubmit={(e) => void pay(e)} className="mt-5 space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-xs font-bold text-[#746a73]">
                 First name
@@ -253,25 +306,63 @@ function QuoteBookInner() {
             </label>
 
             <fieldset className="rounded-2xl border border-[#eee9e5] bg-[#fffaf6] p-3">
-              <legend className="px-1 text-xs font-extrabold text-[#514954]">Choose how to pay</legend>
+              <legend className="px-1 text-xs font-extrabold text-[#514954]">Payment</legend>
               <label className="mt-1 flex cursor-pointer gap-3 rounded-xl border border-[#ef6614] bg-white p-3">
                 <input type="radio" name="payment-option" checked={paymentOption === "full_online"} onChange={() => setPaymentOption("full_online")} className="mt-1 accent-[#ef6614]" />
-                <span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2 text-sm font-extrabold text-[#292229]"><span>Pay now — full fare online</span><span>{money(quote.total_amount, quote.currency)}</span></span><span className="mt-1 block text-xs font-medium leading-5 text-[#746a73]">Pay securely through Razorpay. UNO records the full fare and settles the cab owner&apos;s payout after the trip.</span></span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-2 text-sm font-extrabold text-[#292229]">
+                    <span>Pay full fare online</span>
+                    <span>{money(quote.total_amount, quote.currency)}</span>
+                  </span>
+                  <span className="mt-1 block text-xs font-medium leading-5 text-[#746a73]">
+                    Recommended · Secure Razorpay checkout · UNO settles the partner after the trip.
+                  </span>
+                </span>
               </label>
-              {commissionAmount !== null && driverBalance !== null && commissionAmount > 0 && (
-                <label className="mt-2 flex cursor-pointer gap-3 rounded-xl border border-[#e9dccf] bg-white p-3">
-                  <input type="radio" name="payment-option" checked={paymentOption === "commission_and_driver"} onChange={() => setPaymentOption("commission_and_driver")} className="mt-1 accent-[#ef6614]" />
-                  <span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2 text-sm font-extrabold text-[#292229]"><span>Pay UNO advance{commissionPercent ? ` (${commissionPercent}%)` : ""}</span><span>{money(commissionAmount, quote.currency)}</span></span><span className="mt-1 block text-xs font-medium leading-5 text-[#746a73]">Pay the remaining <strong className="text-[#292229]">{money(driverBalance, quote.currency)}</strong> directly to the cab owner or driver at pickup or after the trip.</span></span>
-                </label>
+
+              <button
+                type="button"
+                onClick={() => setShowOtherPayments((open) => !open)}
+                className="mt-2 flex w-full items-center justify-between rounded-xl px-1 py-2 text-left text-xs font-extrabold text-[#746a73]"
+              >
+                Other payment options
+                <ChevronDown className={`h-4 w-4 transition ${showOtherPayments ? "rotate-180" : ""}`} />
+              </button>
+
+              {showOtherPayments && (
+                <>
+                  {commissionAmount !== null && driverBalance !== null && commissionAmount > 0 && (
+                    <label className="mt-1 flex cursor-pointer gap-3 rounded-xl border border-[#e9dccf] bg-white p-3">
+                      <input type="radio" name="payment-option" checked={paymentOption === "commission_and_driver"} onChange={() => setPaymentOption("commission_and_driver")} className="mt-1 accent-[#ef6614]" />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center justify-between gap-2 text-sm font-extrabold text-[#292229]">
+                          <span>Pay UNO advance{commissionPercent ? ` (${commissionPercent}%)` : ""}</span>
+                          <span>{money(commissionAmount, quote.currency)}</span>
+                        </span>
+                        <span className="mt-1 block text-xs font-medium leading-5 text-[#746a73]">
+                          Pay the remaining <strong className="text-[#292229]">{money(driverBalance, quote.currency)}</strong> to the cab owner or driver later.
+                        </span>
+                      </span>
+                    </label>
+                  )}
+                  <label className="mt-2 flex cursor-pointer gap-3 rounded-xl border border-[#e9dccf] bg-white p-3">
+                    <input type="radio" name="payment-option" checked={paymentOption === "direct_to_cab_owner"} onChange={() => setPaymentOption("direct_to_cab_owner")} className="mt-1 accent-[#ef6614]" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center justify-between gap-2 text-sm font-extrabold text-[#292229]">
+                        <span>Pay cab owner directly</span>
+                        <span>{money(quote.total_amount, quote.currency)}</span>
+                      </span>
+                      <span className="mt-1 block text-xs font-medium leading-5 text-[#746a73]">
+                        No payment to UNO now. Pay the full quoted fare to the owner or driver.
+                      </span>
+                    </span>
+                  </label>
+                </>
               )}
-              <label className="mt-2 flex cursor-pointer gap-3 rounded-xl border border-[#e9dccf] bg-white p-3">
-                <input type="radio" name="payment-option" checked={paymentOption === "direct_to_cab_owner"} onChange={() => setPaymentOption("direct_to_cab_owner")} className="mt-1 accent-[#ef6614]" />
-                <span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2 text-sm font-extrabold text-[#292229]"><span>Pay cab owner directly</span><span>{money(quote.total_amount, quote.currency)}</span></span><span className="mt-1 block text-xs font-medium leading-5 text-[#746a73]">No payment to UNO now. Your booking is confirmed and you pay the full quoted fare directly to the cab owner or driver.</span></span>
-              </label>
             </fieldset>
 
             <label className="flex items-start gap-2 text-xs text-[#5f565e]">
-              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5" />
+              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-5 w-5 accent-[#ef6614]" />
               I agree to UnoCabs booking terms and understand the fare is as quoted by the partner.
             </label>
 
@@ -280,12 +371,12 @@ function QuoteBookInner() {
             <button
               type="submit"
               disabled={paying}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-60"
+              className="hidden w-full items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-4 py-3 text-sm font-extrabold text-white disabled:opacity-60 md:inline-flex"
             >
               <CreditCard className="h-4 w-4" />
-              {paying ? "Confirming booking…" : paymentOption === "commission_and_driver" && commissionAmount !== null ? `Pay UNO advance · ${money(commissionAmount, quote.currency)}` : paymentOption === "direct_to_cab_owner" ? "Confirm — pay cab owner directly" : `Pay now · ${money(quote.total_amount, quote.currency)}`}
+              {payLabel}
             </button>
-            <p className="flex items-center justify-center gap-1.5 text-[11px] text-[#8b828a]">
+            <p className="hidden items-center justify-center gap-1.5 text-[11px] text-[#8b828a] md:flex">
               <LockKeyhole className="h-3.5 w-3.5" />
               Secured by Razorpay · UPI, cards, netbanking
             </p>
@@ -340,6 +431,34 @@ function QuoteBookInner() {
           </section>
         </aside>
       </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:hidden">
+        <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+          <span className="truncate font-semibold text-[#514953]">{quote.business_name || quote.partner_name}</span>
+          <strong className="shrink-0 text-base font-black">{money(quote.total_amount, quote.currency)}</strong>
+        </div>
+        <button
+          type="button"
+          disabled={paying}
+          onClick={() => {
+            const form = document.getElementById("cab-quote-pay-form") as HTMLFormElement | null;
+            form?.requestSubmit();
+          }}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#ef6614] text-sm font-extrabold text-white disabled:opacity-60"
+        >
+          <CreditCard className="h-4 w-4" />
+          {payLabel}
+        </button>
+      </div>
+
+      <BookingAuthModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        onSuccess={() => setAuthModalOpen(false)}
+        title="Sign in to book & pay"
+        subtitle="Your quote selection is saved on this page."
+        footerNote="Sign in or sign up to complete booking."
+      />
     </main>
   );
 }

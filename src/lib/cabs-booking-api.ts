@@ -90,7 +90,7 @@ export type CabBookingResponse = {
   driver_phone?:       string | null;
   vehicle_registration?: string | null;
   total_amount:        number;
-  payment_option?:     "full_online" | "commission_and_driver";
+  payment_option?:     "full_online" | "commission_and_driver" | "direct_to_cab_owner";
   online_amount?:      number | null;
   driver_due_amount?:  number | null;
   commission_percent?: number | null;

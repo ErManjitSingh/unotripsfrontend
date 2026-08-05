@@ -253,11 +253,13 @@ export function PartnerPortalProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  const needsReplyCount = requests.filter((r) => !(r.quotes && r.quotes.length > 0)).length;
+
   return (
     <PartnerPortalContext.Provider value={value}>
       <PartnerShell
         application={value.application}
-        pendingQuotes={requests.length}
+        pendingQuotes={needsReplyCount}
         onLogout={() => {
           auth?.logout();
           router.push("/cabs");

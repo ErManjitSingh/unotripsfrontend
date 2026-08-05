@@ -3,7 +3,8 @@
 /**
  * BookingAuthModal
  * ─────────────────
- * Shows the existing Login UI (Guest OTP + Email tabs) inside a modal overlay.
+ * Shows Login / Sign Up inside a modal overlay.
+ * Guest OTP is temporarily disabled.
  * After login succeeds (auth.isAuthenticated becomes true), closes the modal
  * and calls onSuccess() so the booking flow continues — no page redirect.
  */
@@ -11,14 +12,14 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
-import { GuestLoginForm } from "@/components/auth/guest-login-form";
+// import { GuestLoginForm } from "@/components/auth/guest-login-form";
 import { EmailLoginForm } from "@/components/auth/email-login-form";
 import { SignupForm }     from "@/components/auth/signup-form";
 import { useAuthOptional } from "@/contexts/auth-context";
 import { TRAVEL_HOME_BRAND, TRAVEL_HOME_LOGO_SRC } from "@/lib/travel-home-brand";
 import { cn } from "@/lib/utils";
 
-type AuthTab = "guest" | "email" | "signup";
+type AuthTab = "email" | "signup"; // "guest" temporarily disabled
 
 type BookingAuthModalProps = {
   open: boolean;
@@ -91,10 +92,10 @@ export function BookingAuthModal({
 
         {/* Auth tabs + forms */}
         <div className="px-6 py-5 overflow-y-auto flex-1">
-          {/* Tab switcher — 3 tabs: Guest OTP / Email Login / Sign Up */}
+          {/* Tab switcher — Login / Sign Up (Guest OTP temporarily disabled) */}
           <div className="mb-4 flex rounded-lg border border-[#e0e0e0] bg-[#f5f5f5] p-1">
             {([
-              { id: "guest"  as const, label: "Guest (OTP)" },
+              // { id: "guest"  as const, label: "Guest (OTP)" },
               { id: "email"  as const, label: "Login"       },
               { id: "signup" as const, label: "Sign Up"     },
             ]).map((t) => (
@@ -116,12 +117,12 @@ export function BookingAuthModal({
 
           {/* Forms — onAuthComplete prevents navigateAfterAuth (no page reload) */}
           {/* The useEffect above catches auth state change and calls onSuccess */}
-          {tab === "guest" && (
+          {/* {tab === "guest" && (
             <GuestLoginForm
               redirectTo={typeof window !== "undefined" ? window.location.pathname + window.location.search : "/"}
-              onAuthComplete={() => {/* no-op — useEffect handles onSuccess */}}
+              onAuthComplete={() => {}}
             />
-          )}
+          )} */}
           {tab === "email" && (
             <EmailLoginForm
               redirectTo={typeof window !== "undefined" ? window.location.pathname + window.location.search : "/"}

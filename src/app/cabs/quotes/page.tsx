@@ -26,6 +26,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { useAuthOptional } from "@/contexts/auth-context";
+import { BookingAuthModal } from "@/components/hotels/booking-auth-modal";
+import { TravelMobileTopShell } from "@/components/home/HeroSection";
 import { trackEvent } from "@/lib/marketing-tracking";
 import {
   acceptCabQuote,
@@ -140,33 +142,171 @@ function QuoteFareBreakdown({ quote }: { quote: CabQuote }) {
 }
 
 function WaitingState({ request, now }: { request: CabTripRequest; now: Date }) {
+  const routeLabel =
+    request.trip_type === "hourly_rental"
+      ? request.pickup_city
+      : `${request.pickup_city} → ${request.drop_city}`;
+
   const steps = [
     { title: "Request shared", text: "Your trip details were sent to approved cab partners in this corridor.", done: true },
     { title: "Partners reviewing", text: "They check availability, vehicle type, route and pickup time before quoting.", done: false, active: true },
-    { title: "Quotes appear here", text: "Compare fare, inclusions and partner notes — then pick the one that fits.", done: false },
+    { title: "We notify you", text: "As soon as a quote lands, you’ll get an alert — then compare and book here.", done: false },
   ];
 
   return (
     <div className="space-y-4 sm:space-y-5">
-      <div className="rounded-2xl border border-dashed border-orange-200 bg-[linear-gradient(160deg,#fffaf6,#fff,#f7fbfb)] px-4 py-5 text-center sm:px-8 sm:py-8">
-        <span className="mx-auto grid h-11 w-11 place-items-center rounded-2xl bg-orange-50 text-[#ef6614] sm:h-14 sm:w-14">
-          <Clock3 className="h-5 w-5 animate-spin sm:h-7 sm:w-7" />
-        </span>
-        <h2 className="mt-3 text-base font-black tracking-tight sm:mt-4 sm:text-2xl">Finding the best quotes for you…</h2>
-        <p className="mx-auto mt-1.5 max-w-md text-[12px] leading-5 text-[#746a73] sm:mt-2 sm:text-sm sm:leading-6">
-          Request <strong className="text-[#403842]">{request.request_number}</strong> is with verified partners.
-          <span className="hidden sm:inline"> This page refreshes automatically as soon as a quote arrives.</span>
-        </p>
-        <div className="mx-auto mt-3 flex max-w-lg flex-wrap items-center justify-center gap-2 text-[11px] font-semibold sm:mt-5 sm:text-xs">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[#514953] shadow-sm ring-1 ring-orange-100">
-            <Timer className="h-3.5 w-3.5 text-[#ef6614]" />
-            {deadlineCopy(request.quote_deadline_at, now)}
+      <div className="overflow-hidden rounded-2xl border border-orange-100 bg-white shadow-[0_18px_40px_-28px_rgba(239,102,20,0.35)]">
+        <div className="relative bg-[linear-gradient(145deg,#fff4eb_0%,#ffffff_42%,#f6fbf9_100%)] px-4 pb-5 pt-5 text-center sm:px-8 sm:pb-7 sm:pt-7">
+          <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-orange-200/30 blur-2xl" />
+          <div className="pointer-events-none absolute -left-8 bottom-0 h-28 w-28 rounded-full bg-emerald-200/25 blur-2xl" />
+
+          <span className="relative mx-auto grid h-12 w-12 place-items-center rounded-full bg-white text-[#ef6614] shadow-[0_10px_24px_-12px_rgba(239,102,20,0.8)] ring-4 ring-orange-50 sm:h-14 sm:w-14">
+            <BellRing className="h-6 w-6 sm:h-7 sm:w-7" />
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[#514953] shadow-sm ring-1 ring-orange-100">
-            <BellRing className="h-3.5 w-3.5 text-[#ef6614]" />
-            Auto-refresh
-          </span>
+          <p className="relative mt-3 text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#ef6614] sm:mt-4">
+            You’re all set
+          </p>
+          <h2 className="relative mt-1.5 text-xl font-black tracking-tight text-[#292229] sm:text-2xl">
+            Sit back and relax
+          </h2>
+          <p className="relative mx-auto mt-2 max-w-md text-[13px] leading-5 text-[#746a73] sm:text-sm sm:leading-6">
+            We&apos;ll notify you as soon as the first quote arrives — no need to keep watching this page.
+          </p>
+
+          {/* Partner broadcast card */}
+          <div className="relative mx-auto mt-5 max-w-md overflow-hidden rounded-[22px] border border-orange-100 bg-white text-left shadow-[0_16px_36px_-22px_rgba(64,34,19,0.4)]">
+            <div className="relative overflow-hidden bg-[linear-gradient(120deg,#2b2521_0%,#403842_55%,#5a4030_100%)] px-4 pb-8 pt-4">
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgba(239,102,20,0.35),transparent_42%)]" />
+              <div className="relative flex items-center justify-between gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.14em] text-orange-200 ring-1 ring-white/15">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                  </span>
+                  Live broadcast
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2 py-1 text-[10px] font-bold text-emerald-300 ring-1 ring-emerald-300/20">
+                  <CheckCircle2 className="h-3 w-3" /> Sent
+                </span>
+              </div>
+              <p className="relative mt-3 text-[15px] font-black leading-snug tracking-tight text-white sm:text-base">
+                Sent to <span className="text-[#ffb070]">100+ cab partners</span>
+                <span className="block text-[13px] font-semibold text-white/70">who operate on this route</span>
+              </p>
+              <div className="relative mt-3 flex items-end justify-between gap-2">
+                <p className="inline-flex max-w-[70%] min-w-0 items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-orange-50 ring-1 ring-white/10">
+                  <MapPin className="h-3 w-3 shrink-0 text-[#ffb070]" />
+                  <span className="truncate">{routeLabel}</span>
+                </p>
+                <div className="flex -space-x-3">
+                  {[
+                    "/images/cabs/fleet-catalog/sedan.png",
+                    "/images/cabs/fleet-catalog/suv.png",
+                    "/images/cabs/fleet-catalog/innova.png",
+                    "/images/cabs/fleet-catalog/hatchback.png",
+                  ].map((src, index) => (
+                    <span
+                      key={src}
+                      className="relative grid h-10 w-10 place-items-center overflow-hidden rounded-full border-2 border-[#403842] bg-white shadow-md"
+                      style={{ zIndex: 4 - index }}
+                    >
+                      <Image src={src} alt="" width={40} height={28} className="h-6 w-auto object-contain" unoptimized />
+                    </span>
+                  ))}
+                  <span className="relative z-0 grid h-10 w-10 place-items-center rounded-full border-2 border-[#403842] bg-[#ef6614] text-[10px] font-black text-white shadow-md">
+                    +100
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative -mt-4 rounded-t-[18px] bg-white px-4 pb-3.5 pt-3.5">
+              <div className="flex items-start gap-3">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#ef6614]">
+                  <UserRoundCheck className="h-[18px] w-[18px]" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-bold leading-5 text-[#292229]">
+                    Partners are reviewing your trip details right now.
+                  </p>
+                  <p className="mt-1 text-[11px] leading-4 text-[#746a73]">
+                    Expect the first quotes in about <strong className="text-[#514953]">1–30 minutes</strong>. We&apos;ll notify you the moment one arrives.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-[#fff8f2] px-3 py-2.5">
+                <p className="text-[11px] font-medium text-[#8b828a]">
+                  Request <strong className="text-[#514953]">{request.request_number}</strong>
+                </p>
+                <p className="text-[12px] font-black tracking-tight text-[#ef6614]">
+                  Happy booking!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative mx-auto mt-4 max-w-md rounded-2xl border border-emerald-100 bg-emerald-50/70 px-3.5 py-3 text-left sm:px-4">
+            <p className="flex items-start gap-2.5 text-[12px] font-semibold leading-5 text-emerald-900 sm:text-sm">
+              <span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white text-emerald-600 shadow-sm">
+                <BellRing className="h-3.5 w-3.5" />
+              </span>
+              <span>
+                Notification on when a quote lands
+                <small className="mt-0.5 block font-medium text-emerald-800/80">
+                  WhatsApp / SMS / in-app — then open My quotes to compare and book.
+                </small>
+              </span>
+            </p>
+          </div>
+
+          <div className="relative mx-auto mt-3.5 flex max-w-lg flex-wrap items-center justify-center gap-2 text-[11px] font-semibold sm:mt-4 sm:text-xs">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[#514953] shadow-sm ring-1 ring-orange-100">
+              <Timer className="h-3.5 w-3.5 text-[#ef6614]" />
+              Usually 1–30 min for first quote
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-[#514953] shadow-sm ring-1 ring-orange-100">
+              <Clock3 className="h-3.5 w-3.5 text-[#ef6614]" />
+              {deadlineCopy(request.quote_deadline_at, now)}
+            </span>
+          </div>
+
+          <div className="relative mx-auto mt-4 grid max-w-md gap-2 sm:grid-cols-2">
+            <Link
+              href="/account?tab=quotes"
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-[#ef6614] px-4 text-sm font-extrabold text-white shadow-[0_12px_22px_-14px_rgba(239,102,20,0.85)]"
+            >
+              Done for now · My quotes
+            </Link>
+            <Link
+              href="/cabs"
+              className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-[#e8e0db] bg-white px-4 text-sm font-extrabold text-[#514953]"
+            >
+              Browse while you wait
+            </Link>
+          </div>
+          <p className="relative mt-3 text-[11px] font-medium text-[#8b828a]">
+            Quotes also appear here automatically if you stay on this page.
+          </p>
         </div>
+      </div>
+
+      <div className="grid gap-2.5 sm:hidden">
+        {[
+          { icon: UserRoundCheck, title: "100+ partners notified", text: "Cab partners on this route have your request." },
+          { icon: BellRing, title: "We’ll ping you", text: "Alert when the first partner quote is ready." },
+          { icon: Timer, title: "Typical wait", text: "First responses often land in 1–30 minutes." },
+          { icon: ShieldCheck, title: "Nothing booked yet", text: "You only pay after you choose a quote." },
+        ].map(({ icon: Icon, title, text }) => (
+          <article key={title} className="flex gap-3 rounded-2xl border border-[#eee9e5] bg-white px-3.5 py-3 text-left">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-orange-50 text-[#ef6614]">
+              <Icon className="h-4 w-4" />
+            </span>
+            <div>
+              <h3 className="text-[13px] font-extrabold text-[#292229]">{title}</h3>
+              <p className="mt-0.5 text-[11px] leading-4 text-[#746a73]">{text}</p>
+            </div>
+          </article>
+        ))}
       </div>
 
       <div className="hidden gap-4 lg:grid lg:grid-cols-3">
@@ -213,10 +353,10 @@ function WaitingState({ request, now }: { request: CabTripRequest; now: Date }) 
           </h3>
           <ul className="mt-3 space-y-2.5 text-sm text-[#5f565e]">
             {[
-              "Typical first responses arrive within 10–30 minutes for popular routes.",
-              "Keep this tab open — new quotes appear without reloading.",
+              "Sit back — we’ll notify you when the first quote arrives.",
+              "Typical first responses land within 1–30 minutes on popular routes.",
               "Nothing is booked until you select a quote and confirm payment.",
-              "You can post another trip anytime if plans change.",
+              "Resume anytime from My quotes if you leave this page.",
             ].map((item) => (
               <li key={item} className="flex gap-2">
                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#ef6614]" />
@@ -235,22 +375,29 @@ function QuoteCard({
   request,
   accepting,
   isBestPrice,
+  isHighlighted,
   onSelect,
+  onHighlight,
 }: {
   quote: CabQuote;
   request: CabTripRequest;
   accepting: string | null;
   isBestPrice: boolean;
+  isHighlighted?: boolean;
   onSelect: (id: string) => void;
+  onHighlight?: (id: string) => void;
 }) {
   const partnerLabel = quote.business_name || quote.partner_name;
   const respondedAt = quote.sent_at || quote.created_at;
 
   return (
     <article
+      onClick={() => onHighlight?.(quote.id)}
       className={`overflow-hidden rounded-2xl border bg-white shadow-sm ${
         quote.status === "accepted"
           ? "border-emerald-300 bg-emerald-50/20"
+          : isHighlighted
+            ? "border-[#ef6614] ring-2 ring-orange-100"
           : isBestPrice
             ? "border-orange-200 ring-1 ring-orange-100"
             : "border-[#ece8e5]"
@@ -403,6 +550,8 @@ export default function CabQuotesPage() {
   const [editReturnAt, setEditReturnAt] = useState("");
   const [editRequirements, setEditRequirements] = useState("");
   const [editCategories, setEditCategories] = useState<string[]>([]);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [selectedForSticky, setSelectedForSticky] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const token = auth?.getAccessToken();
@@ -531,21 +680,36 @@ export default function CabQuotesPage() {
 
   if (!requestId) return <MissingRequest />;
   if (!auth?.isAuthenticated) {
-    const next = requestId
-      ? `/cabs/quotes?request=${encodeURIComponent(requestId)}`
-      : "/cabs/quotes";
     return (
-      <main className="grid min-h-screen place-items-center bg-[#fffaf7] p-5">
-        <section className="max-w-md rounded-3xl border border-orange-100 bg-white p-7 text-center shadow-xl shadow-orange-100/30">
-          <h1 className="text-2xl font-black">Sign in to view your quotes</h1>
-          <p className="mt-2 text-sm text-slate-600">Quotes are only visible to the traveller who posted this request.</p>
-          <Link
-            href={`/login?redirect=${encodeURIComponent(next)}`}
-            className="mt-5 inline-flex rounded-xl bg-[#ef6614] px-4 py-3 text-sm font-bold text-white"
-          >
-            Sign in
-          </Link>
-        </section>
+      <main className="min-h-screen bg-[#fffaf7]">
+        <TravelMobileTopShell activeId="cabs" showGreeting={false} compact />
+        <div className="grid place-items-center p-5 pt-10">
+          <section className="max-w-md rounded-3xl border border-orange-100 bg-white p-7 text-center shadow-xl shadow-orange-100/30">
+            <h1 className="text-2xl font-black">Sign in to view your quotes</h1>
+            <p className="mt-2 text-sm text-slate-600">Quotes are only visible to the traveller who posted this request. Your link is saved.</p>
+            <button
+              type="button"
+              onClick={() => setAuthModalOpen(true)}
+              className="mt-5 inline-flex rounded-xl bg-[#ef6614] px-4 py-3 text-sm font-bold text-white"
+            >
+              Sign in
+            </button>
+            <Link href="/cabs" className="mt-3 block text-sm font-semibold text-[#746a73]">
+              Back to trip form
+            </Link>
+          </section>
+        </div>
+        <BookingAuthModal
+          open={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          onSuccess={() => {
+            setAuthModalOpen(false);
+            void load();
+          }}
+          title="Sign in to view quotes"
+          subtitle="Continue where you left off — your trip request is waiting."
+          footerNote="Sign in or sign up to compare partner quotes."
+        />
       </main>
     );
   }
@@ -564,8 +728,9 @@ export default function CabQuotesPage() {
       : `${request.pickup_city} → ${request.drop_city}`;
 
   return (
-    <main className="min-h-screen bg-[#fbfaf9] text-[#292229]">
-      <header className="border-b border-[#eee9e5] bg-white">
+    <main className="min-h-screen bg-[#fbfaf9] pb-[calc(5.5rem+env(safe-area-inset-bottom))] text-[#292229] md:pb-0">
+      <TravelMobileTopShell activeId="cabs" showGreeting={false} compact />
+      <header className="hidden border-b border-[#eee9e5] bg-white md:block">
         <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between gap-2 px-4 sm:h-16 sm:px-7">
           <Link href="/" className="relative block h-8 w-[100px] sm:h-9 sm:w-[118px]">
             <Image src="/images/homelogo-transparent.png" alt="UNO Trips" fill sizes="118px" className="object-contain object-left" priority />
@@ -590,33 +755,27 @@ export default function CabQuotesPage() {
       </header>
 
       <div className="mx-auto max-w-[1440px] px-4 py-3 sm:px-7 sm:py-7">
-        {/* Desktop progress + hero — unchanged */}
+        <p className="mb-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#ef6614] lg:hidden">
+          Step 2 of 4 · Quotes
+        </p>
         <section className="hidden overflow-hidden rounded-2xl border border-[#eee9e5] bg-white shadow-sm lg:block">
           <div className="grid gap-5 px-5 py-5 lg:grid-cols-[1.55fr_.85fr] lg:items-center lg:px-7">
-            <ol className="grid grid-cols-5 gap-1 text-center text-[9px] sm:text-xs">
-              {["Request submitted", "Sent to partners", "Quotes received", "Compare quotes", "Book & travel"].map((label, index) => {
+            <ol className="grid grid-cols-4 gap-1 text-center text-[9px] sm:text-xs">
+              {["Request", "Quotes", "Book", "Done"].map((label, index) => {
                 const done =
-                  index < 2 ||
-                  (index === 2 && quotes.length > 0) ||
-                  (index === 3 && quotes.length > 0) ||
-                  (request.status === "accepted" && index <= 4);
-                const prevDone =
-                  index > 0 &&
-                  (index - 1 < 2 ||
-                    (index - 1 === 2 && quotes.length > 0) ||
-                    (index - 1 === 3 && quotes.length > 0) ||
-                    (request.status === "accepted" && index - 1 <= 4));
+                  index === 0 ||
+                  (index === 1 && quotes.length > 0) ||
+                  (index >= 2 && request.status === "accepted");
                 const active =
-                  (index === 2 && quotes.length === 0 && request.status !== "accepted") ||
-                  (index === 3 && quotes.length > 0 && request.status !== "accepted") ||
-                  (index === 4 && request.status === "accepted");
+                  (index === 1 && request.status !== "accepted") ||
+                  (index === 2 && request.status === "accepted");
                 return (
                   <li key={label} className="relative">
                     {index > 0 && (
                       <span
                         aria-hidden
                         className={`absolute left-[-50%] right-1/2 top-[18px] h-0.5 ${
-                          prevDone ? "bg-emerald-500" : active ? "bg-[#ef6614]/45" : "bg-slate-200"
+                          done || active ? "bg-[#ef6614]/45" : "bg-slate-200"
                         }`}
                       />
                     )}
@@ -643,7 +802,7 @@ export default function CabQuotesPage() {
                   ? "Your cab is selected!"
                   : quotes.length
                     ? `${quotes.length} quote${quotes.length === 1 ? "" : "s"} ready to compare`
-                    : "Matching verified partners"}
+                    : "Partners are reviewing — we’ll notify you"}
               </p>
               <p className="relative z-10 mt-1 max-w-[260px] text-xs leading-5 text-[#716771]">
                 {request.status === "accepted"
@@ -685,7 +844,7 @@ export default function CabQuotesPage() {
               <BellRing className="h-3 w-3 text-[#ef6614]" />
               {quotes.length
                 ? `${quotes.length} quote${quotes.length === 1 ? "" : "s"}`
-                : "Waiting for partners"}
+                : "We’ll notify you"}
             </span>
           </div>
         </section>
@@ -980,7 +1139,7 @@ export default function CabQuotesPage() {
                 <p className="mt-0.5 text-[12px] text-[#746a73] sm:mt-1 sm:text-sm">
                   {quotes.length
                     ? "Pick the fare that fits — lowest is highlighted."
-                    : "New offers appear here automatically."}
+                    : "Sit back — we’ll notify you when quotes arrive."}
                 </p>
               </div>
               {quotes.length > 0 && (
@@ -1003,7 +1162,9 @@ export default function CabQuotesPage() {
                     request={request}
                     accepting={accepting}
                     isBestPrice={quote.id === bestPriceId}
+                    isHighlighted={quote.id === (selectedForSticky || bestPriceId)}
                     onSelect={(id) => void selectQuote(id)}
+                    onHighlight={setSelectedForSticky}
                   />
                 ))}
               </div>
@@ -1011,6 +1172,32 @@ export default function CabQuotesPage() {
           </section>
         </section>
       </div>
+
+      {quotes.length > 0 && request.status !== "accepted" && (() => {
+        const stickyId = selectedForSticky && quotes.some((q) => q.id === selectedForSticky)
+          ? selectedForSticky
+          : bestPriceId;
+        const stickyQuote = quotes.find((q) => q.id === stickyId) || quotes[0];
+        return (
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-orange-100 bg-white/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur md:hidden">
+            <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+              <span className="truncate font-semibold text-[#514953]">
+                {stickyQuote.business_name || stickyQuote.partner_name}
+                {stickyQuote.id === bestPriceId ? " · Best price" : ""}
+              </span>
+              <strong className="shrink-0 text-base font-black">{money(stickyQuote.total_amount, stickyQuote.currency)}</strong>
+            </div>
+            <button
+              type="button"
+              disabled={Boolean(accepting)}
+              onClick={() => void selectQuote(stickyQuote.id)}
+              className="flex min-h-12 w-full items-center justify-center rounded-xl bg-[#ef6614] text-sm font-extrabold text-white disabled:opacity-60"
+            >
+              {accepting === stickyQuote.id ? "Selecting…" : "Select this quote"}
+            </button>
+          </div>
+        );
+      })()}
     </main>
   );
 }

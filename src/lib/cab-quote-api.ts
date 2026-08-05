@@ -46,16 +46,18 @@ export type CabTripRequest = {
   preferred_vehicle_categories: string[];
   additional_requirements: string | null;
   quote_deadline_at: string;
+  notify_whatsapp?: boolean;
   created_at: string;
   quotes: CabQuote[];
 };
 
-export type CreateCabTripRequest = Omit<CabTripRequest, "id" | "request_number" | "status" | "created_at" | "quotes" | "quote_deadline_at" | "return_at" | "luggage_count" | "preferred_vehicle_categories" | "additional_requirements"> & {
+export type CreateCabTripRequest = Omit<CabTripRequest, "id" | "request_number" | "status" | "created_at" | "quotes" | "quote_deadline_at" | "return_at" | "luggage_count" | "preferred_vehicle_categories" | "additional_requirements" | "notify_whatsapp"> & {
   quote_deadline_at?: string;
   return_at?: string | null;
   luggage_count?: number | null;
   preferred_vehicle_categories?: string[];
   additional_requirements?: string | null;
+  notify_whatsapp?: boolean;
 };
 
 export type CreateCabQuote = {

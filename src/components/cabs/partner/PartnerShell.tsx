@@ -31,15 +31,15 @@ export type PartnerNavItem = {
 };
 
 const PRIMARY_NAV: Omit<PartnerNavItem, "badge">[] = [
-  { href: "/cabs/partner/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/cabs/partner/bookings", label: "Bookings", icon: CalendarDays },
-  { href: "/cabs/partner/quotes", label: "Quotes", icon: MessageSquareText },
-  { href: "/cabs/partner/vehicles", label: "My Vehicles", icon: CarFront },
+  { href: "/cabs/partner/dashboard", label: "Home", icon: LayoutDashboard },
+  { href: "/cabs/partner/quotes", label: "Trip requests", icon: MessageSquareText },
+  { href: "/cabs/partner/bookings", label: "My trips", icon: CalendarDays },
+  { href: "/cabs/partner/vehicles", label: "My cars", icon: CarFront },
   { href: "/cabs/partner/drivers", label: "Drivers", icon: UserRound },
   { href: "/cabs/partner/earnings", label: "Earnings", icon: Wallet },
   { href: "/cabs/partner/payouts", label: "Payouts", icon: Banknote },
   { href: "/cabs/partner/reviews", label: "Reviews", icon: Star },
-  { href: "/cabs/partner/support", label: "Support", icon: CircleHelp },
+  { href: "/cabs/partner/support", label: "Help", icon: CircleHelp },
   { href: "/cabs/partner/settings", label: "Settings", icon: Settings },
 ];
 
@@ -56,10 +56,13 @@ export function PartnerShell({ application, pendingQuotes, children, onLogout }:
   const name = application.business_name || application.owner_name;
   const typeLabel = application.registration_type === "agency" ? "Taxi Agency" : "Individual Operator";
   const onQuotes = pathname.startsWith("/cabs/partner/quotes");
-  const headerTitle = onQuotes ? "Customer quote requests" : `Welcome back, ${name}! `;
+  const onHome = pathname === "/cabs/partner/dashboard" || pathname === "/cabs/partner/dashboard/";
+  const headerTitle = onQuotes ? "Trip requests" : onHome ? "Home" : `Welcome back, ${name}`;
   const headerSubtitle = onQuotes
-    ? "Send a clear total fare before the request expires."
-    : "Here’s what’s happening with your business today.";
+    ? "Choose a trip, type your fare, and send."
+    : onHome
+      ? "Reply to trips, check bookings, manage cars."
+      : "Here’s what’s happening with your trips today.";
 
   const nav = PRIMARY_NAV.map((item) =>
     item.href === "/cabs/partner/quotes" ? { ...item, badge: pendingQuotes || undefined } : item,
@@ -70,12 +73,12 @@ export function PartnerShell({ application, pendingQuotes, children, onLogout }:
       <div className="grid h-full w-full lg:grid-cols-[248px_1fr]">
         <aside className="hidden min-h-0 flex-col border-r border-slate-200 bg-white lg:flex">
           <div className="px-5 pb-2 pt-5">
-            <Link href="/cabs" className="block leading-none" aria-label="UnoCabs">
+            <Link href="/cabs/partner/dashboard" className="block leading-none" aria-label="UnoCabs Partner">
               <span className="text-2xl font-black tracking-tight text-[#ef6614]">
                 Uno<span className="text-[#192131]">Cabs</span>
               </span>
               <small className="mt-1 block text-[10px] font-semibold tracking-wide text-slate-500">
-                Partner Portal
+                Partner app
               </small>
             </Link>
           </div>
@@ -107,15 +110,15 @@ export function PartnerShell({ application, pendingQuotes, children, onLogout }:
 
           <div className="mt-auto space-y-4 px-4 pb-5 pt-3">
             <div className="rounded-xl bg-[#f5f5f5] p-3.5">
-              <strong className="block text-sm font-extrabold text-[#24212a]">Grow your business</strong>
+              <strong className="block text-sm font-extrabold text-[#24212a]">Your account</strong>
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                Keep your profile updated and get more booking requests.
+                Bank details and contact info for payouts.
               </p>
               <Link
-                href="/cabs/list-your-cab"
+                href="/cabs/partner/settings"
                 className="mt-3 inline-flex rounded-md border border-[#ef6614] px-3 py-2 text-xs font-bold text-[#ef6614] transition hover:bg-orange-50"
               >
-                Update Profile
+                Open settings
               </Link>
             </div>
 
@@ -154,9 +157,9 @@ export function PartnerShell({ application, pendingQuotes, children, onLogout }:
             />
             <aside className="relative flex h-[100dvh] w-[min(86vw,340px)] min-h-0 flex-col bg-white shadow-2xl">
               <div className="flex items-start justify-between px-5 pb-3 pt-6">
-                <Link href="/cabs" className="block leading-none" aria-label="UnoCabs" onClick={() => setMobileNavOpen(false)}>
+                <Link href="/cabs/partner/dashboard" className="block leading-none" aria-label="UnoCabs Partner" onClick={() => setMobileNavOpen(false)}>
                   <span className="text-2xl font-black tracking-tight text-[#ef6614]">Uno<span className="text-[#192131]">Cabs</span></span>
-                  <small className="mt-1 block text-[10px] font-semibold tracking-wide text-slate-500">Partner Portal</small>
+                  <small className="mt-1 block text-[10px] font-semibold tracking-wide text-slate-500">Partner app</small>
                 </Link>
                 <button type="button" onClick={() => setMobileNavOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-slate-50 text-slate-600" aria-label="Close menu">
                   <X className="h-5 w-5" />
@@ -181,7 +184,7 @@ export function PartnerShell({ application, pendingQuotes, children, onLogout }:
               </nav>
 
               <div className="shrink-0 border-t border-slate-100 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                <Link href="/cabs/list-your-cab" onClick={() => setMobileNavOpen(false)} className="flex min-h-11 items-center justify-center rounded-xl border border-orange-200 text-sm font-extrabold text-[#ef6614]">Update profile</Link>
+                <Link href="/cabs/partner/settings" onClick={() => setMobileNavOpen(false)} className="flex min-h-11 items-center justify-center rounded-xl border border-orange-200 text-sm font-extrabold text-[#ef6614]">Open settings</Link>
                 <button type="button" onClick={onLogout} className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 text-sm font-bold text-slate-500"><LogOut className="h-4 w-4" /> Sign out</button>
               </div>
             </aside>
@@ -196,7 +199,6 @@ export function PartnerShell({ application, pendingQuotes, children, onLogout }:
             <div className="min-w-0">
               <h1 className="truncate text-sm font-black sm:text-lg">
                 {headerTitle}
-                {!onQuotes && <span aria-hidden="true">👋</span>}
               </h1>
               <p className="mt-0.5 hidden truncate text-xs text-slate-500 sm:block">{headerSubtitle}</p>
             </div>
@@ -204,7 +206,7 @@ export function PartnerShell({ application, pendingQuotes, children, onLogout }:
               <Link
                 href="/cabs/partner/quotes"
                 className="relative grid h-10 w-10 place-items-center rounded-full border border-slate-200 text-slate-500 transition hover:border-orange-200 hover:text-[#ef6614]"
-                aria-label={`${pendingQuotes} quote notifications`}
+                aria-label={`${pendingQuotes} trip requests needing reply`}
               >
                 <Bell className="h-5 w-5" />
                 {pendingQuotes > 0 && (
@@ -213,36 +215,38 @@ export function PartnerShell({ application, pendingQuotes, children, onLogout }:
                   </span>
                 )}
               </Link>
-              <a
-                href="mailto:partners@unocabs.com"
+              <Link
+                href="/cabs/partner/support"
                 className="hidden items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition hover:border-orange-200 hover:text-[#ef6614] sm:inline-flex"
               >
                 <CircleHelp className="h-3.5 w-3.5" />
                 Help
-              </a>
+              </Link>
             </div>
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 pb-24 sm:p-6 lg:p-8">{children}</div>
 
           <footer className="hidden border-t border-slate-200 bg-white px-5 py-3 text-center text-[11px] text-slate-500 sm:px-8 lg:block">
-            Need help? Contact our partner support team at{" "}
+            Need help? Email{" "}
             <a href="mailto:partners@unocabs.com" className="font-semibold text-[#ef6614]">
               partners@unocabs.com
             </a>{" "}
-            or{" "}
-            <a href="tel:+919876543210" className="font-semibold text-slate-700">
-              +91 98765 43210
-            </a>
+            or open{" "}
+            <Link href="/cabs/partner/support" className="font-semibold text-slate-700">
+              Help
+            </Link>
           </footer>
 
           <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-slate-200 bg-white/95 px-1 pb-[max(0.35rem,env(safe-area-inset-bottom))] pt-1 shadow-[0_-10px_28px_-22px_rgba(23,32,49,0.38)] backdrop-blur lg:hidden" aria-label="Quick navigation">
             {nav.slice(0, 4).map(({ href, label, icon: Icon, badge }) => {
               const active = pathname === href || pathname.startsWith(`${href}/`);
+              const shortLabel =
+                label === "Trip requests" ? "Requests" : label === "My trips" ? "Trips" : label === "My cars" ? "Cars" : label;
               return (
                 <Link key={href} href={href} className={`relative flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl text-[10px] font-bold ${active ? "text-[#ef6614]" : "text-slate-500"}`}>
                   <span className={`grid h-7 w-9 place-items-center rounded-lg ${active ? "bg-orange-50" : ""}`}><Icon className="h-4.5 w-4.5" /></span>
-                  <span>{label === "My Vehicles" ? "Fleet" : label}</span>
+                  <span>{shortLabel}</span>
                   {typeof badge === "number" && badge > 0 && <span className="absolute right-[22%] top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[9px] text-white">{badge}</span>}
                 </Link>
               );

@@ -134,7 +134,8 @@ function ConfirmationInner() {
   return (
     <main className="min-h-screen bg-[#fbfaf9] px-4 py-10 text-[#292229]">
       <div className="mx-auto max-w-lg rounded-2xl border border-[#eee9e5] bg-white p-6 text-center shadow-sm sm:p-8">
-        <CheckCircle2 className={`mx-auto h-12 w-12 ${isCancelled ? "text-slate-400" : "text-emerald-600"}`} />
+        <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#ef6614]">Step 4 of 4 · Done</p>
+        <CheckCircle2 className={`mx-auto mt-3 h-12 w-12 ${isCancelled ? "text-slate-400" : "text-emerald-600"}`} />
         <h1 className="mt-4 text-2xl font-black tracking-tight">
           {isCancelled ? "Booking cancelled" : "Booking confirmed"}
         </h1>
@@ -191,6 +192,34 @@ function ConfirmationInner() {
               </p>
             )}
           </div>
+        )}
+
+        {booking && !isCancelled && (
+          <section className="mt-5 rounded-xl border border-orange-100 bg-[#fffaf7] p-4 text-left">
+            <h2 className="text-sm font-extrabold text-[#292229]">What happens next</h2>
+            <ol className="mt-3 space-y-2.5 text-xs leading-5 text-[#5f565e]">
+              <li className="flex gap-2">
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#ef6614] text-[10px] font-black text-white">1</span>
+                <span>Save this confirmation number — you may need it for support.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#ef6614] text-[10px] font-black text-white">2</span>
+                <span>Your partner will share final vehicle and driver details before pickup. The captain usually calls you.</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#ef6614] text-[10px] font-black text-white">3</span>
+                <span>
+                  {booking.payment_option === "direct_to_cab_owner" || booking.payment_option === "commission_and_driver"
+                    ? "Keep cash/UPI ready for any amount due to the driver at pickup."
+                    : "You’re paid online — no fare due at pickup unless extras were agreed."}
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#ef6614] text-[10px] font-black text-white">4</span>
+                <span>Need help? Call support from My quotes or the UNO Cabs help line.</span>
+              </li>
+            </ol>
+          </section>
         )}
 
         {booking?.status === "confirmed" && (

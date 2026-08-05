@@ -98,7 +98,7 @@ function statusMeta(request: CabTripRequest) {
   return {
     label: "Waiting for quotes",
     tone: "bg-amber-50 text-amber-700",
-    detail: "Sent to partners · usually 10–30 min",
+    detail: "Sit back — 100+ partners · first quotes in 1–30 min",
     href: `/cabs/quotes?request=${request.id}`,
     cta: "Track request",
   };

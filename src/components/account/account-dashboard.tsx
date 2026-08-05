@@ -813,32 +813,35 @@ export function AccountDashboard({ onLogout, initialTab = "bookings" }: AccountD
       </aside>
 
       {/* ── Main content ── */}
-      <div className="space-y-5">
+      <div className="space-y-3 sm:space-y-4">
 
         {/* Profile header bar */}
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#e8e8e8] bg-white px-5 py-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#EF6614] text-[14px] font-black text-white">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#e8e8e8] bg-white px-3.5 py-3 shadow-sm sm:px-5 sm:py-3.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EF6614] text-[12px] font-black text-white sm:h-10 sm:w-10 sm:text-[13px]">
               {displayUser.avatar ? (
-                <Image src={displayUser.avatar} alt="" width={44} height={44} className="h-full w-full rounded-xl object-cover" unoptimized />
+                <Image src={displayUser.avatar} alt="" width={40} height={40} className="h-full w-full rounded-xl object-cover" unoptimized />
               ) : userInitials(displayUser.name)}
             </div>
-            <div>
-              <p className="text-[13px] text-[#9E9E9E]">{getGreeting()}</p>
-              <p className="text-[16px] font-bold text-[#212121]">{displayUser.name}</p>
+            <div className="min-w-0">
+              <p className="truncate text-[11px] text-[#9E9E9E] sm:text-[12px]">{getGreeting()}</p>
+              <p className="truncate text-[14px] font-bold text-[#212121] sm:text-[15px]">{displayUser.name}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <button type="button" onClick={() => void loadDashboard({ silent: true })} disabled={refreshing}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#e8e8e8] px-3 py-2 text-[12px] font-semibold text-[#616161] transition hover:bg-[#f5f5f5] disabled:opacity-50"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[#e8e8e8] text-[#616161] transition hover:bg-[#f5f5f5] disabled:opacity-50 sm:h-auto sm:w-auto sm:gap-1.5 sm:px-3 sm:py-2 sm:text-[12px] sm:font-semibold"
+              aria-label="Refresh"
             >
               <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} aria-hidden />
               <span className="hidden sm:inline">Refresh</span>
             </button>
             <Link href="/hotels"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[#EF6614] px-4 py-2 text-[12px] font-bold text-white transition hover:bg-[#E65100]"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#EF6614] px-3 text-[12px] font-bold text-white transition hover:bg-[#E65100] sm:px-3.5"
             >
-              <Hotel className="h-3.5 w-3.5" aria-hidden />Book hotel
+              <Hotel className="h-3.5 w-3.5" aria-hidden />
+              <span className="sm:hidden">Book</span>
+              <span className="hidden sm:inline">Book hotel</span>
             </Link>
             <button type="button" onClick={() => void onLogout()}
               className="hidden rounded-lg border border-[#e8e8e8] px-3 py-2 text-[12px] font-semibold text-[#757575] transition hover:border-red-200 hover:text-red-600 lg:inline-flex"
@@ -848,20 +851,30 @@ export function AccountDashboard({ onLogout, initialTab = "bookings" }: AccountD
           </div>
         </div>
 
-        {/* Stats row — compact */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {/* Stats — single compact strip */}
+        <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-sm sm:grid-cols-4">
           {[
-            { label: "Total trips",      value: confirmedBookings.length, color: "text-[#2196F3]", bg: "bg-[#E3F2FD]", icon: Plane },
-            { label: "Upcoming",         value: upcomingCount,            color: "text-emerald-700", bg: "bg-emerald-50", icon: TrendingUp },
-            { label: "Pending pay",      value: incompleteCount,          color: "text-[#E65100]", bg: "bg-[#FFF3E0]", icon: AlertTriangle },
-            { label: "Total spent",      value: confirmedBookings.length ? formatMoney(totalSpent, confirmedBookings[0]?.currency ?? "INR") : "—", color: "text-[#7B1FA2]", bg: "bg-purple-50", icon: Wallet, isText: true },
-          ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-[#e8e8e8] bg-white px-4 py-4 shadow-sm">
-              <div className={cn("mb-2 inline-flex rounded-lg p-1.5", s.bg)}>
-                <s.icon className={cn("h-4 w-4", s.color)} aria-hidden />
+            { label: "Trips", value: confirmedBookings.length, color: "text-[#2196F3]", bg: "bg-[#E3F2FD]", icon: Plane },
+            { label: "Upcoming", value: upcomingCount, color: "text-emerald-700", bg: "bg-emerald-50", icon: TrendingUp },
+            { label: "Pending", value: incompleteCount, color: "text-[#E65100]", bg: "bg-[#FFF3E0]", icon: AlertTriangle },
+            { label: "Spent", value: confirmedBookings.length ? formatMoney(totalSpent, confirmedBookings[0]?.currency ?? "INR") : "—", color: "text-[#7B1FA2]", bg: "bg-purple-50", icon: Wallet },
+          ].map((s, i) => (
+            <div
+              key={s.label}
+              className={cn(
+                "flex items-center gap-2.5 px-3 py-2.5 sm:px-4 sm:py-3",
+                i % 2 === 0 && "border-r border-[#f0f0f0]",
+                i < 2 && "border-b border-[#f0f0f0] sm:border-b-0",
+                i === 2 && "sm:border-r sm:border-[#f0f0f0]",
+              )}
+            >
+              <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-lg", s.bg)}>
+                <s.icon className={cn("h-3.5 w-3.5", s.color)} aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className={cn("truncate text-[15px] font-black leading-none sm:text-[16px]", s.color)}>{s.value}</p>
+                <p className="mt-0.5 text-[10px] font-medium text-[#9E9E9E] sm:text-[11px]">{s.label}</p>
               </div>
-              <p className={cn("text-xl font-black", s.color)}>{s.isText ? s.value : s.value}</p>
-              <p className="mt-0.5 text-[11px] text-[#9E9E9E]">{s.label}</p>
             </div>
           ))}
         </div>
@@ -870,7 +883,7 @@ export function AccountDashboard({ onLogout, initialTab = "bookings" }: AccountD
         {activeTab === "bookings" && nextTrip ? <NextTripSpotlight booking={nextTrip} /> : null}
 
         {/* Mobile tab bar */}
-        <div className="flex gap-1 rounded-xl border border-[#e8e8e8] bg-white p-1 lg:hidden">
+        <div className="flex gap-0.5 rounded-xl border border-[#e8e8e8] bg-white p-0.5 lg:hidden">
           {([
             { id: "bookings" as const, label: "Bookings", count: confirmedBookings.length + incompleteCount },
             { id: "quotes" as const,   label: "Quotes",   count: null },
@@ -878,12 +891,14 @@ export function AccountDashboard({ onLogout, initialTab = "bookings" }: AccountD
             { id: "profile" as const,  label: "Profile",  count: null },
           ] as const).map((tab) => (
             <button key={tab.id} type="button" onClick={() => selectTab(tab.id)}
-              className={cn("flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2.5 text-[12px] font-semibold transition sm:px-3 sm:text-[13px]",
-                activeTab === tab.id ? "bg-[#EF6614] text-white shadow-sm" : "text-[#757575] hover:bg-[#f5f5f5]")}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-[11px] font-semibold transition sm:px-2.5 sm:text-[12px]",
+                activeTab === tab.id ? "bg-[#EF6614] text-white shadow-sm" : "text-[#757575] hover:bg-[#f5f5f5]",
+              )}
             >
               {tab.label}
               {tab.count !== null && tab.count > 0 ? (
-                <span className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-bold", activeTab === tab.id ? "bg-white/25" : "bg-[#f0f0f0] text-[#616161]")}>
+                <span className={cn("rounded-full px-1.5 text-[9px] font-bold", activeTab === tab.id ? "bg-white/25" : "bg-[#f0f0f0] text-[#616161]")}>
                   {tab.count}
                 </span>
               ) : null}

@@ -44,10 +44,10 @@ type BusinessType = "agency" | "individual";
 type PartnerAuth = NonNullable<ReturnType<typeof useAuthOptional>>;
 
 const STEPS = [
-  "Business type",
-  "Business details",
+  "You are",
+  "Your details",
   "Documents",
-  "Verification",
+  "Review",
 ];
 
 function OnboardingStepper({
@@ -1154,10 +1154,10 @@ function BusinessTypeStep({
           Step 1 of 4
         </p>
         <h2 className="mt-1 text-xl font-black tracking-tight sm:text-2xl">
-          Choose your partner type.
+          Who are you registering as?
         </h2>
         <p className="mt-1 text-xs text-[#6f6570] sm:text-sm">
-          Your account details are already saved. Now tell us how you operate.
+          Pick one — cab agency/fleet, or individual owner-driver.
         </p>
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2.5 text-xs text-emerald-950">
@@ -1418,8 +1418,7 @@ function BusinessDetailsStep({
             : "Tell us about yourself."}
         </h2>
         <p className="mt-1 text-sm text-[#6f6570]">
-          Please provide your details accurately. This will help us verify your
-          account faster.
+          Fill only what&apos;s asked. You can fix mistakes later if we ask.
         </p>
       </div>
       {isAgency ? (
@@ -1777,11 +1776,10 @@ function DocumentsStep({
             Step 3 of 4
           </p>
           <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
-            Upload documents.
+            Upload your papers.
           </h2>
           <p className="mt-1 text-sm text-[#6f6570]">
-            Please upload clear and valid documents. All documents are secure
-            and verified.
+            Clear photos of documents are fine. Required ones are marked — optional can wait.
           </p>
         </div>
         <div className="flex max-w-xs items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs leading-5 text-[#566478]">
@@ -2161,22 +2159,25 @@ function SuccessScreen() {
         <Check className="h-11 w-11" />
       </span>
       <h2 className="mt-8 text-3xl font-black tracking-tight sm:text-4xl">
-        Your application has been submitted!
+        Application sent for review
       </h2>
       <p className="mt-2 text-sm text-[#6e6570] sm:text-base">
-        Thank you for completing the partner onboarding process.
+        Our team will check your details. You&apos;ll get an email when you&apos;re approved.
       </p>
-      <div className="mx-auto mt-7 flex max-w-2xl items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-5 py-4 text-left text-sm text-[#466151]">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-600">
-          <ShieldCheck className="h-5 w-5" />
-        </span>
-        <span>
-          <strong className="block">
-            Your application is now under verification.
-          </strong>
-          We&apos;ll review your details and documents.
-        </span>
-      </div>
+      <ol className="mx-auto mt-7 max-w-lg space-y-3 text-left text-sm text-[#466151]">
+        {[
+          "We verify your documents (usually 1–2 working days).",
+          "After approval, add your cars and set pricing.",
+          "Then open Trip requests and start sending quotes.",
+        ].map((item, index) => (
+          <li key={item} className="flex gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-black text-emerald-700">
+              {index + 1}
+            </span>
+            <span className="pt-0.5 font-semibold">{item}</span>
+          </li>
+        ))}
+      </ol>
       <div className="mx-auto mt-6 flex max-w-3xl flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:justify-between">
         <Link
           href="/cabs/list-your-cab"
@@ -2192,16 +2193,9 @@ function SuccessScreen() {
         </Link>
       </div>
       <p className="mt-5 text-xs text-[#726974]">
-        Need help? Contact our partner support team at{" "}
-        <a
-          href="mailto:partners@unocabs.com"
-          className="font-bold text-[#ef6614]"
-        >
+        Need help? Email{" "}
+        <a href="mailto:partners@unocabs.com" className="font-bold text-[#ef6614]">
           partners@unocabs.com
-        </a>{" "}
-        or{" "}
-        <a href="tel:+919876543210" className="font-bold text-[#403641]">
-          +91 98765 43210
         </a>
       </p>
     </section>

@@ -46,6 +46,7 @@ import { getCabPartnerContext, type CabPartnerContext } from "@/lib/cab-partner-
 import { createCabTripRequest } from "@/lib/cab-quote-api";
 import { BookingAuthModal } from "@/components/hotels/booking-auth-modal";
 import { TravellerQuoteRequestsStrip } from "@/components/cabs/TravellerQuoteRequestsStrip";
+import { TravelMobileTopShell } from "@/components/home/HeroSection";
 import { trackEvent, trackOnce } from "@/lib/marketing-tracking";
 
 type RideType = "hourly" | "airport" | "outstation";
@@ -66,19 +67,44 @@ const RIDE_TYPES: { value: RideType; label: string; detail: string }[] = [
 
 /** Matches partner cab categories travellers can prefer (max 8 on API). */
 const VEHICLE_CATEGORY_OPTIONS = [
-  { value: "hatchback", label: "Hatchback" },
-  { value: "sedan", label: "Sedan" },
-  { value: "suv", label: "SUV" },
-  { value: "innova", label: "Innova" },
-  { value: "tempo_traveller", label: "Tempo traveller" },
-  { value: "mini_bus", label: "Mini bus" },
-  { value: "bus", label: "Bus" },
-  { value: "luxury", label: "Luxury" },
+  { value: "hatchback", label: "Hatchback", image: "/images/cabs/fleet-catalog/hatchback.png", seats: "4 seats" },
+  { value: "sedan", label: "Sedan", image: "/images/cabs/fleet-catalog/sedan.png", seats: "4 seats" },
+  { value: "suv", label: "SUV", image: "/images/cabs/fleet-catalog/suv.png", seats: "6 seats" },
+  { value: "innova", label: "Innova", image: "/images/cabs/fleet-catalog/innova.png", seats: "7 seats" },
+  { value: "tempo_traveller", label: "Tempo traveller", image: "/images/cabs/fleet-catalog/tempo-traveller.png", seats: "12 seats" },
+  { value: "mini_bus", label: "Mini bus", image: "/images/cabs/fleet-catalog/mini-bus.png", seats: "18 seats" },
+  { value: "bus", label: "Bus", image: "/images/cabs/fleet-catalog/bus.png", seats: "30+ seats" },
+  { value: "luxury", label: "Luxury", image: "/images/cabs/fleet-catalog/luxury.png", seats: "4 seats" },
 ] as const;
 
-function today() {
-  return toDateValue(new Date());
-}
+const INITIAL_CAB_TYPES_VISIBLE = 4;
+
+/** Table uses table-fixed so the month grid fills the popover (flex on <tr> is ignored). */
+const CAB_DAY_PICKER_CLASSNAMES = {
+  root: "relative w-full",
+  months: "w-full",
+  month: "w-full space-y-3",
+  month_caption: "relative flex h-8 items-center justify-center",
+  caption_label: "text-sm font-extrabold text-[#302934]",
+  nav: "absolute inset-x-0 top-0 flex items-center justify-between",
+  button_previous: "grid h-8 w-8 place-items-center rounded-lg text-[#665d65] transition hover:bg-orange-50",
+  button_next: "grid h-8 w-8 place-items-center rounded-lg text-[#665d65] transition hover:bg-orange-50",
+  chevron: "h-4 w-4",
+  month_grid: "w-full table-fixed border-collapse",
+  weekdays: "border-b border-orange-50",
+  weekday: "h-8 w-[14.285%] p-0 text-center text-[10px] font-bold text-[#a0969e]",
+  week: "h-10",
+  day: "h-10 w-[14.285%] p-0 text-center align-middle",
+  day_button: "mx-auto grid h-9 w-9 place-items-center rounded-lg text-sm font-semibold text-[#514953] transition hover:bg-orange-50",
+  selected: "[&>button]:bg-[#ef6614] [&>button]:text-white [&>button]:shadow-sm [&>button]:hover:bg-[#d95511]",
+  today: "[&>button]:font-black [&>button]:text-[#d95717]",
+  disabled: "[&>button]:cursor-not-allowed [&>button]:text-[#d8d1d4] [&>button]:hover:bg-transparent",
+  outside: "[&>button]:text-[#c9c2c6]",
+} as const;
+
+/** Anchored under the date field (not a fixed bottom sheet). */
+const CAB_DATE_POPOVER_CLASS =
+  "absolute left-0 right-0 top-[calc(100%+8px)] z-50 w-full rounded-2xl border border-[#eaded6] bg-white p-3 shadow-[0_20px_45px_-20px_rgba(64,34,19,0.45)]";
 
 function parseDateValue(value: string) {
   if (!value) return new Date();
@@ -90,13 +116,43 @@ function toDateValue(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function nextPickupSlot() {
-  const date = new Date();
-  date.setHours(date.getHours() + 1, 0, 0, 0);
+function toTimeValue(date: Date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+/** Scheduled rides can start from 30 minutes ahead (soft lead for partners). */
+const SCHEDULE_LEAD_MS = 30 * 60 * 1000;
+
+function earliestScheduleAt(from = new Date()) {
+  return new Date(from.getTime() + SCHEDULE_LEAD_MS);
+}
+
+/** Default slot: round up to the next 15 minutes after the 30-min lead. */
+function earliestScheduleSlot(from = new Date()) {
+  const date = earliestScheduleAt(from);
+  const minutes = date.getMinutes();
+  const rounded = Math.ceil(minutes / 15) * 15;
+  if (rounded === 60) {
+    date.setHours(date.getHours() + 1, 0, 0, 0);
+  } else {
+    date.setMinutes(rounded, 0, 0);
+  }
   return {
     date: toDateValue(date),
-    time: `${String(date.getHours()).padStart(2, "0")}:00`,
+    time: toTimeValue(date),
+    at: date,
   };
+}
+
+function combineDateTime(dateValue: string, timeValue: string) {
+  if (!dateValue || !timeValue) return null;
+  return new Date(`${dateValue}T${timeValue}:00`);
+}
+
+function isScheduleAtLeast24h(dateValue: string, timeValue: string, from = new Date()) {
+  const at = combineDateTime(dateValue, timeValue);
+  if (!at) return false;
+  return at.getTime() >= earliestScheduleAt(from).getTime();
 }
 
 function displayDate(value: string) {
@@ -140,16 +196,29 @@ export function CabsBookingExperience() {
   const [partnerContext, setPartnerContext] = useState<CabPartnerContext | null>(null);
   const [postingRequest, setPostingRequest] = useState(false);
   const [authUiReady, setAuthUiReady] = useState(false);
+  /** Mobile wizard: 0 route → 1 when/travellers → 2 preferences + submit */
+  const [mobileStep, setMobileStep] = useState(0);
+  const [notifyWhatsApp, setNotifyWhatsApp] = useState(true);
+  const [showAllCabTypes, setShowAllCabTypes] = useState(false);
   const pendingQuoteSubmitRef = useRef(false);
-  const routeLoginPromptedRef = useRef(false);
 
   useEffect(() => {
     setAuthUiReady(true);
-    const nextSlot = nextPickupSlot();
+    const nextSlot = earliestScheduleSlot();
     setTravelDate((current) => current || nextSlot.date);
-    setTravelTime((current) => current === "09:00" ? nextSlot.time : current);
-    setReturnDate((current) => current || today());
+    setTravelTime((current) => (current === "09:00" ? nextSlot.time : current));
+    setReturnDate((current) => current || nextSlot.date);
   }, []);
+
+  // Keep scheduled pickup at least 30 min ahead if the user lands on an invalid combo.
+  useEffect(() => {
+    if (scheduleMode !== "schedule" || !travelDate || !travelTime) return;
+    if (isScheduleAtLeast24h(travelDate, travelTime)) return;
+    const slot = earliestScheduleSlot();
+    setTravelDate(slot.date);
+    setTravelTime(slot.time);
+    setReturnDate((current) => (!current || current < slot.date ? slot.date : current));
+  }, [scheduleMode, travelDate, travelTime]);
 
   useEffect(() => {
     const token = auth?.getAccessToken();
@@ -157,46 +226,48 @@ export function CabsBookingExperience() {
     getCabPartnerContext(token).then(setPartnerContext).catch(() => setPartnerContext(null));
   }, [auth]);
 
+  const earliestSlot = useMemo(() => earliestScheduleSlot(), [
+    // Refresh lead boundary roughly when the schedule UI is open / date changes
+    scheduleMode, travelDate,
+  ]);
+  const earliestScheduleDate = earliestSlot.date;
+  const earliestScheduleTimeOnMinDay = earliestSlot.time;
+
   const destinationLabel = rideType === "hourly" ? "Package / area" : "Drop location";
   const isRoundTrip = rideType === "outstation" && outstationDirection === "round_trip";
   const pickupAtPreview = scheduleMode === "now"
     ? new Date(Date.now() + 20 * 60 * 1000)
     : travelDate && travelTime
-      ? new Date(`${travelDate}T${travelTime}:00`)
+      ? combineDateTime(travelDate, travelTime)
       : null;
   const returnAtPreview = isRoundTrip && returnDate && returnTime
-    ? new Date(`${returnDate}T${returnTime}:00`)
+    ? combineDateTime(returnDate, returnTime)
     : null;
   const returnIsValid = !isRoundTrip || Boolean(
     returnAtPreview && pickupAtPreview && returnAtPreview.getTime() > pickupAtPreview.getTime(),
   );
+  const scheduleIsValid = scheduleMode === "now" || isScheduleAtLeast24h(travelDate, travelTime);
   const canSubmit = Boolean(
     pickupLocation
     && (rideType === "hourly" || dropLocation)
-    && (scheduleMode === "now" || (travelDate && travelTime))
+    && (scheduleMode === "now" || (travelDate && travelTime && scheduleIsValid))
     && (!isRoundTrip || (returnDate && returnTime && returnIsValid)),
   );
   // Keep the first interaction focused: choose a route before exposing trip details.
+  // Auth is deferred until "Get free quotes" — guests can fill the full form first.
   const routeReady = Boolean(pickupLocation && dropLocation);
-  const routeDetailsUnlocked = routeReady && Boolean(auth?.isAuthenticated);
+  const routeDetailsUnlocked = routeReady;
 
   useEffect(() => {
-    if (!routeReady) {
-      routeLoginPromptedRef.current = false;
-      return;
-    }
-    if (auth?.isLoading || auth?.isAuthenticated || routeLoginPromptedRef.current) return;
-    routeLoginPromptedRef.current = true;
-    setAuthModalIntent("quotes");
-    setAuthModalOpen(true);
-  }, [routeReady, auth?.isAuthenticated, auth?.isLoading]);
+    if (!routeReady) setMobileStep(0);
+  }, [routeReady]);
 
   const summary = useMemo(() => {
     const ride = RIDE_TYPES.find((item) => item.value === rideType)?.label ?? "Hourly rental";
     const direction = rideType === "outstation"
       ? (outstationDirection === "round_trip" ? " · Round trip" : " · One-way")
       : "";
-    const pickupLabel = scheduleMode === "now" ? "Pickup now" : `${travelDate} at ${travelTime}`;
+    const pickupLabel = scheduleMode === "now" ? "ASAP (~20 min)" : `${travelDate} at ${travelTime}`;
     const returnLabel = isRoundTrip && returnDate
       ? ` · Return ${returnDate} at ${returnTime}`
       : "";
@@ -344,7 +415,15 @@ export function CabsBookingExperience() {
     try {
       const pickupAt = scheduleMode === "now"
         ? new Date(Date.now() + 20 * 60 * 1000)
-        : new Date(`${travelDate}T${travelTime}:00`);
+        : combineDateTime(travelDate, travelTime);
+      if (!pickupAt) {
+        setError("Choose a pickup date and time.");
+        return;
+      }
+      if (scheduleMode === "schedule" && pickupAt.getTime() < earliestScheduleAt().getTime()) {
+        setError("Scheduled pickup must be at least 30 minutes from now. Pick a later time.");
+        return;
+      }
       const tripType = rideType === "airport"
         ? "airport_transfer"
         : rideType === "hourly"
@@ -370,6 +449,7 @@ export function CabsBookingExperience() {
         preferred_vehicle_categories: preferredCategories,
         additional_requirements: requirements.trim() || null,
         return_at: returnAt ? returnAt.toISOString() : null,
+        notify_whatsapp: notifyWhatsApp,
       });
       trackEvent("cab_trip_request_submitted", {
         request_id: result.id,
@@ -377,7 +457,13 @@ export function CabsBookingExperience() {
         trip_type: tripType,
         passengers: travellers,
         preferred_vehicle_count: preferredCategories.length,
+        notify_whatsapp: notifyWhatsApp,
       });
+      try {
+        sessionStorage.setItem("uno_cabs_notify_whatsapp", notifyWhatsApp ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
       try {
         const key = "uno_cabs_my_trip_requests";
         const prev = JSON.parse(sessionStorage.getItem(key) || "[]") as unknown[];
@@ -400,6 +486,8 @@ export function CabsBookingExperience() {
       setSubmitted(false);
       if (isRoundTrip && (!returnDate || !returnTime || !returnIsValid)) {
         setError("Choose a return date and time after pickup for your round trip.");
+      } else if (scheduleMode === "schedule" && !scheduleIsValid) {
+        setError("Scheduled pickup must be at least 30 minutes from now. Pick a later time.");
       } else if (scheduleMode === "schedule") {
         setError("Select pickup, destination, date and time to see cabs.");
       } else {
@@ -419,13 +507,15 @@ export function CabsBookingExperience() {
 
   return (
     <div className="min-h-screen bg-[#fffaf7] text-[#272129]">
-      <header className="sticky top-0 z-40 border-b border-orange-100/70 bg-white/95 backdrop-blur">
+      <TravelMobileTopShell activeId="cabs" showGreeting={false} compact />
+
+      <header className="sticky top-0 z-40 hidden border-b border-orange-100/70 bg-white/95 backdrop-blur md:block">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link href="/" className="relative block h-9 w-[118px] shrink-0" aria-label="UNO Trips home">
             <Image src="/images/homelogo-transparent.png" alt="UNO Trips" fill sizes="118px" className="object-contain object-left" priority />
           </Link>
           <div className="flex items-center gap-1.5 sm:gap-3">
-            <Link href="/cabs/list-your-cab" className="hidden min-h-10 items-center rounded-full border border-orange-200 px-3 text-sm font-bold text-[#d95717] transition hover:border-[#ef6614] hover:bg-orange-50 sm:inline-flex">
+            <Link href="/cabs/list-your-cab" className="hidden min-h-10 items-center rounded-full border border-orange-200 px-3 text-sm font-bold text-[#d95717] transition hover:border-[#ef6614] hover:bg-orange-50 lg:inline-flex">
               List your cab
             </Link>
             <a href="tel:+919999999999" className="inline-flex min-h-10 items-center gap-1.5 rounded-full px-2.5 text-sm font-semibold text-[#514953] hover:bg-orange-50 sm:px-3">
@@ -546,9 +636,9 @@ export function CabsBookingExperience() {
           setAuthModalOpen(false);
           if (shouldPost) void postTripRequest();
         }}
-        title={authModalIntent === "quotes" ? "Sign in to continue your trip" : "Login to continue"}
-        subtitle={authModalIntent === "quotes" ? "Your pickup and destination are saved. Sign in to add trip details and compare quotes." : "Sign in to manage your trips and bookings"}
-        footerNote={authModalIntent === "quotes" ? "Sign in or sign up to continue this request." : "Sign in or sign up to continue."}
+        title={authModalIntent === "quotes" ? "Sign in to get your free quotes" : "Login to continue"}
+        subtitle={authModalIntent === "quotes" ? "Your trip details are saved. Sign in so partners can send quotes to your account." : "Sign in to manage your trips and bookings"}
+        footerNote={authModalIntent === "quotes" ? "Sign in or sign up to post this request." : "Sign in or sign up to continue."}
       />
 
       <main className="flex flex-col">
@@ -585,7 +675,7 @@ export function CabsBookingExperience() {
                 <button type="button" onClick={() => document.getElementById("cab-booking-form")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#ef6614] px-5 text-sm font-extrabold text-white shadow-[0_15px_28px_-14px_rgba(239,102,20,0.9)] transition hover:-translate-y-0.5 hover:bg-[#d95511]">
                   Get free quotes <ArrowRight className="h-4 w-4" />
                 </button>
-                <Link href="/cabs/list-your-cab" className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-orange-200 bg-white/80 px-5 text-sm font-extrabold text-[#d95717] transition hover:border-[#ef6614] hover:bg-orange-50">
+                <Link href="/cabs/list-your-cab" className="hidden min-h-12 items-center gap-2 rounded-xl border border-orange-200 bg-white/80 px-5 text-sm font-extrabold text-[#d95717] transition hover:border-[#ef6614] hover:bg-orange-50 sm:inline-flex">
                   <CarFront className="h-4 w-4" /> List your cab
                 </Link>
               </div>
@@ -614,14 +704,40 @@ export function CabsBookingExperience() {
             <form id="cab-booking-form" noValidate onFocus={() => trackOnce("cab_trip_form_started", "cab_trip_form_started", { ride_type: rideType })} onSubmit={submit} className="relative flex w-full flex-col rounded-3xl border border-[#eee3dc] bg-white p-4 shadow-[0_22px_55px_-28px_rgba(71,38,16,0.45)] sm:p-6 lg:p-8">
               <div className="order-0 mb-3 flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#ef6614]">Step 1 of 3 · Your route</p>
-                  <h2 className="mt-1 text-lg font-extrabold tracking-tight">Where would you like to go?</h2>
-                  <p className="mt-0.5 text-sm text-[#746a72]">Start with pickup and destination. We&apos;ll take you through the rest.</p>
+                  <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#ef6614]">
+                    {mobileStep === 0 && "Step 1 of 4 · Request"}
+                    {mobileStep === 1 && "Step 2 of 4 · When & cab"}
+                    {mobileStep >= 2 && "Step 3 of 4 · Review"}
+                    <span className="hidden md:inline"> · Request → Quotes → Book → Done</span>
+                  </p>
+                  <h2 className="mt-1 text-lg font-extrabold tracking-tight">
+                    {mobileStep === 0 && "Where would you like to go?"}
+                    {mobileStep === 1 && "When & which cab?"}
+                    {mobileStep >= 2 && "Review & get free quotes"}
+                  </h2>
+                  <p className="mt-0.5 text-sm text-[#746a72]">
+                    {mobileStep === 0 && "Start with pickup and destination. No login needed yet."}
+                    {mobileStep === 1 && "Ride type, pickup time, travellers and cab type."}
+                    {mobileStep >= 2 && "Add notes if needed, then request partner quotes."}
+                  </p>
                 </div>
                 <span className="hidden rounded-full bg-orange-50 px-2.5 py-1 text-xs font-bold text-[#d95717] sm:block">No booking fee</span>
               </div>
 
-              {routeDetailsUnlocked && <fieldset className="order-2 mt-3">
+              {/* Mobile wizard progress */}
+              <ol className="order-0 mb-3 grid grid-cols-3 gap-1.5 md:hidden" aria-label="Booking steps">
+                {["Route", "When & cab", "Quotes"].map((label, index) => {
+                  const active = mobileStep === index || (index === 2 && mobileStep >= 2);
+                  const done = mobileStep > index;
+                  return (
+                    <li key={label} className={`rounded-lg px-2 py-1.5 text-center text-[10px] font-extrabold ${done || active ? "bg-orange-50 text-[#d95717]" : "bg-slate-50 text-slate-400"}`}>
+                      {index + 1}. {label}
+                    </li>
+                  );
+                })}
+              </ol>
+
+              {routeDetailsUnlocked && <fieldset className={`order-2 mt-3 ${mobileStep !== 1 ? "hidden md:block" : ""}`}>
                 <legend className="sr-only">Ride type</legend>
                 {/* Mobile: keep all 3 ride types in one row. */}
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-3">
@@ -647,7 +763,7 @@ export function CabsBookingExperience() {
               </fieldset>}
 
               {routeDetailsUnlocked && rideType === "outstation" && (
-                <fieldset className="order-3 mt-3">
+                <fieldset className={`order-3 mt-3 ${mobileStep !== 1 ? "hidden md:block" : ""}`}>
                   <legend className="mb-1.5 text-sm font-bold text-[#403842]">Trip direction <span className="text-[#ef6614]">*</span></legend>
                   <div className="grid grid-cols-2 gap-2">
                     <label className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-bold transition ${outstationDirection === "one_way" ? "border-[#ef6614] bg-orange-50 text-[#b84710]" : "border-[#ebe5e2]"}`}>
@@ -669,7 +785,7 @@ export function CabsBookingExperience() {
                         checked={outstationDirection === "round_trip"}
                         onChange={() => {
                           setOutstationDirection("round_trip");
-                          setReturnDate((current) => current || travelDate || today());
+                          setReturnDate((current) => current || travelDate || earliestScheduleDate);
                           setSubmitted(false);
                         }}
                       />
@@ -680,7 +796,7 @@ export function CabsBookingExperience() {
                 </fieldset>
               )}
 
-              <div className="order-1 mt-3 grid gap-2.5 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
+              <div className={`order-1 mt-3 grid gap-2.5 sm:grid-cols-[1fr_auto_1fr] sm:items-end ${mobileStep > 0 ? "hidden md:grid" : ""}`}>
                 <div>
                   <label htmlFor="cab-pickup" className="mb-1 block text-sm font-bold text-[#403842]">Pickup location <span className="text-[#ef6614]">*</span></label>
                   <div className="relative">
@@ -705,32 +821,126 @@ export function CabsBookingExperience() {
                   </div>
                 </div>
               </div>
-              {(routeLoading || routeEstimate) && <div className="order-4 mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2.5"><span className="flex items-center gap-2 text-xs font-bold text-emerald-800"><MapPin className="h-4 w-4 text-emerald-600" />{routeLoading ? "Calculating driving distance…" : "Driving route ready"}</span>{routeEstimate && <strong className="text-xs text-emerald-900">{routeEstimate.distance_km.toLocaleString("en-IN", { maximumFractionDigits: 1 })} km · about {routeEstimate.duration_minutes < 60 ? `${routeEstimate.duration_minutes} min` : `${Math.floor(routeEstimate.duration_minutes / 60)}h ${routeEstimate.duration_minutes % 60 ? `${routeEstimate.duration_minutes % 60}m` : ""}`}</strong>}</div>}
+              {(routeLoading || routeEstimate) && <div className={`order-4 mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2.5 ${mobileStep > 0 ? "hidden md:flex" : ""}`}><span className="flex items-center gap-2 text-xs font-bold text-emerald-800"><MapPin className="h-4 w-4 text-emerald-600" />{routeLoading ? "Calculating driving distance…" : "Driving route ready"}</span>{routeEstimate && <strong className="text-xs text-emerald-900">{routeEstimate.distance_km.toLocaleString("en-IN", { maximumFractionDigits: 1 })} km · about {routeEstimate.duration_minutes < 60 ? `${routeEstimate.duration_minutes} min` : `${Math.floor(routeEstimate.duration_minutes / 60)}h ${routeEstimate.duration_minutes % 60 ? `${routeEstimate.duration_minutes % 60}m` : ""}`}</strong>}</div>}
 
               {routeDetailsUnlocked && <>
-              <section aria-label="Number of travellers" className="order-8 mt-3 flex items-center justify-between gap-4 rounded-xl border border-[#eee3dc] bg-[#fffaf7] px-3 py-2 sm:px-3.5">
-                <span className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#ef6614] shadow-sm"><UserRoundCheck className="h-4 w-4" /></span><span className="flex items-baseline gap-1.5"><strong className="text-sm text-[#403842]">Travellers</strong><small className="text-xs text-[#766d74]">incl. children</small></span></span>
-                <span className="flex items-center gap-1.5"><button type="button" onClick={() => setTravellers((count) => Math.max(1, count - 1))} disabled={travellers <= 1} aria-label="Remove traveller" className="grid h-8 w-8 place-items-center rounded-lg border border-[#e4dcd8] bg-white text-[#655b64] transition hover:border-orange-300 hover:text-[#ef6614] disabled:cursor-not-allowed disabled:opacity-35"><Minus className="h-3.5 w-3.5" /></button><output aria-live="polite" className="min-w-7 text-center text-sm font-extrabold text-[#302934]">{travellers}</output><button type="button" onClick={() => setTravellers((count) => Math.min(50, count + 1))} aria-label="Add traveller" className="grid h-8 w-8 place-items-center rounded-lg border border-orange-200 bg-white text-[#ef6614] transition hover:bg-orange-50"><Plus className="h-3.5 w-3.5" /></button></span>
+              <section aria-label="Number of travellers" className={`order-8 mt-3 flex items-center justify-between gap-4 rounded-xl border border-[#eee3dc] bg-[#fffaf7] px-3 py-2 sm:px-3.5 ${mobileStep !== 1 ? "hidden md:flex" : ""}`}>
+                <span className="flex items-center gap-2"><span className="grid h-10 w-10 place-items-center rounded-lg bg-white text-[#ef6614] shadow-sm"><UserRoundCheck className="h-4 w-4" /></span><span className="flex items-baseline gap-1.5"><strong className="text-sm text-[#403842]">Travellers</strong><small className="text-xs text-[#766d74]">incl. children</small></span></span>
+                <span className="flex items-center gap-1.5"><button type="button" onClick={() => setTravellers((count) => Math.max(1, count - 1))} disabled={travellers <= 1} aria-label="Remove traveller" className="grid h-11 w-11 place-items-center rounded-xl border border-[#e4dcd8] bg-white text-[#655b64] transition hover:border-orange-300 hover:text-[#ef6614] disabled:cursor-not-allowed disabled:opacity-35"><Minus className="h-4 w-4" /></button><output aria-live="polite" className="min-w-7 text-center text-sm font-extrabold text-[#302934]">{travellers}</output><button type="button" onClick={() => setTravellers((count) => Math.min(50, count + 1))} aria-label="Add traveller" className="grid h-11 w-11 place-items-center rounded-xl border border-orange-200 bg-white text-[#ef6614] transition hover:bg-orange-50"><Plus className="h-4 w-4" /></button></span>
               </section>
 
-              <fieldset className="order-5 mt-3">
+              <fieldset className={`order-8 mt-3 ${mobileStep !== 1 ? "hidden md:block" : ""}`}>
+                <legend className="text-sm font-bold text-[#403842]">
+                  Cab type you want <span className="font-normal text-[#81777f]">(optional)</span>
+                </legend>
+                <p className="mt-0.5 text-xs text-[#766d74]">Pick any that work — partners match these first.</p>
+                <div className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                  {(showAllCabTypes
+                    ? VEHICLE_CATEGORY_OPTIONS
+                    : VEHICLE_CATEGORY_OPTIONS.slice(0, INITIAL_CAB_TYPES_VISIBLE)
+                  ).map(({ value, label, image, seats }) => {
+                    const selected = preferredCategories.includes(value);
+                    return (
+                      <label
+                        key={value}
+                        className={`relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border bg-white transition ${
+                          selected
+                            ? "border-[#ef6614] ring-2 ring-orange-100"
+                            : "border-[#e8e0db] hover:border-orange-200"
+                        }`}
+                      >
+                        <input
+                          className="sr-only"
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => {
+                            setPreferredCategories((current) =>
+                              selected
+                                ? current.filter((item) => item !== value)
+                                : current.length >= 8
+                                  ? current
+                                  : [...current, value],
+                            );
+                            setSubmitted(false);
+                          }}
+                        />
+                        <span className="relative mx-auto mt-2 flex h-16 w-full items-center justify-center px-2 sm:h-20">
+                          <Image
+                            src={image}
+                            alt={label}
+                            width={160}
+                            height={90}
+                            className="h-full w-auto max-w-full object-contain"
+                            unoptimized
+                          />
+                          {selected && (
+                            <span className="absolute right-1 top-0 grid h-5 w-5 place-items-center rounded-full bg-[#ef6614] text-white shadow-sm">
+                              <Check className="h-3 w-3" strokeWidth={3} />
+                            </span>
+                          )}
+                        </span>
+                        <span className={`border-t px-2 py-2 text-center ${selected ? "border-orange-100 bg-orange-50/70" : "border-[#f3eeea]"}`}>
+                          <strong className={`block text-[12px] font-extrabold sm:text-sm ${selected ? "text-[#b84710]" : "text-[#403842]"}`}>
+                            {label}
+                          </strong>
+                          <small className="mt-0.5 block text-[10px] font-medium text-[#81777f]">{seats}</small>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {VEHICLE_CATEGORY_OPTIONS.length > INITIAL_CAB_TYPES_VISIBLE && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllCabTypes((open) => !open)}
+                    className="mt-2.5 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-orange-200 bg-orange-50/40 text-sm font-extrabold text-[#d95717] transition hover:bg-orange-50 sm:w-auto sm:px-4"
+                  >
+                    {showAllCabTypes
+                      ? "Show less"
+                      : `Show more types (+${VEHICLE_CATEGORY_OPTIONS.length - INITIAL_CAB_TYPES_VISIBLE})`}
+                    <ChevronRight className={`h-4 w-4 transition ${showAllCabTypes ? "-rotate-90" : "rotate-90"}`} />
+                  </button>
+                )}
+                {preferredCategories.length > 0 && (
+                  <p className="mt-2 text-[11px] font-semibold text-[#d95717]">
+                    {preferredCategories.length} selected · leave empty for any cab type
+                  </p>
+                )}
+              </fieldset>
+
+              <fieldset className={`order-5 mt-3 ${mobileStep !== 1 ? "hidden md:block" : ""}`}>
                 <legend className="mb-1.5 text-sm font-bold text-[#403842]">Pickup time <span className="text-[#ef6614]">*</span></legend>
                 <div className="grid grid-cols-2 gap-2">
-                  <label className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-bold transition ${scheduleMode === "now" ? "border-[#ef6614] bg-orange-50 text-[#b84710]" : "border-[#ebe5e2]"}`}><input className="sr-only" type="radio" name="schedule" checked={scheduleMode === "now"} onChange={() => { setScheduleMode("now"); setSubmitted(false); }} />Pickup now <span className="mt-0.5 block text-xs font-normal text-[#766d74]">Earliest available cab</span></label>
-                  <label className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-bold transition ${scheduleMode === "schedule" ? "border-[#ef6614] bg-orange-50 text-[#b84710]" : "border-[#ebe5e2]"}`}><input className="sr-only" type="radio" name="schedule" checked={scheduleMode === "schedule"} onChange={() => { setScheduleMode("schedule"); setSubmitted(false); }} />Schedule ride <span className="mt-0.5 block text-xs font-normal text-[#766d74]">Choose date &amp; time</span></label>
+                  <label className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-bold transition ${scheduleMode === "now" ? "border-[#ef6614] bg-orange-50 text-[#b84710]" : "border-[#ebe5e2]"}`}><input className="sr-only" type="radio" name="schedule" checked={scheduleMode === "now"} onChange={() => { setScheduleMode("now"); setSubmitted(false); }} />ASAP (~20 min) <span className="mt-0.5 block text-xs font-normal text-[#766d74]">Soonest partner pickup</span></label>
+                  <label className={`cursor-pointer rounded-xl border px-3 py-2 text-sm font-bold transition ${scheduleMode === "schedule" ? "border-[#ef6614] bg-orange-50 text-[#b84710]" : "border-[#ebe5e2]"}`}><input className="sr-only" type="radio" name="schedule" checked={scheduleMode === "schedule"} onChange={() => {
+                    setScheduleMode("schedule");
+                    const slot = earliestScheduleSlot();
+                    setTravelDate((current) => (!current || current < slot.date ? slot.date : current));
+                    setTravelTime((current) => {
+                      const date = !travelDate || travelDate < slot.date ? slot.date : travelDate;
+                      if (date === slot.date && (!current || current < slot.time)) return slot.time;
+                      return current || slot.time;
+                    });
+                    setSubmitted(false);
+                  }} />Schedule ride <span className="mt-0.5 block text-xs font-normal text-[#766d74]">From 30 min ahead</span></label>
                 </div>
               </fieldset>
 
-              {scheduleMode === "schedule" && <section aria-label="Schedule your pickup" className="order-6 mt-2 rounded-xl border border-orange-100 bg-orange-50/40 p-2.5">
+              {scheduleMode === "schedule" && <section aria-label="Schedule your pickup" className={`order-6 mt-2 overflow-visible rounded-xl border border-orange-100 bg-orange-50/40 p-2.5 ${mobileStep !== 1 ? "hidden md:block" : ""}`}>
                 <div className="grid gap-2 sm:grid-cols-[auto_1fr_1fr] sm:items-end">
-                  <div className="flex items-center gap-2 pb-0.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#ef6614] shadow-sm"><CalendarDays className="h-4 w-4" /></span><div><h3 className="text-sm font-extrabold text-[#403842]">Schedule pickup</h3><p className="hidden text-[11px] text-[#766d74] sm:block">Choose when to leave</p></div></div>
-                  <div className="relative"><label id="cab-date-label" className="mb-1 block text-xs font-bold text-[#514953]">Date <span className="text-[#ef6614]">*</span></label><button type="button" aria-labelledby="cab-date-label" aria-haspopup="dialog" aria-expanded={calendarOpen} onClick={() => { setCalendarOpen((open) => !open); setReturnCalendarOpen(false); }} className="flex h-10 w-full items-center justify-between rounded-lg border border-[#ddd5d1] bg-white px-3 text-left text-sm font-semibold text-[#403842] outline-none transition hover:border-orange-300 focus:border-[#ef6614] focus:ring-4 focus:ring-orange-100"><span className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-[#ef6614]" />{displayDate(travelDate)}</span><ChevronRight className={`h-4 w-4 text-[#766d74] transition ${calendarOpen ? "rotate-90" : ""}`} /></button>{calendarOpen && <div role="dialog" aria-label="Choose pickup date" className="absolute bottom-[calc(100%+8px)] left-0 z-30 w-[290px] rounded-2xl border border-[#eaded6] bg-white p-3 shadow-[0_20px_45px_-20px_rgba(64,34,19,0.45)]"><DayPicker mode="single" animate selected={parseDateValue(travelDate)} disabled={{ before: parseDateValue(today()) }} onSelect={(date) => { if (date) { const next = toDateValue(date); setTravelDate(next); if (returnDate && returnDate < next) setReturnDate(next); setCalendarOpen(false); setSubmitted(false); } }} classNames={{ root: "relative", months: "flex", month: "space-y-3", month_caption: "flex h-8 items-center justify-center", caption_label: "text-sm font-extrabold text-[#302934]", nav: "absolute inset-x-0 top-0 flex items-center justify-between", button_previous: "grid h-8 w-8 place-items-center rounded-lg text-[#665d65] transition hover:bg-orange-50", button_next: "grid h-8 w-8 place-items-center rounded-lg text-[#665d65] transition hover:bg-orange-50", chevron: "h-4 w-4", month_grid: "w-full border-collapse", weekdays: "border-b border-orange-50", weekday: "h-8 text-center text-[10px] font-bold text-[#a0969e]", week: "h-9", day: "h-9 w-9 p-0 text-center", day_button: "grid h-9 w-9 place-items-center rounded-lg text-sm font-semibold text-[#514953] transition hover:bg-orange-50", selected: "[&>button]:bg-[#ef6614] [&>button]:text-white [&>button]:shadow-sm [&>button]:hover:bg-[#d95511]", today: "[&>button]:font-black [&>button]:text-[#d95717]", disabled: "[&>button]:cursor-not-allowed [&>button]:text-[#d8d1d4] [&>button]:hover:bg-transparent", outside: "[&>button]:text-[#c9c2c6]" }} /></div>}</div>
-                  <div><label htmlFor="cab-time" className="mb-1 block text-xs font-bold text-[#514953]">Time <span className="text-[#ef6614]">*</span></label><div className="relative min-w-0"><Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#ef6614]" /><input id="cab-time" type="time" value={travelTime} onChange={(event) => { setTravelTime(event.target.value); setSubmitted(false); }} className="h-10 min-w-0 w-full max-w-full overflow-hidden rounded-lg border border-[#ddd5d1] bg-white pl-9 pr-3 text-left text-sm font-semibold text-[#403842] outline-none focus:border-[#ef6614] focus:ring-4 focus:ring-orange-100 [&::-webkit-date-and-time-value]:min-w-0 [&::-webkit-datetime-edit-fields-wrapper]:min-w-0 [&::-webkit-datetime-edit]:min-w-0" /></div></div>
+                  <div className="flex items-center gap-2 pb-0.5"><span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#ef6614] shadow-sm"><CalendarDays className="h-4 w-4" /></span><div><h3 className="text-sm font-extrabold text-[#403842]">Schedule pickup</h3><p className="text-[11px] text-[#766d74]">From 30 minutes ahead</p></div></div>
+                  <div className="relative"><label id="cab-date-label" className="mb-1 block text-xs font-bold text-[#514953]">Date <span className="text-[#ef6614]">*</span></label><button type="button" aria-labelledby="cab-date-label" aria-haspopup="dialog" aria-expanded={calendarOpen} onClick={() => { setCalendarOpen((open) => !open); setReturnCalendarOpen(false); }} className="flex h-11 w-full items-center justify-between rounded-lg border border-[#ddd5d1] bg-white px-3 text-left text-sm font-semibold text-[#403842] outline-none transition hover:border-orange-300 focus:border-[#ef6614] focus:ring-4 focus:ring-orange-100"><span className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-[#ef6614]" />{displayDate(travelDate)}</span><ChevronRight className={`h-4 w-4 text-[#766d74] transition ${calendarOpen ? "rotate-90" : ""}`} /></button>{calendarOpen && <div role="dialog" aria-label="Choose pickup date" className={CAB_DATE_POPOVER_CLASS}><DayPicker mode="single" animate selected={parseDateValue(travelDate || earliestScheduleDate)} disabled={{ before: parseDateValue(earliestScheduleDate) }} onSelect={(date) => { if (date) { const next = toDateValue(date); setTravelDate(next); if (next === earliestScheduleDate) { setTravelTime((current) => (!current || current < earliestScheduleTimeOnMinDay ? earliestScheduleTimeOnMinDay : current)); } if (returnDate && returnDate < next) setReturnDate(next); setCalendarOpen(false); setSubmitted(false); } }} classNames={CAB_DAY_PICKER_CLASSNAMES} /></div>}</div>
+                  <div><label htmlFor="cab-time" className="mb-1 block text-xs font-bold text-[#514953]">Time <span className="text-[#ef6614]">*</span></label><div className="relative min-w-0"><Clock3 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#ef6614]" /><input id="cab-time" type="time" value={travelTime} min={travelDate === earliestScheduleDate ? earliestScheduleTimeOnMinDay : undefined} onChange={(event) => { const next = event.target.value; if (travelDate === earliestScheduleDate && next < earliestScheduleTimeOnMinDay) { setTravelTime(earliestScheduleTimeOnMinDay); setError("Pickup must be at least 30 minutes from now."); } else { setTravelTime(next); setError(""); } setSubmitted(false); }} className="h-11 min-w-0 w-full max-w-full overflow-hidden rounded-lg border border-[#ddd5d1] bg-white pl-9 pr-3 text-left text-sm font-semibold text-[#403842] outline-none focus:border-[#ef6614] focus:ring-4 focus:ring-orange-100 [&::-webkit-date-and-time-value]:min-w-0 [&::-webkit-datetime-edit-fields-wrapper]:min-w-0 [&::-webkit-datetime-edit]:min-w-0" /></div></div>
                 </div>
+                {!scheduleIsValid && (
+                  <p role="status" className="mt-2 text-xs font-medium text-amber-800">
+                    Pickup must be at least 30 minutes from now (earliest: {displayDate(earliestScheduleDate)} at {earliestScheduleTimeOnMinDay}).
+                  </p>
+                )}
               </section>}
 
               {isRoundTrip && (
-                <section aria-label="Schedule your return" className="order-7 mt-2 rounded-xl border border-orange-100 bg-orange-50/40 p-2.5">
+                <section aria-label="Schedule your return" className={`order-7 mt-2 overflow-visible rounded-xl border border-orange-100 bg-orange-50/40 p-2.5 ${mobileStep !== 1 ? "hidden md:block" : ""}`}>
                   <div className="grid gap-2 sm:grid-cols-[auto_1fr_1fr] sm:items-end">
                     <div className="flex items-center gap-2 pb-0.5">
                       <span className="grid h-8 w-8 place-items-center rounded-lg bg-white text-[#ef6614] shadow-sm">
@@ -763,13 +973,13 @@ export function CabsBookingExperience() {
                         <div
                           role="dialog"
                           aria-label="Choose return date"
-                          className="absolute bottom-[calc(100%+8px)] left-0 z-30 w-[290px] rounded-2xl border border-[#eaded6] bg-white p-3 shadow-[0_20px_45px_-20px_rgba(64,34,19,0.45)]"
+                          className={CAB_DATE_POPOVER_CLASS}
                         >
                           <DayPicker
                             mode="single"
                             animate
-                            selected={parseDateValue(returnDate || travelDate || today())}
-                            disabled={{ before: parseDateValue(travelDate || today()) }}
+                            selected={parseDateValue(returnDate || travelDate || earliestScheduleDate)}
+                            disabled={{ before: parseDateValue(travelDate || earliestScheduleDate) }}
                             onSelect={(date) => {
                               if (date) {
                                 setReturnDate(toDateValue(date));
@@ -777,27 +987,7 @@ export function CabsBookingExperience() {
                                 setSubmitted(false);
                               }
                             }}
-                            classNames={{
-                              root: "relative",
-                              months: "flex",
-                              month: "space-y-3",
-                              month_caption: "flex h-8 items-center justify-center",
-                              caption_label: "text-sm font-extrabold text-[#302934]",
-                              nav: "absolute inset-x-0 top-0 flex items-center justify-between",
-                              button_previous: "grid h-8 w-8 place-items-center rounded-lg text-[#665d65] transition hover:bg-orange-50",
-                              button_next: "grid h-8 w-8 place-items-center rounded-lg text-[#665d65] transition hover:bg-orange-50",
-                              chevron: "h-4 w-4",
-                              month_grid: "w-full border-collapse",
-                              weekdays: "border-b border-orange-50",
-                              weekday: "h-8 text-center text-[10px] font-bold text-[#a0969e]",
-                              week: "h-9",
-                              day: "h-9 w-9 p-0 text-center",
-                              day_button: "grid h-9 w-9 place-items-center rounded-lg text-sm font-semibold text-[#514953] transition hover:bg-orange-50",
-                              selected: "[&>button]:bg-[#ef6614] [&>button]:text-white [&>button]:shadow-sm [&>button]:hover:bg-[#d95511]",
-                              today: "[&>button]:font-black [&>button]:text-[#d95717]",
-                              disabled: "[&>button]:cursor-not-allowed [&>button]:text-[#d8d1d4] [&>button]:hover:bg-transparent",
-                              outside: "[&>button]:text-[#c9c2c6]",
-                            }}
+                            classNames={CAB_DAY_PICKER_CLASSNAMES}
                           />
                         </div>
                       )}
@@ -826,50 +1016,24 @@ export function CabsBookingExperience() {
                 </section>
               )}
 
-              <details className="order-9 mt-2 rounded-xl bg-[#fffaf7] px-3 py-2">
+              <details className={`order-9 mt-2 rounded-xl bg-[#fffaf7] px-3 py-2 ${mobileStep < 2 ? "hidden md:block" : ""}`} open={mobileStep >= 2 || undefined}>
                 <summary className="cursor-pointer text-sm font-bold text-[#534a53]">
-                  Add preferences <span className="font-normal text-[#81777f]">(optional)</span>
+                  Special requirements <span className="font-normal text-[#81777f]">(optional)</span>
                 </summary>
 
-                <fieldset className="mt-3">
-                  <legend className="text-sm font-bold text-[#403842]">Preferred vehicle types</legend>
-                  <p className="mt-0.5 text-xs text-[#766d74]">Select any that work for you — partners will match these first.</p>
-                  <div className="mt-2.5 flex flex-wrap gap-2">
-                    {VEHICLE_CATEGORY_OPTIONS.map(({ value, label }) => {
-                      const selected = preferredCategories.includes(value);
-                      return (
-                        <label
-                          key={value}
-                          className={`cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                            selected
-                              ? "border-[#ef6614] bg-orange-50 text-[#b84710]"
-                              : "border-[#e4dbd5] bg-white text-[#514953] hover:border-orange-200"
-                          }`}
-                        >
-                          <input
-                            className="sr-only"
-                            type="checkbox"
-                            checked={selected}
-                            onChange={() => {
-                              setPreferredCategories((current) =>
-                                selected
-                                  ? current.filter((item) => item !== value)
-                                  : current.length >= 8
-                                    ? current
-                                    : [...current, value],
-                              );
-                              setSubmitted(false);
-                            }}
-                          />
-                          {label}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </fieldset>
+                {preferredCategories.length > 0 && (
+                  <p className="mt-3 text-xs font-semibold text-[#514953]">
+                    Cab types:{" "}
+                    <span className="text-[#d95717]">
+                      {preferredCategories
+                        .map((value) => VEHICLE_CATEGORY_OPTIONS.find((opt) => opt.value === value)?.label || value)
+                        .join(", ")}
+                    </span>
+                  </p>
+                )}
 
                 <label htmlFor="cab-requirements" className="mt-3 block text-sm font-bold text-[#403842]">
-                  Special requirements
+                  Notes for partners
                 </label>
                 <textarea
                   id="cab-requirements"
@@ -880,24 +1044,94 @@ export function CabsBookingExperience() {
                   className="mt-1.5 w-full resize-y rounded-xl border border-[#ddd5d1] bg-white px-3 py-2.5 text-base outline-none placeholder:text-[#9a9198] focus:border-[#ef6614] focus:ring-4 focus:ring-orange-100"
                 />
               </details>
+
+              {mobileStep >= 2 && (
+                <label className="order-9 mt-3 flex items-start gap-3 rounded-xl border border-orange-100 bg-orange-50/50 px-3 py-3 text-sm md:hidden">
+                  <input
+                    type="checkbox"
+                    checked={notifyWhatsApp}
+                    onChange={(e) => setNotifyWhatsApp(e.target.checked)}
+                    className="mt-0.5 h-5 w-5 accent-[#ef6614]"
+                  />
+                  <span>
+                    <strong className="block font-extrabold text-[#403842]">Notify me on WhatsApp</strong>
+                    <span className="mt-0.5 block text-xs text-[#746a73]">We’ll message you when the first partner quote arrives. You can leave this page.</span>
+                  </span>
+                </label>
+              )}
+              <label className={`order-9 mt-3 hidden items-start gap-3 rounded-xl border border-orange-100 bg-orange-50/50 px-3 py-3 text-sm md:flex ${!routeDetailsUnlocked ? "md:hidden" : ""}`}>
+                <input
+                  type="checkbox"
+                  checked={notifyWhatsApp}
+                  onChange={(e) => setNotifyWhatsApp(e.target.checked)}
+                  className="mt-0.5 h-5 w-5 accent-[#ef6614]"
+                />
+                <span>
+                  <strong className="block font-extrabold text-[#403842]">Notify me on WhatsApp when quotes arrive</strong>
+                  <span className="mt-0.5 block text-xs text-[#746a73]">We’ll keep matching partners even if you leave this page. Check My quotes anytime.</span>
+                </span>
+              </label>
               </>}
 
               {locationError && <p role="status" className="order-10 mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm font-medium text-amber-800">{locationError}</p>}
               {error && <p role="alert" className="order-11 mt-3 rounded-lg bg-red-50 px-3 py-2.5 text-sm font-medium text-red-700">{error}</p>}
-              {!routeReady ? (
-                <button type="submit" disabled className="order-12 mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-5 text-base font-extrabold text-white shadow-[0_12px_22px_-12px_rgba(239,102,20,0.9)] disabled:cursor-not-allowed disabled:opacity-45">
-                  Choose pickup and destination <ArrowRight className="h-5 w-5" />
-                </button>
-              ) : !routeDetailsUnlocked ? (
-                <button type="button" onClick={() => { setAuthModalIntent("quotes"); setAuthModalOpen(true); }} className="order-12 mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-5 text-base font-extrabold text-white shadow-[0_12px_22px_-12px_rgba(239,102,20,0.9)] transition hover:bg-[#d95511] focus:outline-none focus:ring-4 focus:ring-orange-200">
-                  Sign in to add trip details <ArrowRight className="h-5 w-5" />
-                </button>
-              ) : (
-                <button type="submit" disabled={postingRequest || !canSubmit} className="order-12 mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-5 text-base font-extrabold text-white shadow-[0_12px_22px_-12px_rgba(239,102,20,0.9)] transition hover:bg-[#d95511] focus:outline-none focus:ring-4 focus:ring-orange-200 disabled:cursor-not-allowed disabled:opacity-45">
-                  {postingRequest ? "Posting your request…" : "Get free quotes"} <ArrowRight className="h-5 w-5" />
-                </button>
-              )}
-              <p className="order-[13] mt-1.5 text-center text-xs leading-4 text-[#7c727a]">Free request · No booking until you choose a quote.</p>
+
+              {/* Desktop / in-form CTAs */}
+              <div className="order-12 mt-3 hidden md:block">
+                {!routeReady ? (
+                  <button type="submit" disabled className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-5 text-base font-extrabold text-white shadow-[0_12px_22px_-12px_rgba(239,102,20,0.9)] disabled:cursor-not-allowed disabled:opacity-45">
+                    Choose pickup and destination <ArrowRight className="h-5 w-5" />
+                  </button>
+                ) : (
+                  <button type="submit" disabled={postingRequest || !canSubmit} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-5 text-base font-extrabold text-white shadow-[0_12px_22px_-12px_rgba(239,102,20,0.9)] transition hover:bg-[#d95511] focus:outline-none focus:ring-4 focus:ring-orange-200 disabled:cursor-not-allowed disabled:opacity-45">
+                    {postingRequest ? "Posting your request…" : "Get free quotes"} <ArrowRight className="h-5 w-5" />
+                  </button>
+                )}
+                <p className="mt-1.5 text-center text-xs leading-4 text-[#7c727a]">Free request · No booking until you choose a quote · Sign in only when you submit</p>
+              </div>
+
+              {/* Mobile wizard CTAs — inside the form card only */}
+              <div className="order-12 mt-3 flex gap-2 md:hidden">
+                {mobileStep > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setMobileStep((step) => Math.max(0, step - 1))}
+                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#e4dbd5] px-4 text-sm font-extrabold text-[#514953]"
+                  >
+                    Back
+                  </button>
+                )}
+                {mobileStep === 0 && (
+                  <button
+                    type="button"
+                    disabled={!routeReady}
+                    onClick={() => setMobileStep(1)}
+                    className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-5 text-base font-extrabold text-white disabled:opacity-45"
+                  >
+                    Next · When <ArrowRight className="h-5 w-5" />
+                  </button>
+                )}
+                {mobileStep === 1 && (
+                  <button
+                    type="button"
+                    disabled={!(scheduleMode === "now" || (travelDate && travelTime)) || (isRoundTrip && !returnIsValid)}
+                    onClick={() => setMobileStep(2)}
+                    className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-5 text-base font-extrabold text-white disabled:opacity-45"
+                  >
+                    Next · Review <ArrowRight className="h-5 w-5" />
+                  </button>
+                )}
+                {mobileStep >= 2 && (
+                  <button
+                    type="submit"
+                    disabled={postingRequest || !canSubmit}
+                    className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#ef6614] px-5 text-base font-extrabold text-white disabled:opacity-45"
+                  >
+                    {postingRequest ? "Posting…" : "Get free quotes"} <ArrowRight className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+              <p className="order-[13] mt-1.5 text-center text-xs leading-4 text-[#7c727a] md:hidden">Free request · Nothing booked until you choose a quote.</p>
             </form>
           </div>
         </section>
