@@ -4,7 +4,7 @@ import { ChevronRight, Star } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import type { TourPackage } from "@/lib/constants";
 import { PackageFilterSidebar } from "@/components/packages/package-filter-sidebar";
-import { PackageListingWithSearch } from "@/components/packages/package-listing-with-search";
+import { PackageDiscovery } from "@/components/packages/discovery";
 import { PackageSortSelect } from "@/components/packages/package-sort-select";
 import { PackageLeadForm } from "@/components/packages/package-lead-form";
 import { DestinationEaseHero } from "@/components/destinations/destination-ease-hero";
@@ -131,6 +131,8 @@ export function PackageListingView({
         <HeroGlassNavbar activeId="holidays" combinedAuth />
       </div>
       <TravelMobileTopShell activeId="holidays" showGreeting={false} />
+      {/* The USP trust strip now lives INSIDE this hero, directly under the
+          search card — see destination-ease-hero.tsx. */}
       {easeHero ? <DestinationEaseHero {...easeHero} /> : null}
       <div className="min-h-screen bg-[#f4f6f8]">
         {/* Centered column + viewport gutters once (avoid edge-to-edge + avoid double padding) */}
@@ -215,7 +217,7 @@ export function PackageListingView({
                   </p>
                 ) : count > 0 ? (
                   <p className="text-xs text-slate-600 sm:text-sm">
-                    {count} package{count === 1 ? "" : "s"} — 5 per page with
+                    {count} package{count === 1 ? "" : "s"} — 9 per page with
                     pagination below
                   </p>
                 ) : null}
@@ -233,7 +235,7 @@ export function PackageListingView({
                 {packages.length === 0 && emptyListing ? (
                   emptyListing
                 ) : (
-                  <PackageListingWithSearch tours={ordered} />
+                  <PackageDiscovery tours={ordered} />
                 )}
               </div>
             </div>

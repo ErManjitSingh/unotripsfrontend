@@ -197,7 +197,7 @@ export async function DestinationPageContent({ params, destination: destinationP
       countHeading={`${destinationMatches.length} ${resolvedDestination.name} Holiday ${destinationMatches.length === 1 ? "Package" : "Packages"}`}
       showingRangeText={
         destinationMatches.length > 0
-          ? `${destinationMatches.length} package${destinationMatches.length === 1 ? "" : "s"} — 5 per page with pagination below`
+          ? `${destinationMatches.length} package${destinationMatches.length === 1 ? "" : "s"} — 9 per page with pagination below`
           : null
       }
       footerNote=""

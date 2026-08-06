@@ -29,6 +29,11 @@ import { DatePickerPopover } from "@/components/hotels/hotel-date-range-picker";
 import { TravellerSelector } from "@/components/packages/traveller-selector";
 import { travellerSummary, type TravellerRoom } from "@/lib/rooms-utils";
 import { staySelectionIndex, type DestinationHotels } from "@/lib/package-customizer-data";
+import {
+  PackageOffers,
+  PackagePriceSummary,
+} from "@/components/packages/pricing";
+import AffordabilityWidget from "@/components/payments/AffordabilityWidget";
 
 type AnyRecord = Record<string, any>;
 
@@ -64,7 +69,7 @@ type Props = {
   /** Add-ons total. */
   addonsTotal?: number;
   /** GST result from the fulfillment pipeline. */
-  gstResult?: { total_gst: number; gst_label: string } | null;
+  gstResult?: { total_gst: number; gst_label: string; gst_rate?: number } | null;
   onBook: () => void;
   onViewBrochure: () => void;
   /** From origin/main: opens the enquiry flow via the secondary CTA. */
@@ -164,8 +169,6 @@ export function GlacialStylePackageDetail({
   images,
   roomsLabel,
   total,
-  tokenType,
-  tokenAmount,
   loadingJourney = false,
   initialDate,
   hotelGroups,
@@ -250,8 +253,9 @@ export function GlacialStylePackageDetail({
   // selections. Do not divide it back into a per-person number when rendering:
   // that hid every traveller-count price change from the customer.
   const totalPrice = Math.max(0, Math.round(total >= 1000 ? total : (tour.priceINR >= 1000 ? tour.priceINR : 0)));
-  const bookingAmount = tokenType === "percent" ? (totalPrice * tokenAmount) / 100 : tokenAmount;
-  const hasBookingAmount = Number.isFinite(bookingAmount) && bookingAmount >= 1 && bookingAmount < totalPrice;
+  // bookingAmount / hasBookingAmount removed with the "Customize your trip"
+  // block — the "Book with just ₹X" strip inside it was their only consumer.
+  // tokenType / tokenAmount stay on Props so the parent needs no change.
   const notices = [
     "Lowest price today",
     "Limited seats available!",
@@ -1057,94 +1061,86 @@ export function GlacialStylePackageDetail({
                 </span>
               </div>
 
-              {/* Price breakdown */}
+              {/* ── Package price ─────────────────────────────────────────
+                  Hierarchy: headline total → line items → EMI & Offers slot.
+                  Figures are unchanged; only the structure was extracted into
+                  the reusable pricing kit. */}
               <div className="mt-3 rounded-xl border border-orange-100 bg-gradient-to-b from-orange-50/80 to-white p-4">
-                {priceLoading && !hasPrice ? (
+                {hasPrice ? (
                   <>
-                    <p className="text-[11px] font-semibold text-[#667085]">Starts from</p>
-                    <p className="mt-1 text-[1.85rem] font-extrabold leading-none tracking-tight text-[#FF5A00]">
-                      ₹{formatMoney(Math.round(tour.priceINR / 2))}<span className="ml-1 text-sm font-bold text-[#667085]">/Person</span>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[#667085]">
+                      Package price
                     </p>
-                    <p className="mt-1.5 text-xs text-[#667085]">
-                      Total Price ₹{formatMoney(tour.priceINR)}
+                    <p className="mt-0.5 text-[2rem] font-extrabold leading-none tracking-tight text-[#FF5A00]">
+                      ₹{formatMoney(totalPrice)}
                     </p>
-                    <div className="mt-3 h-px bg-[#f0f2f5]" />
-                    <div className="mt-2 h-4 w-32 animate-pulse rounded bg-[#eee]" />
-                  </>
-                ) : hasPrice ? (
-                  <>
-                    <div className="space-y-1.5 text-[12px]">
-                      <div className="flex justify-between text-[#667085]">
-                        <div>
-                          <span>Base package</span>
-                          {guestCount > 0 && (
-                            <span className="block text-[10px] text-[#8b8fa3]">
-                              ₹{formatMoney(Math.round(basePackagePrice / guestCount))} × {guestCount} {guestCount === 1 ? "guest" : "guests"}
-                            </span>
-                          )}
-                        </div>
-                        <span className="font-medium text-[#344054]">₹{formatMoney(basePackagePrice)}</span>
-                      </div>
-                      {hotelUpgrade > 0 && (
-                        <div className="flex justify-between text-[#667085]">
-                          <span>Hotel upgrade</span>
-                          <span className="font-medium text-[#344054]">+₹{formatMoney(hotelUpgrade)}</span>
-                        </div>
-                      )}
-                      {volvoBusCost > 0 && (
-                        <div className="flex justify-between text-[#667085]">
-                          <div>
-                            <span>Volvo bus (return ticket)</span>
-                          </div>
-                          <span className="font-medium text-[#344054]">+₹{formatMoney(volvoBusCost)}</span>
-                        </div>
-                      )}
-                      {cabUpgrade > 0 && (
-                        <div className="flex justify-between text-[#667085]">
-                          <span>Vehicle upgrade</span>
-                          <span className="font-medium text-[#344054]">+₹{formatMoney(cabUpgrade)}</span>
-                        </div>
-                      )}
-                      {activitiesTotal > 0 && (
-                        <div className="flex justify-between text-[#667085]">
-                          <span>Activities</span>
-                          <span className="font-medium text-[#344054]">+₹{formatMoney(activitiesTotal)}</span>
-                        </div>
-                      )}
-                      {addonsTotal > 0 && (
-                        <div className="flex justify-between text-[#667085]">
-                          <span>Add-ons</span>
-                          <span className="font-medium text-[#344054]">+₹{formatMoney(addonsTotal)}</span>
-                        </div>
-                      )}
-                      {gstResult && gstResult.total_gst > 0 && (
-                        <div className="flex justify-between text-[#667085]">
-                          <div>
-                            <span>Fees &amp; Taxes</span>
-                            <span className="block text-[10px] text-[#8b8fa3]">GST 5%</span>
-                          </div>
-                          <span className="font-medium text-[#344054]">+₹{formatMoney(gstResult.total_gst)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between border-t border-dashed border-[#e0e0e0] pt-2 text-[13px] font-bold text-[#1a1a2e]">
-                        <span>Total</span>
-                        <span className="text-[#FF5A00]">₹{formatMoney(totalPrice)}</span>
-                      </div>
-                      {guestCount > 0 && (
-                        <p className="text-right text-[10px] text-[#667085]">
+                    <p className="mt-1.5 text-[11px] text-[#667085]">
+                      {guestCount > 0 ? (
+                        <>
                           <span className="font-bold text-[#344054]">
                             ₹{formatMoney(Math.round(totalPrice / guestCount))}
                           </span>{" "}
                           per person · {travellerLabel}
-                        </p>
+                        </>
+                      ) : (
+                        travellerLabel
                       )}
+                    </p>
+
+                    <div className="mt-3 border-t border-dashed border-[#e0e0e0] pt-3">
+                      <PackagePriceSummary
+                        basePriceInr={basePackagePrice}
+                        basePriceNote={
+                          guestCount > 0
+                            ? `₹${formatMoney(Math.round(basePackagePrice / guestCount))} × ${guestCount} ${guestCount === 1 ? "guest" : "guests"}`
+                            : undefined
+                        }
+                        lines={[
+                          { label: "Hotel upgrade", amountInr: hotelUpgrade },
+                          { label: "Volvo bus (return ticket)", amountInr: volvoBusCost },
+                          { label: "Vehicle upgrade", amountInr: cabUpgrade },
+                          { label: "Activities", amountInr: activitiesTotal },
+                          { label: "Add-ons", amountInr: addonsTotal },
+                        ]}
+                        taxInr={gstResult?.total_gst ?? 0}
+                        taxRate={gstResult?.gst_rate ?? undefined}
+                        totalInr={totalPrice}
+                        // The headline above already shows this exact total and
+                        // its per-person split — repeating it here flattened
+                        // the hierarchy, so the panel stays a pure breakdown.
+                        showTotal={false}
+                      />
+                    </div>
+                  </>
+                ) : priceLoading ? (
+                  <>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[#667085]">
+                      Starts from
+                    </p>
+                    <p className="mt-0.5 text-[2rem] font-extrabold leading-none tracking-tight text-[#FF5A00]">
+                      ₹{formatMoney(Math.round(tour.priceINR / 2))}
+                      <span className="ml-1 text-sm font-bold text-[#667085]">/Person</span>
+                    </p>
+                    <p className="mt-1.5 text-xs text-[#667085]">
+                      Total Price ₹{formatMoney(tour.priceINR)}
+                    </p>
+                    <div className="mt-3 border-t border-dashed border-[#e0e0e0] pt-3">
+                      <PackagePriceSummary
+                        basePriceInr={0}
+                        totalInr={0}
+                        showTotal={false}
+                        loading
+                      />
                     </div>
                   </>
                 ) : (
                   <>
-                    <p className="text-[11px] font-semibold text-[#667085]">Starts from</p>
-                    <p className="mt-1 text-[1.85rem] font-extrabold leading-none tracking-tight text-[#FF5A00]">
-                      ₹{formatMoney(Math.round(tour.priceINR / 2))}<span className="ml-1 text-sm font-bold text-[#667085]">/Person</span>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-[#667085]">
+                      Starts from
+                    </p>
+                    <p className="mt-0.5 text-[2rem] font-extrabold leading-none tracking-tight text-[#FF5A00]">
+                      ₹{formatMoney(Math.round(tour.priceINR / 2))}
+                      <span className="ml-1 text-sm font-bold text-[#667085]">/Person</span>
                     </p>
                     <p className="mt-1.5 text-xs text-[#667085]">
                       Total Price ₹{formatMoney(tour.priceINR)}
@@ -1152,6 +1148,28 @@ export function GlacialStylePackageDetail({
                   </>
                 )}
               </div>
+
+              {/* ── EMI & Offers ───────────────────────────────────────────
+                  Razorpay Affordability Widget. Every plan, tenure, bank and
+                  rate shown here is fetched by the SDK from Razorpay against
+                  the amount below — we compute nothing.
+
+                  Amount is the full package price: the detail page advertises
+                  the trip, and the pay-now split (full vs token) is chosen on
+                  the checkout step, where the summary renders its own slot. */}
+              {/* enabled={hasPrice}: `totalPrice` falls back to the listing
+                  `tour.priceINR` (a PRE-GST estimate) until the first
+                  /fulfillment-price response lands. Gating on hasPrice keeps
+                  the widget from ever quoting plans against that estimate —
+                  it stays unmounted until the payable amount is real. */}
+              <AffordabilityWidget
+                className="mt-3"
+                amountInr={totalPrice}
+                enabled={hasPrice && totalPrice > 0}
+                title="Choose your payment plan"
+                subtitle="Flexible EMI options to suit your budget"
+              />
+              <PackageOffers className="mt-2" />
 
               <div className="flex items-center gap-2 border-b border-[#F2F4F7] py-3">
                 <div className="flex w-[42%] shrink-0 items-center gap-2">
@@ -1184,52 +1202,9 @@ export function GlacialStylePackageDetail({
                   </span>
                 </div>
               </div>
-              <div className="mt-3 rounded-2xl border border-[#E4E7EC] p-3">
-                <h3 className="text-sm font-bold text-[#344054]">
-                  Customize your trip
-                </h3>
-                <p className="mt-1 text-xs text-[#667085]">
-                  Change travel date &amp; travellers as per your comfort
-                </p>
-                <div className="mt-3">
-                  <div className="relative">
-                    <button
-                      onClick={() => setDateOpen(true)}
-                      className="flex h-10 w-full items-center gap-2 rounded-xl border border-[#E4E7EC] px-3 text-left text-xs text-[#667085]"
-                    >
-                      <CalendarDays className="h-5 w-5 shrink-0 text-[#FF5A00]" />
-                      <span className="truncate whitespace-nowrap">
-                        {selectedTravelDate
-                          ? travelDate(selectedTravelDate)
-                          : "Select travel date"}
-                      </span>
-                      <ChevronRight className="ml-auto h-4 w-4 shrink-0 rotate-90" />
-                    </button>
-                    {dateOpen && (
-                      <DatePickerPopover
-                        checkIn={selectedTravelDate}
-                        checkOut=""
-                        onChange={(checkIn) => updateTravelDate(checkIn)}
-                        onApply={() => setDateOpen(false)}
-                        onClose={() => setDateOpen(false)}
-                        compact
-                        placement="top"
-                        singleDate
-                      />
-                    )}
-                  </div>
-                  <div className="mt-2">
-                    <TravellerSelector
-                      rooms={travellerRooms}
-                      onChange={onChangeTravellerRooms}
-                    />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center justify-between rounded-xl bg-[#FFF4EC] px-4 py-1.5 text-sm font-bold text-[#FF5A00]">
-                  {hasBookingAmount ? <>Book with just ₹{formatMoney(bookingAmount)}</> : <>Request your tailored quote</>}{" "}
-                  <span className="text-xl">›</span>
-                </div>
-              </div>
+              {/* "Customize your trip" (date + traveller pickers) removed from
+                  the summary: both controls live in the sticky top bar, so the
+                  sidebar repeated them right next to the final price. */}
               <div className="mt-5 grid grid-cols-2 gap-4">
                 <button
                   onClick={onEnquire}
