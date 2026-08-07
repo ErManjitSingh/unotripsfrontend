@@ -128,10 +128,41 @@ export default function AffordabilityWidget({
   const resolvedKey = (keyId ?? getRazorpayKeyId()).trim();
   const amountPaise = toPaise(amountInr);
 
+  // ─── TEMPORARY DEBUG (remove after diagnosis) ───────────────────────────
+  const AW = "[AFFORDABILITY-DEBUG]";
+  // eslint-disable-next-line no-console
+  console.log(AW, "1. preconditions", {
+    enabled,
+    amountInr,
+    amountPaise,
+    resolvedKey,
+    keyLength: resolvedKey.length,
+  });
+  // ─── END TEMPORARY DEBUG ────────────────────────────────────────────────
+
   // Every precondition for rendering, evaluated in one place.
   const shouldRender = enabled && amountPaise > 0 && resolvedKey.length > 0;
 
+  // ─── TEMPORARY DEBUG (remove after diagnosis) ───────────────────────────
+  // eslint-disable-next-line no-console
+  console.log(AW, "2. shouldRender", { shouldRender });
+  // eslint-disable-next-line no-console
+  console.log(AW, "3. AffordabilityWidget mounted");
+  // eslint-disable-next-line no-console
+  console.log(AW, "6. script src", RAZORPAY_AFFORDABILITY_SRC);
+  // ─── END TEMPORARY DEBUG ────────────────────────────────────────────────
+
   useEffect(() => {
+    // ─── TEMPORARY DEBUG (remove after diagnosis) ─────────────────────────
+    // eslint-disable-next-line no-console
+    console.log(AW, "5. effect", {
+      sdkState,
+      shouldRender,
+      suite: typeof window !== "undefined" ? window.RazorpayAffordabilitySuite : "no-window",
+      suiteType: typeof window !== "undefined" ? typeof window.RazorpayAffordabilitySuite : "no-window",
+    });
+    // ─── END TEMPORARY DEBUG ──────────────────────────────────────────────
+
     if (!shouldRender || sdkState !== "ready") return;
 
     const container = containerRef.current;
@@ -215,16 +246,38 @@ export default function AffordabilityWidget({
     };
   }, [shouldRender, sdkState, resolvedKey, amountPaise, configKey]);
 
-  if (!shouldRender) return null;
+  if (!shouldRender) {
+    // ─── TEMPORARY DEBUG (remove after diagnosis) ─────────────────────────
+    // eslint-disable-next-line no-console
+    console.log(AW, "EARLY RETURN null — <Script> never renders", {
+      enabled,
+      amountPaiseOk: amountPaise > 0,
+      keyOk: resolvedKey.length > 0,
+    });
+    // ─── END TEMPORARY DEBUG ────────────────────────────────────────────────
+    return null;
+  }
 
   return (
     <div className={cn("w-full", className)} data-testid="affordability-widget">
       <Script
         id={RAZORPAY_AFFORDABILITY_SCRIPT_ID}
         src={RAZORPAY_AFFORDABILITY_SRC}
-        strategy="lazyOnload"
-        onReady={() => setSdkState("ready")}
-        onError={() => {
+        // TEMPORARY DEBUG: was strategy="lazyOnload" — afterInteractive loads
+        // earlier and makes the network request easier to observe. REVERT.
+        strategy="afterInteractive"
+        onLoad={() => {
+          // eslint-disable-next-line no-console
+          console.log(AW, "4a. Script onLoad fired");
+        }}
+        onReady={() => {
+          // eslint-disable-next-line no-console
+          console.log(AW, "4b. Script onReady fired");
+          setSdkState("ready");
+        }}
+        onError={(e) => {
+          // eslint-disable-next-line no-console
+          console.log(AW, "4c. Script onError fired", e);
           setSdkState("failed");
           onErrorRef.current?.(new Error("Failed to load Razorpay affordability widget."));
         }}
