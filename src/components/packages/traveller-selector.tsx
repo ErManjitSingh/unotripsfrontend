@@ -19,7 +19,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, BedDouble, Info, Minus, Plus, Trash2, Users, X } from "lucide-react";
+import { ChevronDown, ChevronUp, BedDouble, Minus, Plus, Trash2, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   MAX_ADULTS_PER_ROOM,
@@ -27,7 +27,6 @@ import {
   STANDARD_OCCUPANCY,
   CHILD_AGE_MAX,
   CHILD_AGE_MIN,
-  CHILD_POLICY,
   MAX_CHILDREN_PER_ROOM,
   MAX_ROOMS,
   travellerSummary,
@@ -196,7 +195,6 @@ function RoomCard({
 
   const totalGuests = room.adults + room.children.length;
   const needsExtraBed = totalGuests > STANDARD_OCCUPANCY;
-  const atCapacity = totalGuests >= MAX_GUESTS_PER_ROOM;
 
   // Dynamic maximums — neither stepper can push total guests past MAX_GUESTS_PER_ROOM.
   const maxAdultsAllowed  = Math.min(MAX_ADULTS_PER_ROOM, MAX_GUESTS_PER_ROOM - room.children.length);
@@ -353,26 +351,9 @@ function RoomCard({
         />
       </div>
 
-      {/* Extra bed notice */}
-      {needsExtraBed && (
-        <div className="mx-4 mt-2 mb-1 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
-          <BedDouble className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-          <p className="text-[11px] leading-relaxed text-amber-800">
-            <span className="font-bold">Extra bed required.</span>{" "}
-            Charges will apply based on the selected hotel.
-          </p>
-        </div>
-      )}
-
-      {/* Max occupancy message */}
-      {atCapacity && (
-        <div className="mx-4 mt-1.5 mb-1 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-2">
-          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600" />
-          <p className="text-[11px] leading-relaxed text-blue-800">
-            Maximum occupancy for this room is {STANDARD_OCCUPANCY} standard guests + 1 extra bed. Please add another room.
-          </p>
-        </div>
-      )}
+      {/* Occupancy notices removed. The room header's "Extra Bed" chip already
+          signals the extra bed, and the steppers cap at MAX_GUESTS_PER_ROOM,
+          so reaching the limit needs no additional callout. */}
 
       {/* Child age selectors */}
       {room.children.length > 0 && (
@@ -556,33 +537,15 @@ export function TravellerSelector({
               <button
                 type="button"
                 onClick={addRoom}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#d0d5dd] bg-[#fafbfc] py-2.5 text-[12px] font-semibold text-[#5a5f72] transition hover:border-[#EF6614] hover:text-[#EF6614]"
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-[#EF6614] bg-[#FFF4EC] py-3 text-[13px] font-bold text-[#EF6614] transition hover:bg-[#FFE8D6] hover:shadow-[0_6px_16px_-8px_rgba(239,102,20,0.55)] active:scale-[0.99]"
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="h-4 w-4" strokeWidth={2.5} />
                 Add Another Room
               </button>
             )}
 
-            {/* Child policy */}
-            <div className="mt-4 rounded-xl border border-[#e8ecf1] bg-[#f8fafc] p-3">
-              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold text-[#5a5f72]">
-                <Info className="h-3.5 w-3.5" />
-                Child Policy
-              </div>
-              <div className="space-y-1.5">
-                {CHILD_POLICY.map((policy) => (
-                  <div
-                    key={policy.range}
-                    className="flex items-baseline justify-between text-[11px]"
-                  >
-                    <span className="font-semibold text-[#1a1a2e]">
-                      {policy.range}
-                    </span>
-                    <span className="text-[#8b8fa3]">{policy.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Child Policy block removed — the age bands are already stated
+                on the steppers themselves ("Age 12+" / "Age 0–11 yrs"). */}
 
             {/* Auto-room notice */}
             <p className="mt-3 text-center text-[10px] leading-relaxed text-[#8b8fa3]">

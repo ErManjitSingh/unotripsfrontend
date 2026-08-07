@@ -147,6 +147,8 @@ type RawPackageSummary = {
 };
 
 type RawPackageDetail = RawPackageSummary & {
+  // Detail-only: the summary/list payload does not include this field.
+  destination_id?:   string | null;
   short_description: string | null;
   description:       string | null;
   duration_days:     number;
@@ -287,6 +289,9 @@ export function mapApiPackageDetail(row: RawPackageDetail): TourPackage {
   return {
     ...base,
     packageId:      row.id,
+    // Detail-only field — see TourPackage.destinationId. Drives exact
+    // same-destination recommendations; undefined falls back to name search.
+    destinationId:  row.destination_id ?? undefined,
     durationDays:   row.duration_days   || base.durationDays,
     durationNights: row.duration_nights ?? base.durationNights,
     rating:         row.avg_rating > 0  ? row.avg_rating : base.rating,
@@ -587,47 +592,79 @@ export async function getRelatedPackages(
   tour:  TourPackage,
   limit = 8,
 ): Promise<TourPackage[]> {
-  const self = tour.slug ?? tour.id;
+  const self   = tour.slug ?? tour.id;
+  const picked: TourPackage[] = [];
+  // Seeded with the current package so it can never be recommended, and grows
+  // as tiers run so a package matched by two tiers is never shown twice.
+  const seen   = new Set<string>([self]);
 
-  // If we have packageId (UUID), use it to get destination_id via full package data
-  // For now use location-based filter via listing endpoint — targeted query
-  if (tour.location) {
-    // Extract destination city from location string (format: "Name, City, State, Country")
-    const locationParts = tour.location.split(",");
-    const destName      = locationParts[0]?.trim();
-
-    if (destName) {
-      try {
-        // Use the listing endpoint with search filter — much lighter than getAllPackages()
-        const filtered = await listPackages({
-          search: destName,
-          limit:  limit + 1, // +1 to account for filtering out self
-          sort:   "popular",
-        });
-        const related = filtered.items.filter(
-          (p) => (p.slug ?? p.id) !== self,
-        );
-        if (related.length > 0) {
-          return related.slice(0, limit);
-        }
-      } catch {
-        // Fall through to getAllPackages fallback
-      }
+  const take = (items: TourPackage[]): void => {
+    for (const p of items) {
+      if (picked.length >= limit) return;
+      const key = p.slug ?? p.id;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      picked.push(p);
     }
+  };
+
+  // Every tier goes through the same published-only listing endpoint
+  // (list_published hard-codes status = 'published'), so unpublished or
+  // inactive packages can never enter the result. Over-fetch by the number
+  // already excluded, so duplicates don't eat into the slots we still need.
+  const fetchTier = async (params: PackageListParams): Promise<TourPackage[]> => {
+    try {
+      const res = await listPackages({
+        ...params,
+        limit: Math.min(limit + seen.size, 24),
+      });
+      return res.items;
+    } catch {
+      return []; // a failed tier must never break the section
+    }
+  };
+
+  // `location` is built as "Name, City, State, Country" (see mapApiPackageSummary),
+  // deduped case-insensitively — so parts may collapse. Country is last;
+  // state is the part before it when one survives the dedupe.
+  const parts    = (tour.location ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  const destName = parts[0];
+  const stateName = parts.length >= 3 ? parts[parts.length - 2] : undefined;
+
+  // ── Tier 1: same destination ─────────────────────────────────────────────
+  // destination_id is an exact FK match. `search` is a fuzzy ILIKE across
+  // name/destination/state/country, so it is only the fallback for packages
+  // whose detail payload carries no destination_id.
+  if (tour.destinationId) {
+    take(await fetchTier({ destination_id: tour.destinationId, sort: "popular" }));
+  } else if (destName) {
+    take(await fetchTier({ search: destName, sort: "popular" }));
   }
 
-  // Fallback: use in-process cache (free on server if already loaded)
-  const all     = await getAllPackages();
-  const term    = tour.location?.split(",")[0]?.trim()?.toLowerCase() ?? "";
-  const related = term
-    ? all.filter(
-        (p) =>
-          (p.slug ?? p.id) !== self &&
-          (p.location ?? "").toLowerCase().includes(term),
-      )
-    : all.filter((p) => (p.slug ?? p.id) !== self);
+  // ── Tier 2: same state ───────────────────────────────────────────────────
+  // The listing endpoint has no exact `state` filter, so this uses `search`,
+  // which matches state among other columns. Approximate by construction.
+  if (picked.length < limit && stateName) {
+    take(await fetchTier({ search: stateName, sort: "popular" }));
+  }
 
-  return related.slice(0, limit);
+  // ── Tier 3: featured, then most-booked ───────────────────────────────────
+  if (picked.length < limit) {
+    take(await fetchTier({ sort: "featured" }));
+  }
+  if (picked.length < limit) {
+    take(await fetchTier({ sort: "popular" }));
+  }
+
+  // ── Tier 4: any other published package ──────────────────────────────────
+  // The listing endpoint has no random sort, so this is the default ordering
+  // (newest first) rather than true randomisation — a random sort would need
+  // a backend change.
+  if (picked.length < limit) {
+    take(await fetchTier({}));
+  }
+
+  return picked.slice(0, limit);
 }
 
 /**

@@ -952,6 +952,129 @@ export function PackageDetailView({
           onChangeTravellerRooms={handleTravellerRoomsChange}
           onChangeDate={setTravelDate}
         />
+
+      {/* ── You may also like ──────────────────────────────────────────────
+          Discovery rail above the footer. Uses only the `similar` packages
+          already fetched for this page — no additional API call. */}
+      {similar.length > 0 && (
+        <section className="border-t border-[#eef0f3] bg-[#fafbfc]">
+          <div className="mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+            <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-[22px] font-extrabold tracking-tight text-[#0f172a] sm:text-[26px]">
+                  You may also like
+                </h2>
+                <p className="mt-1.5 text-[13px] text-[#64748b]">
+                  Handpicked trips travellers book alongside this one
+                </p>
+              </div>
+              <Link
+                href="/packages"
+                className="group inline-flex items-center gap-1 text-[13px] font-bold text-primary hover:underline"
+              >
+                View all packages
+                <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+
+            <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {similar.slice(0, 4).map((p) => {
+                // Badge text: the most specific place name available on the
+                // package, taken from the denormalized `location` string.
+                const place = (p.location ?? "").split(",")[0]?.trim();
+                const nights = p.durationNights ?? Math.max(0, (p.durationDays ?? 1) - 1);
+                return (
+                  <li key={p.id} className="h-full">
+                    <Link
+                      href={`${packageDetailHref(p)}?rooms=${encodeRooms(rooms)}`}
+                      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#e6e9ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.28)]"
+                    >
+                      {/* 16:9 hero */}
+                      <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
+                        <Image
+                          src={p.image}
+                          alt={p.title}
+                          fill
+                          className="object-cover transition duration-700 group-hover:scale-[1.06]"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        />
+                        {/* legibility scrim for the badge */}
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-transparent" />
+                        {place && (
+                          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-[#0f172a] shadow-sm backdrop-blur">
+                            <MapPin className="h-3 w-3 text-primary" aria-hidden />
+                            {place}
+                          </span>
+                        )}
+                        {p.discountPct ? (
+                          <span className="absolute right-3 top-3 rounded-full bg-primary px-2.5 py-1 text-[11px] font-extrabold text-white shadow-sm">
+                            {p.discountPct}% OFF
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {/* Body */}
+                      <div className="flex flex-1 flex-col p-4">
+                        {(p.rating > 0 || (p.reviewCount ?? 0) > 0) && (
+                          <div className="mb-2 flex items-center gap-2 text-[11px]">
+                            {p.rating > 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-[#f0fdf4] px-1.5 py-0.5 font-bold text-[#15803d]">
+                                <Star className="h-3 w-3 fill-current" aria-hidden />
+                                {p.rating.toFixed(1)}
+                              </span>
+                            )}
+                            {(p.reviewCount ?? 0) > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[#64748b]">
+                                <Users className="h-3 w-3" aria-hidden />
+                                {p.reviewCount} booked
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        <h3 className="line-clamp-2 text-[14px] font-bold leading-snug text-[#0f172a] transition group-hover:text-primary">
+                          {p.title}
+                        </h3>
+
+                        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#64748b]">
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5 shrink-0 text-[#94a3b8]" aria-hidden />
+                            {nights}N / {p.durationDays}D
+                          </span>
+                          {place && (
+                            <span className="inline-flex min-w-0 items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5 shrink-0 text-[#94a3b8]" aria-hidden />
+                              <span className="truncate">{place}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Price pinned to the bottom so cards align */}
+                        <div className="mt-auto pt-4">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+                            Starting from
+                          </p>
+                          <p className="mt-0.5 flex items-baseline gap-2">
+                            <span className="text-[19px] font-extrabold leading-none tracking-tight text-[#0f172a]">
+                              ₹{formatInrAmount(p.priceINR)}
+                            </span>
+                            {p.oldPriceINR ? (
+                              <span className="text-[12px] text-[#94a3b8] line-through">
+                                ₹{formatInrAmount(p.oldPriceINR)}
+                              </span>
+                            ) : null}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+      )}
+
       <Footer />
       <TripBrochureModal
         open={showBrochure}
@@ -1712,29 +1835,9 @@ export function PackageDetailView({
             </div>
           </div>
 
-          {/* Similar packages */}
-          {similar.length > 0 && (
-            <div className="mt-6 rounded-2xl border border-[#e8e8e8] bg-white p-5 shadow-[0_2px_20px_-8px_rgba(15,23,42,0.1)] sm:p-6">
-              <h2 className="mb-4 text-base font-bold text-[#1a1a1a]">You may also like</h2>
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {similar.slice(0, 4).map((p) => (
-                  <li key={p.id}>
-                    <Link href={`${packageDetailHref(p)}?rooms=${encodeRooms(rooms)}`}
-                      className="group flex gap-3 rounded-xl border border-[#e8e8e8] p-3 transition duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_10px_24px_-10px_rgba(15,23,42,0.25)]">
-                      <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                        <Image src={p.image} alt={p.title} fill className="object-cover transition duration-500 group-hover:scale-105" sizes="96px" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-[#1a1a1a] group-hover:text-primary line-clamp-2">{p.title}</p>
-                        <p className="mt-1 text-[11px] text-[#9e9e9e]">{p.durationDays}D · from ₹{formatInrAmount(p.priceINR)}</p>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              <Link href="/packages" className="mt-4 inline-block text-sm font-bold text-primary hover:underline">View all packages →</Link>
-            </div>
-          )}
+          {/* Similar packages — moved to the ACTIVE render tree (see the
+              return above GlacialStylePackageDetail). This legacy return is
+              unreachable, so the section never rendered from here. */}
         </div>
       </main>
 
