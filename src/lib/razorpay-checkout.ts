@@ -12,6 +12,16 @@ type RazorpayCheckoutOptions = {
   name: string;
   description: string;
   prefill?: { name?: string; email?: string; contact?: string };
+  /**
+   * Pre-selects a payment method inside the Razorpay modal, e.g. "emi" opens
+   * straight on the EMI tab instead of the default method list.
+   *
+   * Advisory only. Razorpay falls back to the standard list when the method is
+   * not enabled on the account, or when the order fails that method's rules
+   * (EMI has a minimum order value and is card/bank dependent). It never
+   * changes the amount charged — that is fixed by the order.
+   */
+  preferredMethod?: "card" | "netbanking" | "wallet" | "upi" | "emi";
   onSuccess: (response: RazorpaySuccessResponse) => void | Promise<void>;
   onDismiss?: () => void;
 };
@@ -62,7 +72,10 @@ export async function openRazorpayCheckout(options: RazorpayCheckoutOptions): Pr
       name: options.name,
       description: options.description,
       order_id: options.orderId,
-      prefill: options.prefill,
+      prefill: {
+        ...options.prefill,
+        ...(options.preferredMethod ? { method: options.preferredMethod } : {}),
+      },
       theme: { color: "#EF6614" },
       async handler(response: RazorpaySuccessResponse) {
         completed = true;

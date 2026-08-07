@@ -148,7 +148,8 @@ export default async function PackageDetailPage({ params, searchParams }: Props)
 
   // getRelatedPackages: now uses targeted listPackages({ search: destName })
   // instead of getAllPackages() full dump — see packages.ts fix.
-  const similar = await getRelatedPackages(tour, 8);
+  // 4 — the recommendation rail renders exactly four cards.
+  const similar = await getRelatedPackages(tour, 4);
 
   const initialRooms = decodeRooms(sp.rooms ?? null);
   const initialDate  = sp.date ?? null;

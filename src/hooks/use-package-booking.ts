@@ -48,6 +48,24 @@ export type PackageBookingPayload = {
   selected_activity_link_ids: string[];
   selected_addon_ids:         string[];
   payment_type:               "token" | "full";
+  /**
+   * Pre-selects a method in the Razorpay modal (currently only "emi").
+   *
+   * Client-side only — deliberately NOT part of `backendPayload` below. The
+   * backend knows two payment types, full and token; EMI is a method the guest
+   * picks inside Razorpay, and it finances the same "full" order. Sending this
+   * to /book would be a field the API neither expects nor honours.
+   */
+  preferred_method?:          "emi";
+  /**
+   * ANALYTICS ONLY — which payment option the guest clicked on our site.
+   * "full" | "token" | "emi". Sent to the backend and stored with the booking;
+   * it never affects the amount, the order, or the checkout flow.
+   *
+   * Distinct from `payment_type`, which stays "full" | "token": the EMI card
+   * sends payment_type "full" AND selected_payment_option "emi".
+   */
+  selected_payment_option?:   "full" | "token" | "emi";
 };
 
 type OrderData = {
@@ -263,6 +281,10 @@ export function usePackageBooking(slug: string) {
           selected_activity_link_ids: payload.selected_activity_link_ids,
           selected_addon_ids:         payload.selected_addon_ids,
           payment_type:               payload.payment_type,
+          // Analytics only. Unlike `preferred_method` (which stays client-side
+          // and only pre-selects a tab in the Razorpay modal), this one IS sent
+          // — the backend validates and stores it for reporting.
+          selected_payment_option:    payload.selected_payment_option,
         };
 
         const orderData = await apiData<OrderData>(
@@ -320,9 +342,11 @@ export function usePackageBooking(slug: string) {
         setState({ phase: "awaiting_payment", message: "Opening payment window…" });
 
         const paymentDesc =
-          payload.payment_type === "token"
-            ? `Token payment (40%) — ₹${orderData.token_amount.toLocaleString("en-IN")}`
-            : `Full payment — ₹${orderData.total_amount.toLocaleString("en-IN")}`;
+          payload.preferred_method === "emi"
+            ? `EMI — ₹${orderData.total_amount.toLocaleString("en-IN")}`
+            : payload.payment_type === "token"
+              ? `Part payment — ₹${orderData.token_amount.toLocaleString("en-IN")}`
+              : `Full payment — ₹${orderData.total_amount.toLocaleString("en-IN")}`;
 
         await openRazorpayCheckout({
           keyId:       orderData.razorpay_key_id,
@@ -331,6 +355,7 @@ export function usePackageBooking(slug: string) {
           currency:    orderData.currency,
           name:        "UNO Trips",
           description: paymentDesc,
+          preferredMethod: payload.preferred_method,
           prefill: {
             name:    orderData.prefill_name,
             email:   orderData.prefill_email,

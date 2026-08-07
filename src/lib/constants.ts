@@ -83,6 +83,13 @@ export type TourPackage = {
   cities?: number;
   packageType?: string;
   location?: string;
+  /**
+   * Destination FK from the package DETAIL response. Only populated by
+   * mapApiPackageDetail — the list/summary payload does not carry it.
+   * Used to fetch same-destination recommendations exactly instead of
+   * matching on the free-text `location` string.
+   */
+  destinationId?: string;
   distanceFromCentreKm?: number;
   showMemberPrice?: boolean;
   itinerary?: TourItineraryDay[];

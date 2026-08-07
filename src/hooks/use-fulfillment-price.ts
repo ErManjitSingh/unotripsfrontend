@@ -133,6 +133,8 @@ export type UseFulfillmentPriceResult = {
   grandTotal: number;
   /** Advance payment to confirm the booking. */
   tokenAmount: number;
+  /** Platform advance percentage applied (e.g. 40). Labelling only. */
+  tokenPercent: number;
   /** Minimum % payable now, when the package lets the guest choose. */
   minTokenPercent: number | null;
   /** Balance due before travel (grand_total - token_amount). */
@@ -331,6 +333,9 @@ export function useFulfillmentPrice(
 
   const grandTotal      = current?.grand_total                              ?? 0;
   const tokenAmount     = current?.token_amount                             ?? 0;
+  // Platform percentage the backend actually applied. Distinct from the
+  // `tokenPercent` OPTION above, which is the guest's requested advance.
+  const appliedTokenPercent = current?.token_percent                        ?? 0;
   const balanceAmount   = current?.balance_amount                           ?? 0;
   const subtotal        = current?.pricing_summary.package_subtotal         ?? 0;
   const basePackagePrice = current?.pricing_summary.base_package_price      ?? 0;
@@ -353,6 +358,7 @@ export function useFulfillmentPrice(
     errorMessage,
     grandTotal,
     tokenAmount,
+    tokenPercent: appliedTokenPercent,
     balanceAmount,
     subtotal,
     basePackagePrice,

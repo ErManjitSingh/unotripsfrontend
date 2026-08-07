@@ -81,6 +81,8 @@ import {
   staySelectionIndex,
 } from "@/lib/package-customizer-data";
 import { useFulfillmentPrice } from "@/hooks/use-fulfillment-price";
+import { PackageBookingSummary } from "@/components/packages/pricing";
+import AffordabilityWidget from "@/components/payments/AffordabilityWidget";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -305,6 +307,13 @@ export function PackageDetailView({
   const [selectedCab,    setSelectedCab]    = useState<number>(initialCab);
   const [addons,         setAddons]         = useState<AddonOption[]>([]);
   const [payType,        setPayType]        = useState<"token" | "full">("token");
+  /**
+   * Which card the guest picked on the checkout page. Distinct from `payType`
+   * because "full" and "emi" are the same payable amount but different Razorpay
+   * method hints — and only "emi" expands to show the affordability widget.
+   * Kept in sync with payType at every mutation site.
+   */
+  const [payOption,      setPayOption]      = useState<"full" | "token" | "emi">("token");
 
   // Activities/sightseeing selected IDs
   const [selectedSight,  setSelectedSight]  = useState<Set<string>>(new Set());
@@ -432,6 +441,10 @@ export function PackageDetailView({
     isStale:              priceStale,
     grandTotal,
     tokenAmount:          token,
+    // Aliased: `tokenPercent` above is the guest's requested advance (now
+    // dormant). This one is the platform percentage the backend applied, used
+    // only to label "Pay 40% today".
+    tokenPercent:         appliedTokenPercent,
     balanceAmount,
     hotelUpgrade,
     cabUpgrade,
@@ -479,7 +492,8 @@ export function PackageDetailView({
     // the part-payment option could never be the default.
     if (!hasPrice) return;
     if (!tokenPaymentAvailable && payType === "token") setPayType("full");
-  }, [optLoading, hasPrice, tokenPaymentAvailable, payType]);
+    if (!tokenPaymentAvailable && payOption === "token") setPayOption("full");
+  }, [optLoading, hasPrice, tokenPaymentAvailable, payType, payOption]);
 
   // ── Gallery images ────────────────────────────────────────────────────────
   const galleryImages = useMemo(() => {
@@ -520,9 +534,24 @@ export function PackageDetailView({
 
   // ── Book handler ──────────────────────────────────────────────────────────
 
-  const handleConfirmAndPay = useCallback(async (e: FormEvent) => {
-    e.preventDefault();
-    const form  = e.target as HTMLFormElement;
+  /**
+   * Validate the traveller form, create the booking, open Razorpay.
+   *
+   * `paymentType` and `preferredMethod` are passed in rather than read from
+   * state: the payment cards below book on click, and a setState in the same
+   * tick would not be visible here yet.
+   *
+   * The traveller fields cannot be skipped — /book needs name, email and phone
+   * to create the order — so "click card → Razorpay opens" still runs this
+   * validation first and surfaces field errors if anything is missing.
+   */
+  const submitBooking = useCallback(async (
+    form: HTMLFormElement,
+    paymentType: "full" | "token",
+    preferredMethod?: "emi",
+    // Analytics only — the card the guest actually clicked.
+    selectedPaymentOption?: "full" | "token" | "emi",
+  ) => {
     const name  = (form.querySelector("[name=guestName]")  as HTMLInputElement)?.value.trim()  || "";
     const email = (form.querySelector("[name=guestEmail]") as HTMLInputElement)?.value.trim()  || "";
     const phone = (form.querySelector("[name=guestPhone]") as HTMLInputElement)?.value.trim()  || "";
@@ -573,12 +602,30 @@ export function PackageDetailView({
       selected_sightseeing_ids:   sightIds,
       selected_activity_link_ids: actIds,
       selected_addon_ids:         addonIds,
-      payment_type:               payType,
+      payment_type:               paymentType,
       // Must travel with the booking: the guest may have chosen 75%, and
       // the server recomputes the charge from this percentage.
-      token_percent:              payType === "token" ? tokenPercent : null,
+      token_percent:              paymentType === "token" ? tokenPercent : null,
+      preferred_method:           preferredMethod,
+      selected_payment_option:    selectedPaymentOption ?? paymentType,
     });
-  }, [slug, rooms, payType, getSelectedIds, doBook]);
+  }, [slug, rooms, tokenPercent, getSelectedIds, doBook]);
+
+  /**
+   * The single submit path for both checkout forms. Carries the chosen card
+   * through: "emi" books the full amount but asks Razorpay to open on the EMI
+   * tab. The amount itself still comes from the backend — the method is only
+   * a hint, exactly as documented in razorpay-checkout.ts.
+   */
+  const handleConfirmAndPay = useCallback((e: FormEvent) => {
+    e.preventDefault();
+    return submitBooking(
+      e.target as HTMLFormElement,
+      payType,
+      payOption === "emi" ? "emi" : undefined,
+      payOption,
+    );
+  }, [submitBooking, payType, payOption]);
 
   const isBooking  = ["loading", "awaiting_payment", "verifying"].includes(bookState.phase);
   const { user, isAuthenticated } = useAuth();
@@ -721,11 +768,141 @@ export function PackageDetailView({
               </div>
               <form id="package-checkout-form" onSubmit={handleConfirmAndPay} noValidate className="rounded-xl border border-[#e8e8e8] bg-white shadow-sm">
                 <div className="border-b border-[#f0f0f0] bg-[#fafafa] px-5 py-4"><div className="flex items-center gap-2"><span className="grid h-6 w-6 place-items-center rounded-full border-2 border-[#EF6614] text-[11px] font-extrabold text-[#EF6614]">2</span><div><h2 className="text-[14px] font-bold">Traveller details</h2><p className="text-[11px] text-[#9E9E9E]">Name and contact details for booking confirmation</p></div></div></div>
-                <div className="p-5 sm:p-6"><div className="grid gap-4 sm:grid-cols-2">{[{ name: "guestName", label: "Full name", type: "text", value: user?.name ?? "" }, { name: "guestEmail", label: "Email address", type: "email", value: user?.email ?? "" }, { name: "guestPhone", label: "Mobile number", type: "tel", value: user?.phone ?? "" }, { name: "travelDate", label: "Travel date", type: "date", value: travelDate }].map((field) => <label key={field.name} className="block text-[12px] font-semibold text-[#424242]">{field.label} <span className="text-[#EF6614]">*</span><input name={field.name} required type={field.type} defaultValue={field.value} aria-invalid={Boolean(fieldErrors[field.name])} aria-describedby={fieldErrors[field.name] ? `${field.name}-err` : undefined} onInput={() => fieldErrors[field.name] && setFieldErrors((p) => { const n = { ...p }; delete n[field.name]; return n; })} className={cn("mt-1.5 h-11 w-full rounded-lg border px-3 text-[13px] outline-none focus:ring-2", fieldErrors[field.name] ? "border-[#d92d20] bg-[#fffbfa] focus:border-[#d92d20] focus:ring-[#d92d20]/15" + (shakeKey % 2 === 0 ? " motion-safe:animate-shake" : " motion-safe:animate-shake-alt") : "border-[#e0e0e0] focus:border-[#EF6614] focus:ring-[#EF6614]/10")} />{fieldErrors[field.name] && <span id={`${field.name}-err`} role="alert" className="mt-1 block text-[11px] font-semibold text-[#d92d20]">{fieldErrors[field.name]}</span>}</label>)}</div><label className="mt-4 block text-[12px] font-semibold text-[#424242]">Special requests <span className="font-normal text-[#9E9E9E]">(optional)</span><textarea name="specialReq" rows={3} className="mt-1.5 w-full resize-none rounded-lg border border-[#e0e0e0] px-3 py-2.5 text-[13px] outline-none focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10" placeholder="Any dietary needs or special requests" /></label>{bookState.phase === "error" && <p className="mt-4 rounded-lg bg-[#fff5f5] p-3 text-[12px] font-medium text-[#c62828]">{bookState.message}</p>}<div className="mt-6"><p className="mb-2.5 text-[12px] font-bold text-[#1a1a1a]">How would you like to pay?</p><div className={cn("grid gap-2.5", tokenPaymentAvailable ? "sm:grid-cols-3" : "sm:grid-cols-2")}>{[{ id: "full" as const, title: "Pay in full", amt: `₹${fmtINR(grandTotal)}`, sub: "100% now · instant confirmation", enabled: true, soon: false },{ id: "token" as const, title: pkgTokenType === "percent" ? `Pay ${Math.round(Number(pkgTokenValue) || 0)}% now` : "Pay token amount", amt: `₹${fmtINR(token)}`, sub: `Balance before travel`, enabled: tokenPaymentAvailable, soon: false },{ id: "emi" as const, title: "EMI", amt: "Coming soon", sub: "Pay in monthly instalments", enabled: false, soon: true }]
-.filter((o) => o.id !== "token" || tokenPaymentAvailable).map((opt) => (<button key={opt.id} type="button" disabled={!opt.enabled} aria-pressed={payType === opt.id} onClick={() => opt.enabled && opt.id !== "emi" && setPayType(opt.id as "token" | "full")} className={cn("relative rounded-xl border-[1.5px] p-3 text-left transition", !opt.enabled ? "cursor-not-allowed border-[#eee] bg-[#fafafa] opacity-70" : payType === opt.id ? "border-primary bg-orange-50/60" : "border-[#e8e8e8] bg-white hover:border-[#FDBA74]")}><span className="block text-[12px] font-bold text-[#1a1a1a]">{opt.title}</span><span className="mt-0.5 block text-[14px] font-extrabold text-[#EF6614]">{opt.amt}</span><span className="mt-0.5 block text-[10px] text-[#757575]">{opt.sub}</span>{opt.soon && <span className="absolute -top-px right-3 rounded-b bg-[#9E9E9E] px-1.5 py-px text-[9px] font-bold uppercase text-white">Soon</span>}</button>))}</div>{!tokenPaymentAvailable && <p className="mt-2 text-[10px] text-[#9E9E9E]">Part payment isn’t enabled for this package.</p>}</div></div>
+                <div className="p-5 sm:p-6"><div className="grid gap-4 sm:grid-cols-2">{[{ name: "guestName", label: "Full name", type: "text", value: user?.name ?? "" }, { name: "guestEmail", label: "Email address", type: "email", value: user?.email ?? "" }, { name: "guestPhone", label: "Mobile number", type: "tel", value: user?.phone ?? "" }, { name: "travelDate", label: "Travel date", type: "date", value: travelDate }].map((field) => <label key={field.name} className="block text-[12px] font-semibold text-[#424242]">{field.label} <span className="text-[#EF6614]">*</span><input name={field.name} required type={field.type} defaultValue={field.value} aria-invalid={Boolean(fieldErrors[field.name])} aria-describedby={fieldErrors[field.name] ? `${field.name}-err` : undefined} onInput={() => fieldErrors[field.name] && setFieldErrors((p) => { const n = { ...p }; delete n[field.name]; return n; })} className={cn("mt-1.5 h-11 w-full rounded-lg border px-3 text-[13px] outline-none focus:ring-2", fieldErrors[field.name] ? "border-[#d92d20] bg-[#fffbfa] focus:border-[#d92d20] focus:ring-[#d92d20]/15" + (shakeKey % 2 === 0 ? " motion-safe:animate-shake" : " motion-safe:animate-shake-alt") : "border-[#e0e0e0] focus:border-[#EF6614] focus:ring-[#EF6614]/10")} />{fieldErrors[field.name] && <span id={`${field.name}-err`} role="alert" className="mt-1 block text-[11px] font-semibold text-[#d92d20]">{fieldErrors[field.name]}</span>}</label>)}</div><label className="mt-4 block text-[12px] font-semibold text-[#424242]">Special requests <span className="font-normal text-[#9E9E9E]">(optional)</span><textarea name="specialReq" rows={3} className="mt-1.5 w-full resize-none rounded-lg border border-[#e0e0e0] px-3 py-2.5 text-[13px] outline-none focus:border-[#EF6614] focus:ring-2 focus:ring-[#EF6614]/10" placeholder="Any dietary needs or special requests" /></label>{bookState.phase === "error" && <p className="mt-4 rounded-lg bg-[#fff5f5] p-3 text-[12px] font-medium text-[#c62828]">{bookState.message}</p>}<div className="mt-6">
+                  <p className="mb-2.5 text-[12px] font-bold text-[#1a1a1a]">How would you like to pay?</p>
+                  {/* Selection, not submission. These used to book immediately on
+                      click; they now choose a method and the sidebar's "Continue
+                      to payment" submits it. That is what lets the EMI row expand
+                      to show Razorpay's live plans before the guest commits. */}
+                  <div role="radiogroup" aria-label="Payment option" className="grid gap-3 sm:grid-cols-3">
+                    {[
+                      // `amt` is intentionally absent on "full" and "emi": both
+                      // charge the grand total, which the Price Summary already
+                      // states authoritatively. Only the token card carries an
+                      // amount, because its figure is information found nowhere
+                      // else on the page.
+                      { id: "full" as const, title: "Pay in Full", amt: null, sub: "Pay the entire amount now", enabled: true, note: "Instant confirmation" },
+                      { id: "token" as const, title: pkgTokenType === "percent" ? `Pay ${Math.round(Number(pkgTokenValue) || 0)}% now` : "Pay token amount", amt: `₹${fmtINR(token)}`, sub: "Balance before travel", enabled: tokenPaymentAvailable, note: tokenPaymentAvailable ? null : "Not enabled for this package" },
+                      // Deliberately sparse: when this card is selected the live
+                      // Razorpay widget renders right beneath it with the real
+                      // monthly figure, the eligible providers and "View plans".
+                      // Anything more here is the same information twice.
+                      { id: "emi" as const, title: "Pay with EMI", amt: null, sub: "Monthly instalments", enabled: true, note: null },
+                    ].map((opt) => {
+                      const selected = payOption === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          disabled={!opt.enabled || isBooking || !priceIsComplete}
+                          onClick={() => {
+                            if (!opt.enabled) return;
+                            setPayOption(opt.id);
+                            // EMI charges the full amount; only the token tile
+                            // switches the payable amount.
+                            setPayType(opt.id === "token" ? "token" : "full");
+                          }}
+                          className={cn(
+                            "relative rounded-xl border-[1.5px] p-3.5 text-left transition",
+                            !opt.enabled
+                              ? "cursor-not-allowed border-[#eee] bg-[#fafafa] opacity-70"
+                              : selected
+                                ? "border-primary bg-orange-50/40 shadow-[0_4px_16px_-6px_rgba(234,88,12,0.25)]"
+                                : "border-[#e8e8e8] bg-white hover:-translate-y-0.5 hover:border-primary hover:bg-orange-50/40 hover:shadow-[0_10px_22px_-12px_rgba(239,102,20,0.5)]",
+                          )}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-[1.5px]",
+                                selected ? "border-primary bg-primary" : "border-[#d0d0d0]",
+                              )}
+                              aria-hidden
+                            >
+                              {selected && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                            </span>
+                            <span className="text-[12px] font-bold text-[#1a1a1a]">{opt.title}</span>
+                          </span>
+                          {opt.amt && (
+                            <span className="mt-1 block text-[17px] font-extrabold leading-none text-[#EF6614]">{opt.amt}</span>
+                          )}
+                          <span className={cn("block text-[10px] leading-relaxed text-[#757575]", opt.amt ? "mt-1.5" : "mt-1")}>{opt.sub}</span>
+                          {opt.note && <span className="mt-1 block text-[10px] text-[#9E9E9E]">{opt.note}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Live plans for the EMI choice. Full width BELOW the row, not
+                      inside the card: the three cards are grid cells of equal
+                      height, so expanding one would stretch all three — and the
+                      widget is an interactive cross-origin iframe that cannot be
+                      nested inside a <button> without swallowing its clicks. */}
+                  {payOption === "emi" && (
+                    <div className="mt-3 rounded-xl border-[1.5px] border-primary/40 bg-orange-50/30 p-3">
+                      <AffordabilityWidget
+                        amountInr={grandTotal}
+                        enabled={hasPrice && !priceLoading && !priceStale && priceIsComplete}
+                      />
+                    </div>
+                  )}
+                  <p className="mt-2.5 text-[10px] text-[#9E9E9E]">Continue to payment opens the secure Razorpay window for the selected amount.</p>
+                </div></div>
               </form>
             </section>
-            <aside className="lg:sticky lg:top-24 lg:self-start"><div className="overflow-hidden rounded-xl border border-[#e8e8e8] bg-white shadow-sm"><div className="border-b border-[#f0f0f0] px-5 py-4"><h2 className="text-[16px] font-extrabold text-[#1a1a1a]">Price Summary</h2><p className="mt-1 flex items-center gap-1.5 text-[11px] text-[#9E9E9E]">Final price for your selected trip{(priceLoading || priceStale) && hasPrice && (<span className="inline-flex items-center gap-1 rounded-full bg-[#FFF3EB] px-1.5 py-0.5 text-[10px] font-bold text-[#E65100]"><span className="h-1.5 w-1.5 rounded-full bg-[#EF6614] motion-safe:animate-ping" />Updating…</span>)}</p></div><div className={cn("space-y-3 p-5 text-[13px] transition-opacity duration-200", (priceLoading || priceStale) && hasPrice && "opacity-50")}>{!hasPrice ? (<div className="space-y-3" aria-live="polite" aria-busy="true"><span className="sr-only">Calculating your price…</span>{[0,1,2].map((i) => (<div key={i} className="flex justify-between"><span className="h-3 w-24 rounded bg-[#f0f0f0] motion-safe:animate-pulse" /><span className="h-3 w-16 rounded bg-[#f0f0f0] motion-safe:animate-pulse" /></div>))}<div className="h-10 w-full rounded-lg bg-[#f5f5f5] motion-safe:animate-pulse" /></div>) : (<><div className="flex justify-between text-[#616161]"><div><span>Base package</span>{priceTotalGuests > 0 && <span className="block text-[10px] text-[#9E9E9E]">₹{fmtINR(Math.round(basePackagePrice / priceTotalGuests))} × {priceTotalGuests} {priceTotalGuests === 1 ? "guest" : "guests"}</span>}</div><span>₹{fmtINR(basePackagePrice)}</span></div>{hotelUpgrade > 0 && <div className="flex justify-between text-[#616161]"><span>Hotel upgrades</span><span>+₹{fmtINR(hotelUpgrade)}</span></div>}{volvoBusCost > 0 && <div className="flex justify-between text-[#616161]"><span>Volvo bus (return ticket)</span><span>+₹{fmtINR(volvoBusCost)}</span></div>}{cabUpgrade > 0 && <div className="flex justify-between text-[#616161]"><span>Vehicle upgrade</span><span>+₹{fmtINR(cabUpgrade)}</span></div>}{activitiesTotal > 0 && <div className="flex justify-between text-[#616161]"><span>Activities &amp; sightseeing</span><span>+₹{fmtINR(activitiesTotal)}</span></div>}{addonsTotal > 0 && <div className="flex justify-between text-[#616161]"><span>Add-ons</span><span>+₹{fmtINR(addonsTotal)}</span></div>}{priceRaw?.gst_result && priceRaw.gst_result.total_gst > 0 && <div className="flex justify-between text-[#616161]" title={priceRaw.gst_result.gst_label}><div><span>Fees &amp; Taxes</span><span className="block text-[10px] text-[#9E9E9E]">GST {Math.round((priceRaw.gst_result.gst_rate ?? 0.05) * 100)}%</span></div><span>+₹{fmtINR(priceRaw.gst_result.total_gst)}</span></div>}<div className="flex justify-between border-t border-[#f0f0f0] pt-3 text-[15px] font-extrabold text-[#1a1a1a]"><span>Total trip price</span><span className={cn("rounded px-1", priceSettle % 2 === 0 ? "motion-safe:animate-price-settle" : "motion-safe:animate-price-settle-alt")}>₹{fmtINR(grandTotal)}</span></div><p className="text-right text-[11px] text-[#757575]">{priceTotalGuests > 0 ? <><span className="font-bold text-[#424242]">₹{fmtINR(Math.round(grandTotal / priceTotalGuests))}</span> per person · {travellerSummary(travellerRooms)}</> : null}</p>{tokenPaymentAvailable && <div className="rounded-lg border border-[#ffe0cc] bg-[#fff8f3] p-3"><p className="text-[11px] font-bold text-[#E65100]">Pay only today</p><p className={cn("mt-1 rounded px-1 text-xl font-extrabold text-[#EF6614]", priceSettle % 2 === 0 ? "motion-safe:animate-price-settle" : "motion-safe:animate-price-settle-alt")}>₹{fmtINR(token)}</p><p className="mt-1 text-[10px] text-[#757575]">Remaining balance can be paid later.</p></div>}{Object.keys(fieldErrors).length > 0 && <p role="alert" className="rounded-lg bg-[#fffbfa] p-2.5 text-center text-[11px] font-semibold text-[#d92d20]">Please complete your traveller details above</p>}<button type="submit" form="package-checkout-form" disabled={isBooking || !priceIsComplete} className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-[#EF6614] text-[14px] font-extrabold text-white shadow-[0_8px_18px_-8px_rgba(239,102,20,.65)] disabled:opacity-60">{isBooking ? "Preparing booking…" : `Continue to payment · ₹${fmtINR(payAmt)}`}</button><p className="text-center text-[10px] text-[#9E9E9E]">Secure payment · Instant confirmation</p></>)}</div></div></aside>
+            {/* ── Price Summary ────────────────────────────────────────────
+                Base → upgrades → taxes → total → EMI & Offers slot → CTA.
+                Composed from @/components/packages/pricing; the figures, the
+                submit target and the disabled conditions are unchanged. */}
+            <aside className="lg:sticky lg:top-24 lg:self-start">
+              <PackageBookingSummary
+                basePriceInr={basePackagePrice}
+                basePriceNote={
+                  priceTotalGuests > 0
+                    ? `₹${fmtINR(Math.round(basePackagePrice / priceTotalGuests))} × ${priceTotalGuests} ${priceTotalGuests === 1 ? "guest" : "guests"}`
+                    : undefined
+                }
+                lines={[
+                  { label: "Hotel upgrades", amountInr: hotelUpgrade },
+                  { label: "Volvo bus (return ticket)", amountInr: volvoBusCost },
+                  { label: "Vehicle upgrade", amountInr: cabUpgrade },
+                  { label: "Activities & sightseeing", amountInr: activitiesTotal },
+                  { label: "Add-ons", amountInr: addonsTotal },
+                ]}
+                taxInr={priceRaw?.gst_result?.total_gst ?? 0}
+                taxRate={priceRaw?.gst_result?.gst_rate ?? 0.05}
+                totalInr={grandTotal}
+                payAmountInr={payAmt}
+                tokenAmountInr={tokenPaymentAvailable ? token : null}
+                payOption={payOption}
+                tokenPercent={appliedTokenPercent}
+                guestCount={priceTotalGuests}
+                guestSummary={travellerSummary(travellerRooms)}
+                loading={!hasPrice}
+                stale={(priceLoading || priceStale) && hasPrice}
+                formId="package-checkout-form"
+                ctaDisabled={!priceIsComplete}
+                ctaBusy={isBooking}
+                ctaNotice={
+                  Object.keys(fieldErrors).length > 0 ? (
+                    <p
+                      role="alert"
+                      className="rounded-lg bg-[#fffbfa] p-2.5 text-center text-[11px] font-semibold text-[#d92d20]"
+                    >
+                      Please complete your traveller details above
+                    </p>
+                  ) : null
+                }
+                totalClassName={cn(
+                  "rounded px-1",
+                  priceSettle % 2 === 0
+                    ? "motion-safe:animate-price-settle"
+                    : "motion-safe:animate-price-settle-alt",
+                )}
+              />
+            </aside>
           </>}
           </div>
         </main>
@@ -775,6 +952,129 @@ export function PackageDetailView({
           onChangeTravellerRooms={handleTravellerRoomsChange}
           onChangeDate={setTravelDate}
         />
+
+      {/* ── You may also like ──────────────────────────────────────────────
+          Discovery rail above the footer. Uses only the `similar` packages
+          already fetched for this page — no additional API call. */}
+      {similar.length > 0 && (
+        <section className="border-t border-[#eef0f3] bg-[#fafbfc]">
+          <div className="mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+            <div className="mb-7 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-[22px] font-extrabold tracking-tight text-[#0f172a] sm:text-[26px]">
+                  You may also like
+                </h2>
+                <p className="mt-1.5 text-[13px] text-[#64748b]">
+                  Handpicked trips travellers book alongside this one
+                </p>
+              </div>
+              <Link
+                href="/packages"
+                className="group inline-flex items-center gap-1 text-[13px] font-bold text-primary hover:underline"
+              >
+                View all packages
+                <ChevronRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+
+            <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {similar.slice(0, 4).map((p) => {
+                // Badge text: the most specific place name available on the
+                // package, taken from the denormalized `location` string.
+                const place = (p.location ?? "").split(",")[0]?.trim();
+                const nights = p.durationNights ?? Math.max(0, (p.durationDays ?? 1) - 1);
+                return (
+                  <li key={p.id} className="h-full">
+                    <Link
+                      href={`${packageDetailHref(p)}?rooms=${encodeRooms(rooms)}`}
+                      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-[#e6e9ee] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-[0_18px_40px_-18px_rgba(15,23,42,0.28)]"
+                    >
+                      {/* 16:9 hero */}
+                      <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-100">
+                        <Image
+                          src={p.image}
+                          alt={p.title}
+                          fill
+                          className="object-cover transition duration-700 group-hover:scale-[1.06]"
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                        />
+                        {/* legibility scrim for the badge */}
+                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-transparent" />
+                        {place && (
+                          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold text-[#0f172a] shadow-sm backdrop-blur">
+                            <MapPin className="h-3 w-3 text-primary" aria-hidden />
+                            {place}
+                          </span>
+                        )}
+                        {p.discountPct ? (
+                          <span className="absolute right-3 top-3 rounded-full bg-primary px-2.5 py-1 text-[11px] font-extrabold text-white shadow-sm">
+                            {p.discountPct}% OFF
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {/* Body */}
+                      <div className="flex flex-1 flex-col p-4">
+                        {(p.rating > 0 || (p.reviewCount ?? 0) > 0) && (
+                          <div className="mb-2 flex items-center gap-2 text-[11px]">
+                            {p.rating > 0 && (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-[#f0fdf4] px-1.5 py-0.5 font-bold text-[#15803d]">
+                                <Star className="h-3 w-3 fill-current" aria-hidden />
+                                {p.rating.toFixed(1)}
+                              </span>
+                            )}
+                            {(p.reviewCount ?? 0) > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[#64748b]">
+                                <Users className="h-3 w-3" aria-hidden />
+                                {p.reviewCount} booked
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        <h3 className="line-clamp-2 text-[14px] font-bold leading-snug text-[#0f172a] transition group-hover:text-primary">
+                          {p.title}
+                        </h3>
+
+                        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#64748b]">
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5 shrink-0 text-[#94a3b8]" aria-hidden />
+                            {nights}N / {p.durationDays}D
+                          </span>
+                          {place && (
+                            <span className="inline-flex min-w-0 items-center gap-1">
+                              <MapPin className="h-3.5 w-3.5 shrink-0 text-[#94a3b8]" aria-hidden />
+                              <span className="truncate">{place}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Price pinned to the bottom so cards align */}
+                        <div className="mt-auto pt-4">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#94a3b8]">
+                            Starting from
+                          </p>
+                          <p className="mt-0.5 flex items-baseline gap-2">
+                            <span className="text-[19px] font-extrabold leading-none tracking-tight text-[#0f172a]">
+                              ₹{formatInrAmount(p.priceINR)}
+                            </span>
+                            {p.oldPriceINR ? (
+                              <span className="text-[12px] text-[#94a3b8] line-through">
+                                ₹{formatInrAmount(p.oldPriceINR)}
+                              </span>
+                            ) : null}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
+      )}
+
       <Footer />
       <TripBrochureModal
         open={showBrochure}
@@ -1466,7 +1766,7 @@ export function PackageDetailView({
                           }] : []),
                           { type:"full"  as const, title:"Full payment",  amt:`₹${fmtINR(grandTotal)}`, sub:"100% now · priority seat", badge: tokenPaymentAvailable ? null : "Only option" },
                         ].map(({type,title,amt,sub,badge}) => (
-                          <button key={type} type="button" onClick={() => setPayType(type)}
+                          <button key={type} type="button" onClick={() => { setPayType(type); setPayOption(type); }}
                             className={cn("relative rounded-xl border-[1.5px] p-4 text-left transition duration-200",
                               payType===type?"border-primary bg-orange-50/60 shadow-[0_4px_16px_-6px_rgba(234,88,12,0.25)]":"border-[#e8e8e8] bg-white hover:border-[#FDBA74] hover:shadow-sm")}
                             aria-pressed={payType===type}>
@@ -1480,6 +1780,18 @@ export function PackageDetailView({
                           </button>
                         ))}
                       </div>
+
+                      {/* ── EMI & Offers ─────────────────────────────────────
+                          Razorpay Affordability Widget. payAmt is the exact
+                          amount checkout will charge (token_amount when
+                          part-paying, else grand_total), so the plans the SDK
+                          returns match what the customer is about to pay.
+                          Switching between full/token re-inits the widget. */}
+                      <AffordabilityWidget
+                        className="mb-5"
+                        amountInr={payAmt}
+                        enabled={hasPrice && !priceLoading && !priceStale && priceIsComplete}
+                      />
 
                       <button type="submit" disabled={isBooking}
                         className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-white shadow-[0_8px_20px_-6px_rgba(234,88,12,0.5)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-6px_rgba(234,88,12,0.55)] disabled:pointer-events-none disabled:opacity-60">
@@ -1523,29 +1835,9 @@ export function PackageDetailView({
             </div>
           </div>
 
-          {/* Similar packages */}
-          {similar.length > 0 && (
-            <div className="mt-6 rounded-2xl border border-[#e8e8e8] bg-white p-5 shadow-[0_2px_20px_-8px_rgba(15,23,42,0.1)] sm:p-6">
-              <h2 className="mb-4 text-base font-bold text-[#1a1a1a]">You may also like</h2>
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {similar.slice(0, 4).map((p) => (
-                  <li key={p.id}>
-                    <Link href={`${packageDetailHref(p)}?rooms=${encodeRooms(rooms)}`}
-                      className="group flex gap-3 rounded-xl border border-[#e8e8e8] p-3 transition duration-300 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_10px_24px_-10px_rgba(15,23,42,0.25)]">
-                      <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                        <Image src={p.image} alt={p.title} fill className="object-cover transition duration-500 group-hover:scale-105" sizes="96px" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-[#1a1a1a] group-hover:text-primary line-clamp-2">{p.title}</p>
-                        <p className="mt-1 text-[11px] text-[#9e9e9e]">{p.durationDays}D · from ₹{formatInrAmount(p.priceINR)}</p>
-                      </div>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-              <Link href="/packages" className="mt-4 inline-block text-sm font-bold text-primary hover:underline">View all packages →</Link>
-            </div>
-          )}
+          {/* Similar packages — moved to the ACTIVE render tree (see the
+              return above GlacialStylePackageDetail). This legacy return is
+              unreachable, so the section never rendered from here. */}
         </div>
       </main>
 

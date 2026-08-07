@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Calendar, MapPin, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PackageTrustStrip } from "@/components/packages/discovery/PackageTrustStrip";
+import { DatePickerPopover } from "@/components/hotels/hotel-date-range-picker";
 
 const DEFAULT_FROM = "New Delhi";
 
@@ -19,10 +21,12 @@ export type DestinationEaseHeroProps = {
 
 type CityHit = { name: string; country: string; state: string };
 
+/** "2026-08-05" → "5 Aug 2026". Full date now that the field picks a day. */
 function fmtDate(iso: string) {
   if (!iso) return "";
-  const [y, m] = iso.split("-");
-  return new Date(+y, +m - 1).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
 export function DestinationEaseHero({
@@ -39,12 +43,17 @@ export function DestinationEaseHero({
   const [toOpen, setToOpen]   = useState(false);
   const [cityHits, setCityHits] = useState<CityHit[]>([]);
   const [dateIso, setDateIso] = useState(initialDate ?? "");
+  const [dateOpen, setDateOpen] = useState(false);
   const toRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!dateIso) {
+      // Defaults to today. The old month field defaulted to the 1st of the
+      // current month, which is a past date for most of any given month.
       const t = new Date();
-      setDateIso(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-01`);
+      setDateIso(
+        `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`,
+      );
     }
   }, [dateIso]);
 
@@ -94,15 +103,22 @@ export function DestinationEaseHero({
       className={cn("relative z-10 w-full overflow-hidden bg-slate-900", className)}
       aria-label={title}
     >
-      <div className="relative h-[248px] w-full sm:h-[360px]">
+      {/* Taller than before (248→308 mobile, 360→470 desktop) to seat the trust
+          strip inside the image beneath the search card. Background, gradient
+          and search-card dimensions are unchanged.
+          Mobile came back down from 368 when the strip collapsed to a single
+          42px row — holding 368 would have left ~60px of empty image above the
+          search card. */}
+      <div className="relative h-[308px] w-full sm:h-[470px]">
         {/* Background */}
         <Image src={image} alt="" fill priority unoptimized sizes="100vw" className="object-cover object-center" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/70" />
 
         {/* Title */}
         {/* The site navbar overlays this hero on desktop. Reserve that space so
-            the eyebrow/title never disappear behind it. */}
-        <div className="relative z-10 hidden h-full translate-y-2 flex-col items-center justify-center px-4 pb-28 pt-[92px] text-center sm:flex">
+            the eyebrow/title never disappear behind it. The bottom padding
+            clears the search card AND the trust strip below it. */}
+        <div className="relative z-10 hidden h-full translate-y-2 flex-col items-center justify-center px-4 pb-[212px] pt-[92px] text-center sm:flex">
           <p className="mb-2 text-[10px] font-extrabold uppercase tracking-[0.38em] text-amber-300 drop-shadow-[0_2px_8px_rgba(0,0,0,0.65)] sm:text-xs">
             Holiday Packages
           </p>
@@ -114,10 +130,32 @@ export function DestinationEaseHero({
           )}
         </div>
 
-        {/* Search card */}
-        <div className="absolute inset-x-0 bottom-0 z-20 flex justify-center px-3 pb-3 sm:px-6 sm:pb-6">
-          <div className="w-full max-w-[900px] overflow-visible rounded-2xl border border-white/20 bg-white shadow-[0_20px_60px_-12px_rgba(0,0,0,0.4),0_4px_16px_rgba(0,0,0,0.12)]">
-            <div className="grid grid-cols-1 divide-y divide-slate-100 sm:grid-cols-[1fr_1.6fr_1fr_auto] sm:divide-x sm:divide-y-0">
+        {/* Search card + trust strip — one centered column so both share the
+            900px measure and read as a single unit against the photograph. */}
+        <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-3 pb-4 sm:gap-5 sm:px-6 sm:pb-8">
+          {/* Warm translucent glass instead of pure white: at 92% alpha the
+              photograph tints through just enough that the card reads as part
+              of the hero rather than a white block dropped on top of it. The
+              blur matches the navbar pill; the second shadow is a low-opacity
+              orange glow that ties the card to the Search button. */}
+          {/* max-w-[420px] below sm: the fields stack until 640px, so between
+              ~420 and 639 the card stretched to ~576px while still in single
+              column — which turned the full-width Search button into a 542px
+              slab. Capping the card at phone width keeps every element in
+              proportion there. No effect at 375 (card is 351px anyway) and the
+              900px desktop measure is untouched. */}
+          <div className="relative z-30 w-full max-w-[420px] overflow-visible rounded-[26px] border border-white/50 bg-[rgba(255,248,241,0.92)] shadow-[0_20px_60px_-12px_rgba(0,0,0,0.35),0_8px_28px_-10px_rgba(234,88,12,0.22)] backdrop-blur-md sm:max-w-[900px]">
+            {/* No `divide-y` on mobile. It compiles to
+                `& > :not([hidden]) ~ :not([hidden])`, which keys on the hidden
+                ATTRIBUTE — the "Traveling From" cell is hidden by the `hidden`
+                CLASS, so it still counted as a sibling and handed a border-top
+                to Destination, the first *visible* cell. The card is
+                overflow-visible (the city dropdown has to escape it), so that
+                1px sat unclipped across the 26px top radius as a seam.
+                A `border-t-0` override cannot win: the divide selector is
+                specificity (0,3,0) vs (0,1,0) for a utility. So the two mobile
+                dividers are declared explicitly on the cells below instead. */}
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.6fr_1fr_auto] sm:divide-x sm:divide-[#F1E7DC]">
 
               {/* FROM */}
               <div className="hidden items-center gap-3 px-5 py-4 sm:flex">
@@ -131,7 +169,10 @@ export function DestinationEaseHero({
               </div>
 
               {/* TO — editable */}
-              <div ref={toRef} className="relative flex items-center gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
+              {/* Vertical padding trimmed ~12–14% on the destination and date
+                  fields only (py-3.5→3 mobile, py-4→3.5 desktop). The From cell
+                  and the Search button's cell keep their original padding. */}
+              <div ref={toRef} className="relative flex items-center gap-3 px-4 py-3 sm:px-5 sm:py-3.5">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-50">
                   <Search className="h-[18px] w-[18px] text-primary" strokeWidth={2} />
                 </span>
@@ -175,30 +216,57 @@ export function DestinationEaseHero({
               </div>
 
               {/* DATE */}
-              <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5 sm:py-4">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-50">
-                  <Calendar className="h-[18px] w-[18px] text-primary" strokeWidth={2} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Travel Date</p>
-                  <div className="relative">
-                    <p className="text-[15px] font-bold text-slate-800">{fmtDate(dateIso) || "Pick month"}</p>
-                    <input
-                      type="month"
-                      value={dateIso.slice(0, 7)}
-                      onChange={e => setDateIso(e.target.value + "-01")}
-                      className="absolute inset-0 cursor-pointer opacity-0"
-                    />
-                  </div>
-                </div>
+              {/* Day picker, not a month picker. The old transparent
+                  <input type="month"> only let guests choose a month, and
+                  Chrome would only open it when the click landed on its
+                  (invisible) calendar icon. This is the same DatePickerPopover
+                  the package detail page already uses, in singleDate mode. */}
+              <div className="relative flex items-center border-t border-[#F1E7DC] sm:border-t-0">
+                <button
+                  type="button"
+                  onClick={() => setDateOpen(true)}
+                  aria-haspopup="dialog"
+                  aria-expanded={dateOpen}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left sm:px-5 sm:py-3.5"
+                >
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-orange-50">
+                    <Calendar className="h-[18px] w-[18px] text-primary" strokeWidth={2} />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                      Travel Date
+                    </span>
+                    <span className="block truncate text-[15px] font-bold text-slate-800">
+                      {fmtDate(dateIso) || "Pick date"}
+                    </span>
+                  </span>
+                </button>
+
+                {dateOpen && (
+                  <DatePickerPopover
+                    checkIn={dateIso}
+                    checkOut=""
+                    onChange={(checkIn) => setDateIso(checkIn)}
+                    onApply={() => setDateOpen(false)}
+                    onClose={() => setDateOpen(false)}
+                    compact
+                    singleDate
+                  />
+                )}
               </div>
 
               {/* SEARCH */}
-              <div className="flex items-center px-4 py-3 sm:py-4">
+              {/* Mobile only: no w-full. The button is 76% of this cell, which
+                  works out to ~70% of the CARD (the cell is inset by px-4 on
+                  each side), and mx-auto centres it. A full-width bar read as a
+                  slab rather than a primary CTA.
+                  Every sm: value restores the approved desktop button exactly —
+                  auto width, 48px tall, 14px text. */}
+              <div className="flex items-center border-t border-[#F1E7DC] px-4 py-2.5 sm:border-t-0 sm:py-4">
                 <button
                   type="button"
                   onClick={onSubmit}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3.5 text-sm font-black uppercase tracking-wider text-white shadow-[0_6px_20px_-4px_rgba(234,88,12,0.55)] transition hover:bg-primary/90 sm:w-auto sm:rounded-xl sm:px-7"
+                  className="mx-auto flex w-[76%] items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-[13px] font-black uppercase tracking-wider text-white shadow-[0_6px_20px_-4px_rgba(234,88,12,0.55)] transition hover:bg-primary/90 sm:mx-0 sm:w-auto sm:rounded-xl sm:px-7 sm:py-3.5 sm:text-sm"
                 >
                   <Search className="h-4 w-4" strokeWidth={2.5} />
                   Search
@@ -206,6 +274,9 @@ export function DestinationEaseHero({
               </div>
             </div>
           </div>
+
+          {/* USP trust strip — same 900px measure as the search card above. */}
+          <PackageTrustStrip className="relative z-10 max-w-[420px] sm:max-w-[900px]" />
         </div>
       </div>
     </section>

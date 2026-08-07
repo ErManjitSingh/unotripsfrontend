@@ -5,41 +5,36 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PAGE_MARGIN_X_CLASS } from "@/lib/page-gutter";
 import { cn } from "@/lib/utils";
 
-function PackageListRowSkeleton() {
+/** Mirrors the vertical PackageCard so the loading state matches the grid. */
+function PackageCardSkeleton() {
   return (
     <article
-      className="overflow-hidden rounded-md border border-[#e0e0e0] bg-white shadow-[0_2px_10px_-4px_rgba(15,23,42,0.08)]"
+      className="flex flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_2px_16px_-6px_rgba(15,23,42,0.08)]"
       aria-hidden
     >
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,220px)_1fr_minmax(0,220px)] xl:grid-cols-[minmax(0,240px)_1fr_minmax(0,228px)]">
-        <Skeleton className="aspect-[5/4] min-h-[168px] w-full rounded-none sm:min-h-[176px] lg:min-h-[188px]" />
-        <div className="flex flex-col border-t border-[#e0e0e0] p-4 sm:p-5 lg:border-l lg:border-t-0">
-          <div className="flex flex-wrap gap-1.5">
-            <Skeleton className="h-5 w-20 rounded" />
-            <Skeleton className="h-5 w-14 rounded" />
-          </div>
-          <Skeleton className="mt-2 h-5 w-[92%] max-w-md" />
-          <Skeleton className="mt-2 h-4 w-48" />
-          <div className="mt-2 flex gap-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-3 w-3 rounded-sm" />
-            ))}
-            <Skeleton className="h-3 w-24" />
-          </div>
-          <Skeleton className="mt-2 h-3 w-32" />
-          <Skeleton className="mt-2 h-3 w-full max-w-lg" />
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-3 w-14" />
-            <Skeleton className="h-3 w-20" />
-          </div>
+      <Skeleton className="aspect-[4/3] w-full rounded-none" />
+      <div className="flex flex-1 flex-col p-4">
+        <Skeleton className="h-5 w-24 rounded-full" />
+        <Skeleton className="mt-2 h-4 w-[92%]" />
+        <Skeleton className="mt-1.5 h-4 w-[70%]" />
+        <Skeleton className="mt-2 h-3 w-40" />
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-6 w-16 rounded-full" />
+          ))}
         </div>
-        <div className="flex flex-col justify-center border-t border-[#e0e0e0] bg-slate-50 p-4 sm:p-5 lg:border-l lg:border-t-0">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="mt-2 h-8 w-32" />
-          <Skeleton className="mt-4 h-9 w-full rounded-md" />
-          <Skeleton className="mt-2 h-9 w-full rounded-md" />
-          <Skeleton className="mt-3 h-4 w-28 self-center" />
+        <div className="mt-4 border-t border-dashed border-slate-200 pt-3.5">
+          <Skeleton className="h-2.5 w-20" />
+          <Skeleton className="mt-2 h-7 w-32" />
+          <Skeleton className="mt-2 h-3 w-28" />
+        </div>
+        <div className="mt-3 space-y-1.5 border-t border-dashed border-slate-200 pt-3">
+          <Skeleton className="h-3 w-36" />
+          <Skeleton className="h-2.5 w-44" />
+        </div>
+        <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+          <Skeleton className="h-11 w-full rounded-xl" />
+          <Skeleton className="h-11 w-24 rounded-xl" />
         </div>
       </div>
     </article>
@@ -152,9 +147,11 @@ export function DestinationListingSkeleton({
               <FilterSidebarSkeleton />
             </div>
             <div className="flex min-w-0 flex-col gap-5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <PackageListRowSkeleton key={i} />
-              ))}
+              <div className="grid items-stretch gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <PackageCardSkeleton key={i} />
+                ))}
+              </div>
               <div className="mt-4 flex flex-col items-center gap-3 border-t border-[#e8e8e8] pt-6 sm:flex-row sm:justify-between">
                 <Skeleton className="h-4 w-56" />
                 <div className="flex gap-2">

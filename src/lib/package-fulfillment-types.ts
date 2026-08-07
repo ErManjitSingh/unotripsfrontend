@@ -95,6 +95,8 @@ export type FulfillmentPricingResponse = {
   // Final authoritative amounts
   grand_total:      number;    // = gst_result.grand_total; what Razorpay charges
   token_amount:     number;    // advance payment to confirm booking
+  /** Platform advance percentage actually applied (e.g. 40). Display only. */
+  token_percent?:   number;
   /** Minimum % payable now when the guest may choose; null = fixed token. */
   min_token_percent?: number | null;
   balance_amount:   number;    // grand_total - token_amount; due before travel
