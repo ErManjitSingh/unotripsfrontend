@@ -540,23 +540,25 @@ export function HimachalSpecialLanding({ h1 }: Props) {
         />
         <div className="hs1-hero-overlay" />
         <div className="hs1-hero-content">
-          <p className="hs1-hero-badge">Best Himachal Tour Packages 2026</p>
-          <h1 className="hs1-hero-title">{h1}</h1>
-          <p className="hs1-hero-sub">Shimla - Manali - Dharamshala - Kullu</p>
-          <div className="hs1-hero-cta">
-            <button
-              type="button"
-              className="hs1-btn hs1-btn-primary hs1-pulse"
-              onClick={() => scrollToBookForm(h1)}
-            >
-              <IconCalendar />
-              <span>Book Now</span>
-              <IconArrow />
-            </button>
-            <a className="hs1-btn hs1-btn-ghost" href={`tel:${PHONE}`}>
-              <IconPhone size={16} />
-              <span>Call Now</span>
-            </a>
+          <div className="hs1-hero-copy">
+            <p className="hs1-hero-badge">Best Himachal Tour Packages 2026</p>
+            <h1 className="hs1-hero-title">{h1}</h1>
+            <p className="hs1-hero-sub">Shimla - Manali - Dharamshala - Kullu</p>
+            <div className="hs1-hero-cta">
+              <button
+                type="button"
+                className="hs1-btn hs1-btn-primary hs1-pulse"
+                onClick={() => scrollToBookForm(h1)}
+              >
+                <IconCalendar />
+                <span>Book Now</span>
+                <IconArrow />
+              </button>
+              <a className="hs1-btn hs1-btn-ghost" href={`tel:${PHONE}`}>
+                <IconPhone size={16} />
+                <span>Call Now</span>
+              </a>
+            </div>
           </div>
 
           <div id="book-now" className="hs1-hero-form-card">
