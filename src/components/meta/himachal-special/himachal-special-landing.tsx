@@ -202,13 +202,7 @@ function InclusionIcon({ type }: { type: (typeof HS1_INCLUSIONS)[number]["icon"]
   }
 }
 
-function LeadForm({
-  packageTitle,
-  onClose,
-}: {
-  packageTitle: string;
-  onClose?: () => void;
-}) {
+function LeadForm({ packageTitle }: { packageTitle: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -460,7 +454,18 @@ function PackageCard({
 }
 
 export function HimachalSpecialLanding({ h1 }: Props) {
-  const [modalPkg, setModalPkg] = useState<string | null>(null);
+  const [selectedPkg, setSelectedPkg] = useState(h1);
+
+  function scrollToBookForm(packageTitle?: string) {
+    if (packageTitle) setSelectedPkg(packageTitle);
+    const el = document.getElementById("book-now");
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      const input = el.querySelector<HTMLInputElement>('input[name="name"]');
+      input?.focus({ preventScroll: true });
+    }, 400);
+  }
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -479,6 +484,10 @@ export function HimachalSpecialLanding({ h1 }: Props) {
     const scrollToHash = () => {
       const raw = window.location.hash.replace(/^#/, "").trim();
       if (!raw) return;
+      if (raw === "book-now" || raw === "BookNow") {
+        scrollToBookForm();
+        return;
+      }
       const targetId = HASH_ALIASES[raw] || raw;
       const el = document.getElementById(targetId);
       if (!el) return;
@@ -496,16 +505,6 @@ export function HimachalSpecialLanding({ h1 }: Props) {
       window.removeEventListener("hashchange", scrollToHash);
     };
   }, []);
-
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    if (!modalPkg) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [modalPkg]);
 
   return (
     <div className="hs1-root">
@@ -548,7 +547,7 @@ export function HimachalSpecialLanding({ h1 }: Props) {
             <button
               type="button"
               className="hs1-btn hs1-btn-primary hs1-pulse"
-              onClick={() => setModalPkg(h1)}
+              onClick={() => scrollToBookForm(h1)}
             >
               <IconCalendar />
               <span>Book Now</span>
@@ -558,6 +557,15 @@ export function HimachalSpecialLanding({ h1 }: Props) {
               <IconPhone size={16} />
               <span>Call Now</span>
             </a>
+          </div>
+
+          <div id="book-now" className="hs1-hero-form-card">
+            <div className="hs1-hero-form-header">
+              <h2>Book Now</h2>
+              <p>Share your details — we reply on call / WhatsApp</p>
+              {selectedPkg ? <p className="hs1-hero-form-pkg">{selectedPkg}</p> : null}
+            </div>
+            <LeadForm key={selectedPkg} packageTitle={selectedPkg || h1} />
           </div>
         </div>
 
@@ -622,7 +630,7 @@ export function HimachalSpecialLanding({ h1 }: Props) {
           </p>
           <div className="hs1-pkg-list">
             {HS1_PACKAGES.map((pkg) => (
-              <PackageCard key={pkg.id} pkg={pkg} onEnquire={setModalPkg} />
+              <PackageCard key={pkg.id} pkg={pkg} onEnquire={scrollToBookForm} />
             ))}
           </div>
         </div>
@@ -724,34 +732,6 @@ export function HimachalSpecialLanding({ h1 }: Props) {
           <span>100% Secure Booking | No Hidden Charges</span>
         </p>
       </div>
-
-      {modalPkg ? (
-        <div className="hs1-sheet" role="dialog" aria-modal="true" aria-labelledby="hs1-modal-title">
-          <button
-            type="button"
-            className="hs1-sheet-backdrop"
-            aria-label="Close dialog"
-            onClick={() => setModalPkg(null)}
-          />
-          <div className="hs1-sheet-panel">
-            <div className="hs1-sheet-handle" aria-hidden />
-            <button
-              type="button"
-              className="hs1-modal-close"
-              aria-label="Close"
-              onClick={() => setModalPkg(null)}
-            >
-              {"\u00D7"}
-            </button>
-            <div className="hs1-modal-header">
-              <h2 id="hs1-modal-title">Book Now</h2>
-              <p>Share your details — we reply on call / WhatsApp</p>
-              <p className="hs1-modal-pkg">{modalPkg}</p>
-            </div>
-            <LeadForm packageTitle={modalPkg} />
-          </div>
-        </div>
-      ) : null}
 
       <HimachalChatbot
         landingPage={ADS.landingPage}
