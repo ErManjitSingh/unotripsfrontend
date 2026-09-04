@@ -70,10 +70,12 @@ async function main() {
       "mkdir -p /var/www/unotrips-meta",
       "tar -xzf /root/meta-himachal-ads-deploy.tar.gz -C /var/www/unotrips-meta",
       "chown -R www-data:www-data /var/www/unotrips-meta/himachal_special || true",
-      "ls -la /var/www/unotrips-meta/himachal_special/style.ads-fix.css /var/www/unotrips-meta/himachal_special/img/hero.webp",
-      "echo himachal_ok: $(curl -sL https://unotrips.com/meta/himachal_special/ | grep -oE 'TouristTrip|WhatsApp Quote|Only 2 slots|style.ads-fix' | sort -u | tr '\\n' ',')",
-      "echo himachal_css: $(curl -sL -o /dev/null -w '%{http_code}' https://unotrips.com/meta/himachal_special/style.ads-fix.css)",
-      "echo himachal_hero: $(curl -sL -o /dev/null -w '%{http_code}' https://unotrips.com/meta/himachal_special/img/hero.webp)",
+      "ls -la /var/www/unotrips-meta/himachal_special/style.utilities.min.css /var/www/unotrips-meta/himachal_special/style.icons.css /var/www/unotrips-meta/himachal_special/img/hero-sm.webp",
+      "echo himachal_ok: $(curl -sL https://unotrips.com/meta/himachal_special/ | grep -oE 'style.utilities|style.icons|hero-sm|cdn.tailwindcss|font-awesome|page-loader' | sort | uniq -c | tr '\\n' ';')",
+      "echo util: $(curl -sL -o /dev/null -w '%{http_code}:%{size_download}' https://unotrips.com/meta/himachal_special/style.utilities.min.css)",
+      "echo icons: $(curl -sL -o /dev/null -w '%{http_code}:%{size_download}' https://unotrips.com/meta/himachal_special/style.icons.css)",
+      "echo hero: $(curl -sL -o /dev/null -w '%{http_code}:%{size_download}' https://unotrips.com/meta/himachal_special/img/hero-sm.webp)",
+      "echo ttfb: $(curl -sL -o /dev/null -w '%{time_starttransfer}' -A 'Mozilla/5.0 (iPhone)' https://unotrips.com/meta/himachal_special/)",
     ].join(" && "),
   );
   conn.end();

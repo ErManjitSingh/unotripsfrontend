@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use PHPMailer\PHPMailer\PHPMailer;
 
@@ -312,11 +312,9 @@ $tourist_trip_graph = [
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-  <link rel="preload" href="img/hero.webp" as="image" fetchpriority="high" />
+  <link rel="preload" href="img/hero-sm.webp" as="image" fetchpriority="high" />
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'" />
 
   <!-- Google Ads: Required - do not remove/defer/delay. -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17928878008"></script>
@@ -424,6 +422,8 @@ $tourist_trip_graph = [
   </script>
 
   <link rel="stylesheet" href="style.critical.min.css" />
+  <link rel="stylesheet" href="style.utilities.min.css" />
+  <link rel="stylesheet" href="style.icons.css" />
   <link rel="preload" href="style.deferred.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="style.deferred.min.css"></noscript>
   <link rel="stylesheet" href="style.ads-fix.css" />
@@ -450,37 +450,6 @@ $tourist_trip_graph = [
       <span><?php echo htmlspecialchars($scarcity_sub); ?></span>
     </div>
     <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="scarcity-wa">Lock on WhatsApp</a>
-  </div>
-
-  <!-- Page Loader -->
-  <div id="page-loader" class="page-loader">
-    <div class="loader-backdrop">
-      <div class="loader-mountains"></div>
-      <div class="loader-gradient-overlay"></div>
-    </div>
-    <div class="loader-particles">
-      <span></span><span></span><span></span><span></span><span></span>
-      <span></span><span></span><span></span><span></span><span></span>
-    </div>
-    <div class="loader-content">
-      <div class="loader-rings">
-        <div class="loader-ring loader-ring-1"></div>
-        <div class="loader-ring loader-ring-2"></div>
-        <div class="loader-ring loader-ring-3"></div>
-        <div class="loader-core">
-          <img src="img/logo.png" alt="Uno Trips" class="loader-logo" width="80" height="27" decoding="async" />
-        </div>
-      </div>
-      <p class="loader-text">
-        <span class="loader-text-word">Uno</span>
-        <span class="loader-text-word">Trips</span>
-      </p>
-      <p class="loader-tagline">Loading your journey to the mountains</p>
-      <div class="loader-bar">
-        <div class="loader-bar-track"></div>
-        <div class="loader-bar-fill"></div>
-      </div>
-    </div>
   </div>
 
   <!-- Header -->
@@ -521,11 +490,11 @@ $tourist_trip_graph = [
   <!-- Hero Section with Image -->
   <section class="hero-image relative hero-section">
     <img
-      src="img/hero.webp"
+      src="img/hero-sm.webp"
       alt="<?php echo htmlspecialchars($hero['title']); ?> — Shimla Manali Dharamshala"
       class="hero-bg-img"
-      width="1920"
-      height="1080"
+      width="1280"
+      height="720"
       fetchpriority="high"
       decoding="async" />
     <div class="hero-overlay"></div>
@@ -1448,7 +1417,7 @@ $tourist_trip_graph = [
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/hero.webp"
+              src="img/himachal-opt.webp"
               alt="Complete Himachal Tour"
               class="w-full h-full object-cover"
               width="600"
@@ -2155,8 +2124,7 @@ $tourist_trip_graph = [
   <script>
     window.HIMACHAL_WA_QUOTE = <?php echo json_encode($wa_quote_url); ?>;
   </script>
-  <script src="script.js"></script>
-  <script src="https://cdn.tailwindcss.com" defer></script>
+  <script src="script.js" defer></script>
 </body>
 
 </html>

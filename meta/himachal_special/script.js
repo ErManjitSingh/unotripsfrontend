@@ -1,33 +1,3 @@
-// Page Loader - hide ASAP (ads: sub-2s mobile; avoid forced 1s wait)
-(function () {
-  const loader = document.getElementById("page-loader");
-  if (!loader) return;
-
-  document.body.style.overflow = "hidden";
-  const minLoadTime = 200;
-  const startTime = Date.now();
-  let hidden = false;
-
-  function hideLoader() {
-    if (hidden) return;
-    hidden = true;
-    const elapsed = Date.now() - startTime;
-    const remaining = Math.max(0, minLoadTime - elapsed);
-    setTimeout(() => {
-      loader.classList.add("loader-hidden");
-      document.body.style.overflow = "";
-    }, remaining);
-  }
-
-  if (document.readyState === "complete") {
-    hideLoader();
-  } else {
-    window.addEventListener("load", hideLoader);
-  }
-  // Fallback: never block past 1.2s even if assets hang
-  setTimeout(hideLoader, 1200);
-})();
-
 // Run DOM-dependent code when ready
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll(".whatsapp-btn").forEach((btn) => {
