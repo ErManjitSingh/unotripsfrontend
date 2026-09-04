@@ -59,22 +59,25 @@ const fileUploads = [
 
 async function main() {
   const conn = await connect();
-  console.log("Uploading Himachal + Leh Meta Pixel files...");
-  for (const [localRel, remote] of fileUploads) {
-    console.log(`  ${localRel}`);
-    await upload(conn, join(root, localRel), remote);
-  }
+  const localTar = join(root, "meta-himachal-ads-deploy.tar.gz");
+  const remoteTar = "/root/meta-himachal-ads-deploy.tar.gz";
+  console.log("Uploading Himachal ads tar...");
+  await upload(conn, localTar, remoteTar);
+  console.log("Extracting on VPS...");
   await exec(
     conn,
     [
-      "chown -R www-data:www-data /var/www/unotrips-meta/himachal_special /var/www/unotrips-meta/leh || true",
-      "echo himachal_ok: $(curl -s https://unotrips.com/meta/himachal_special/ | grep -o 'TouristTrip\\|WhatsApp Quote\\|Only 2 slots' | head -3 | tr '\\n' ',')",
-      "echo himachal_css: $(curl -s -o /dev/null -w '%{http_code}' https://unotrips.com/meta/himachal_special/style.ads-fix.css)",
-      "echo himachal_hero: $(curl -s -o /dev/null -w '%{http_code}' https://unotrips.com/meta/himachal_special/img/hero.webp)",
+      "mkdir -p /var/www/unotrips-meta",
+      "tar -xzf /root/meta-himachal-ads-deploy.tar.gz -C /var/www/unotrips-meta",
+      "chown -R www-data:www-data /var/www/unotrips-meta/himachal_special || true",
+      "ls -la /var/www/unotrips-meta/himachal_special/style.ads-fix.css /var/www/unotrips-meta/himachal_special/img/hero.webp",
+      "echo himachal_ok: $(curl -sL https://unotrips.com/meta/himachal_special/ | grep -oE 'TouristTrip|WhatsApp Quote|Only 2 slots|style.ads-fix' | sort -u | tr '\\n' ',')",
+      "echo himachal_css: $(curl -sL -o /dev/null -w '%{http_code}' https://unotrips.com/meta/himachal_special/style.ads-fix.css)",
+      "echo himachal_hero: $(curl -sL -o /dev/null -w '%{http_code}' https://unotrips.com/meta/himachal_special/img/hero.webp)",
     ].join(" && "),
   );
   conn.end();
-  console.log("\nHimachal + Leh Meta Pixel upload done.");
+  console.log("\nHimachal ads live deploy done.");
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
