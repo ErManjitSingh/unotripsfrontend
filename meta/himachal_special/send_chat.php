@@ -102,6 +102,31 @@ $htmlBody .= '</td></tr>';
 $htmlBody .= '<tr><td style="padding:12px 24px; font-size:11px; color:#94a3b8; border-top:1px solid #e5e7eb;">Sent from Himachal Tour chatbot (Uno Trips)</td></tr>';
 $htmlBody .= '</table></td></tr></table></body></html>';
 
+$crmOk = false;
+$mailOk = false;
+$mailError = '';
+
+if ($userPhone !== '') {
+  $crmResult = uno_crm_push_lead([
+    'name' => $userName !== '' ? $userName : 'Himachal Chatbot Lead',
+    'phone' => $userPhone,
+    'email' => $userEmail,
+    'destination' => $destination !== '' ? $destination : 'Himachal',
+    'source' => 'Himachal Chatbot',
+    'sourceLabel' => 'Himachal Chatbot',
+    'landingPage' => 'Himachal Chatbot',
+    'message' => $plainBody,
+    'chat' => $lines,
+    'transcript' => $lines,
+    'captureType' => 'chatbot',
+    'channel' => 'meta',
+  ]);
+  $crmOk = !empty($crmResult['success']);
+  if (!$crmOk) {
+    error_log('[himachal chatbot] CRM failed: ' . json_encode($crmResult));
+  }
+}
+
 $mail = new PHPMailer(true);
 try {
   uno_trips_smtp_configure($mail);
@@ -115,23 +140,25 @@ try {
   $mail->Body = $htmlBody;
   $mail->AltBody = $plainBody;
 
-  $mail->send();
-
-  if ($userPhone !== '') {
-    uno_crm_push_lead([
-      'name' => $userName !== '' ? $userName : 'Himachal Chatbot Lead',
-      'phone' => $userPhone,
-      'email' => $userEmail,
-      'destination' => $destination !== '' ? $destination : 'Himachal',
-      'source' => 'Himachal Chatbot',
-      'sourceLabel' => 'Himachal Chatbot',
-      'chat' => $lines,
-      'captureType' => 'chatbot',
-      'channel' => 'meta',
-    ]);
-  }
-
-  echo json_encode(['success' => true, 'message' => 'Chat sent']);
+  $mailOk = $mail->send();
 } catch (Exception $e) {
-  echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+  $mailError = $e->getMessage();
+  error_log('[himachal chatbot] mail failed: ' . $mailError);
 }
+
+if ($crmOk || $mailOk) {
+  echo json_encode([
+    'success' => true,
+    'message' => 'Chat sent',
+    'crm' => $crmOk,
+    'mail' => $mailOk,
+  ]);
+  exit;
+}
+
+echo json_encode([
+  'success' => false,
+  'message' => $mailError !== '' ? $mailError : 'Could not save chat lead',
+  'crm' => $crmOk,
+  'mail' => $mailOk,
+]);
