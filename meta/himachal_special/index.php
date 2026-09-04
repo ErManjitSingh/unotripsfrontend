@@ -312,9 +312,12 @@ $tourist_trip_graph = [
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
   <link rel="preload" href="img/hero-sm.webp" as="image" fetchpriority="high" />
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'" />
+  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" /></noscript>
 
   <!-- Google Ads: Required - do not remove/defer/delay. -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17928878008"></script>
@@ -422,8 +425,6 @@ $tourist_trip_graph = [
   </script>
 
   <link rel="stylesheet" href="style.critical.min.css" />
-  <link rel="stylesheet" href="style.utilities.min.css" />
-  <link rel="stylesheet" href="style.icons.css" />
   <link rel="preload" href="style.deferred.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="style.deferred.min.css"></noscript>
   <link rel="stylesheet" href="style.ads-fix.css" />
@@ -2125,6 +2126,7 @@ $tourist_trip_graph = [
     window.HIMACHAL_WA_QUOTE = <?php echo json_encode($wa_quote_url); ?>;
   </script>
   <script src="script.js" defer></script>
+  <script src="https://cdn.tailwindcss.com" defer></script>
 </body>
 
 </html>
