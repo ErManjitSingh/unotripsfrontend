@@ -17,6 +17,7 @@ if (isset($_POST['submit'])) {
   $city = isset($_POST['cityy']) ? trim($_POST['cityy']) : '';
   $subject = isset($_POST['subjecty']) ? trim($_POST['subjecty']) : 'Himachal Tour Query';
   $packageTitle = isset($_POST['package-title']) ? trim($_POST['package-title']) : '';
+  $pricingTier = isset($_POST['pricing-tier']) ? trim($_POST['pricing-tier']) : '';
   $destination = isset($_POST['destinationy']) ? trim($_POST['destinationy']) : 'Himachal';
 
   if (empty($name) || empty($mobile)) {
@@ -30,6 +31,9 @@ if (isset($_POST['submit'])) {
   }
   $message .= "Destination: " . $destination . "\n";
   $message .= "City: " . $city . "\n";
+  if (!empty($pricingTier)) {
+    $message .= "Pricing Tier: " . $pricingTier . "\n";
+  }
   if (!empty($packageTitle)) {
     $message .= "Package: " . $packageTitle . "\n";
   }
@@ -42,7 +46,7 @@ if (isset($_POST['submit'])) {
     'city' => $city,
     'source' => 'Himachal Landing Page',
     'sourceLabel' => 'Himachal Landing Page',
-    'package' => $packageTitle,
+    'package' => trim(($pricingTier !== '' ? '[' . ucfirst($pricingTier) . '] ' : '') . $packageTitle),
     'captureType' => 'form',
     'channel' => 'meta',
   ]);
@@ -77,29 +81,239 @@ if (isset($_POST['submit'])) {
 <?php
 $canonical_url = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? '') . ($_SERVER['REQUEST_URI'] ?? '');
 $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
+
+// Ad → page consistency: mirror Family / Honeymoon headlines from URL params
+$ad_signal = strtolower(trim(implode(' ', array_filter([
+  $_GET['theme'] ?? '',
+  $_GET['utm_campaign'] ?? '',
+  $_GET['utm_content'] ?? '',
+  $_GET['utm_term'] ?? '',
+  $_GET['utm_adgroup'] ?? '',
+  $_GET['campaign'] ?? '',
+]))));
+$lp_theme = 'general';
+if (preg_match('/honeymoon|romantic|couple/', $ad_signal)) {
+  $lp_theme = 'honeymoon';
+} elseif (preg_match('/family|kids|children/', $ad_signal)) {
+  $lp_theme = 'family';
+}
+
+$hero_by_theme = [
+  'honeymoon' => [
+    'badge' => 'Himachal Honeymoon Specials 2026',
+    'title' => 'Himachal Honeymoon Specials',
+    'subtitle' => 'Romantic Shimla • Manali getaways for couples',
+    'section' => 'Himachal Honeymoon Packages',
+    'section_sub' => 'Curated romantic itineraries — transparent pricing from ₹25,000',
+    'meta_title' => 'Himachal Honeymoon Packages | Shimla Manali Couples Tour - Uno Trips',
+    'meta_desc' => 'Book Himachal honeymoon specials — romantic Shimla & Manali packages from ₹25,000. Free quote on WhatsApp. Verified traveler reviews.',
+    'wa' => 'Hi Uno Trips, I want a free quote for Himachal Honeymoon package',
+    'form_title' => 'Book Your Himachal Honeymoon',
+  ],
+  'family' => [
+    'badge' => 'Himachal Family Specials 2026',
+    'title' => 'Himachal Family Tour Packages',
+    'subtitle' => 'Safe, kid-friendly Shimla • Manali • Dharamshala trips',
+    'section' => 'Himachal Family Packages',
+    'section_sub' => 'Premium family packages from ₹25,000 — budget & premium tiers',
+    'meta_title' => 'Himachal Family Tour Packages | Shimla Manali Family Trip - Uno Trips',
+    'meta_desc' => 'Book premium Himachal family packages from ₹25,000 — Shimla, Manali, Dharamshala. Free quote. Verified reviews & WhatsApp support.',
+    'wa' => 'Hi Uno Trips, I want a free quote for Himachal Family package',
+    'form_title' => 'Book Your Himachal Family Tour',
+  ],
+  'general' => [
+    'badge' => 'Family & Honeymoon Specials 2026',
+    'title' => 'Himachal Family & Honeymoon Packages',
+    'subtitle' => 'Shimla • Manali • Dharamshala • Kullu — from ₹25,000',
+    'section' => 'Best Himachal Tour Packages',
+    'section_sub' => 'Premium family & honeymoon packages from ₹25,000',
+    'meta_title' => 'Himachal Family & Honeymoon Packages | Shimla Manali - Uno Trips',
+    'meta_desc' => 'Premium Himachal family & honeymoon packages from ₹25,000. Shimla, Manali, Dharamshala. Free quote on WhatsApp. Verified reviews.',
+    'wa' => 'Hi Uno Trips, I want a free Himachal quote',
+    'form_title' => 'Get a Free Himachal Quote',
+  ],
+];
+$hero = $hero_by_theme[$lp_theme];
+$wa_quote_url = 'https://wa.me/917876505119?text=' . rawurlencode($hero['wa']);
+
+// Intent pre-qualification: informational (guide) vs transactional (book)
+$intent_signal = strtolower(trim(implode(' ', array_filter([
+  $_GET['intent'] ?? '',
+  $_GET['utm_term'] ?? '',
+  $_GET['utm_content'] ?? '',
+  $_GET['q'] ?? '',
+  $_GET['keyword'] ?? '',
+]))));
+$lp_intent = 'transactional';
+if (preg_match('/\b(guide|tips|blog|itinerary ideas|what to do|places to visit|travel guide|how to|best time|informational|info)\b/', $intent_signal)
+  || (isset($_GET['intent']) && preg_match('/^(guide|info|blog)$/i', $_GET['intent']))) {
+  $lp_intent = 'informational';
+}
+if (preg_match('/\b(book|package|packages|price|cost|quote|enquire|enquiry|deal|offer|booking)\b/', $intent_signal)
+  || (isset($_GET['intent']) && preg_match('/^(book|buy|quote)$/i', $_GET['intent']))) {
+  $lp_intent = 'transactional';
+}
+
+$scarcity_text = 'Only 2 slots left for October Festival departures';
+$scarcity_sub = 'Festival window fills fast — lock dates on WhatsApp today';
+
+// TouristTrip packages for JSON-LD (price, destinations, duration)
+$tourist_trips = [
+  [
+    '@type' => 'TouristTrip',
+    'name' => 'Shimla Manali Tour Package - 5N/6D',
+    'description' => '5 nights 6 days Himachal tour covering Shimla and Manali with stays, breakfast, sightseeing and private transfers.',
+    'touristType' => ['Family', 'Couples'],
+    'itinerary' => [
+      '@type' => 'ItemList',
+      'itemListElement' => [
+        ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Shimla', 'address' => ['@type' => 'PostalAddress', 'addressRegion' => 'Himachal Pradesh', 'addressCountry' => 'IN']]],
+        ['@type' => 'ListItem', 'position' => 2, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Manali', 'address' => ['@type' => 'PostalAddress', 'addressRegion' => 'Himachal Pradesh', 'addressCountry' => 'IN']]],
+      ],
+    ],
+    'offers' => [
+      '@type' => 'Offer',
+      'url' => $canonical_url !== '' ? $canonical_url . '#shimla-manali-tour-package-5n-6d' : '#shimla-manali-tour-package-5n-6d',
+      'priceCurrency' => 'INR',
+      'price' => '25000',
+      'priceValidUntil' => '2026-12-31',
+      'availability' => 'https://schema.org/LimitedAvailability',
+      'category' => 'Budget',
+    ],
+  ],
+  [
+    '@type' => 'TouristTrip',
+    'name' => 'Romantic Himachal Honeymoon - 5N/6D Shimla & Manali',
+    'description' => 'Romantic 5 nights 6 days honeymoon package for couples in Shimla and Manali.',
+    'touristType' => ['Honeymoon', 'Couples'],
+    'itinerary' => [
+      '@type' => 'ItemList',
+      'itemListElement' => [
+        ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Shimla']],
+        ['@type' => 'ListItem', 'position' => 2, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Manali']],
+      ],
+    ],
+    'offers' => [
+      '@type' => 'Offer',
+      'url' => $canonical_url !== '' ? $canonical_url . '#romantic-himachal-honeymoon-shimla-manali-5n-6d' : '#romantic-himachal-honeymoon-shimla-manali-5n-6d',
+      'priceCurrency' => 'INR',
+      'price' => '32000',
+      'priceValidUntil' => '2026-12-31',
+      'availability' => 'https://schema.org/LimitedAvailability',
+      'category' => 'Honeymoon',
+    ],
+  ],
+  [
+    '@type' => 'TouristTrip',
+    'name' => 'Shimla Manali Dharamshala Tour - 6N/7D',
+    'description' => '6 nights 7 days Himachal family tour covering Shimla, Manali and Dharamshala.',
+    'touristType' => ['Family'],
+    'itinerary' => [
+      '@type' => 'ItemList',
+      'itemListElement' => [
+        ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Shimla']],
+        ['@type' => 'ListItem', 'position' => 2, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Manali']],
+        ['@type' => 'ListItem', 'position' => 3, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Dharamshala']],
+      ],
+    ],
+    'offers' => [
+      '@type' => 'Offer',
+      'url' => $canonical_url !== '' ? $canonical_url . '#shimla-manali-dharamshala-tour-6n-7d' : '#shimla-manali-dharamshala-tour-6n-7d',
+      'priceCurrency' => 'INR',
+      'price' => '35000',
+      'priceValidUntil' => '2026-12-31',
+      'availability' => 'https://schema.org/LimitedAvailability',
+      'category' => 'Family',
+    ],
+  ],
+  [
+    '@type' => 'TouristTrip',
+    'name' => 'Complete Himachal Tour - 8N/9D Shimla, Manali & Dharamshala',
+    'description' => 'Premium 8 nights 9 days complete Himachal circuit for families.',
+    'touristType' => ['Family', 'Group'],
+    'itinerary' => [
+      '@type' => 'ItemList',
+      'itemListElement' => [
+        ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Shimla']],
+        ['@type' => 'ListItem', 'position' => 2, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Manali']],
+        ['@type' => 'ListItem', 'position' => 3, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Dharamshala']],
+      ],
+    ],
+    'offers' => [
+      '@type' => 'Offer',
+      'url' => $canonical_url !== '' ? $canonical_url . '#complete-himachal-tour-shimla-manali-dharamshala-8n-9d' : '#complete-himachal-tour-shimla-manali-dharamshala-8n-9d',
+      'priceCurrency' => 'INR',
+      'price' => '45000',
+      'priceValidUntil' => '2026-12-31',
+      'availability' => 'https://schema.org/LimitedAvailability',
+      'category' => 'Premium',
+    ],
+  ],
+  [
+    '@type' => 'TouristTrip',
+    'name' => 'Manali Kullu Tour Package - 4N/5D',
+    'description' => '4 nights 5 days Manali and Kullu tour — ideal short Himachal getaway.',
+    'touristType' => ['Family', 'Couples'],
+    'itinerary' => [
+      '@type' => 'ItemList',
+      'itemListElement' => [
+        ['@type' => 'ListItem', 'position' => 1, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Manali']],
+        ['@type' => 'ListItem', 'position' => 2, 'item' => ['@type' => 'TouristAttraction', 'name' => 'Kullu']],
+      ],
+    ],
+    'offers' => [
+      '@type' => 'Offer',
+      'url' => $canonical_url !== '' ? $canonical_url . '#manali-kullu-tour-package-4n-5d' : '#manali-kullu-tour-package-4n-5d',
+      'priceCurrency' => 'INR',
+      'price' => '25000',
+      'priceValidUntil' => '2026-12-31',
+      'availability' => 'https://schema.org/InStock',
+      'category' => 'Budget',
+    ],
+  ],
+];
+$tourist_trip_graph = [
+  '@context' => 'https://schema.org',
+  '@graph' => array_merge(
+    [[
+      '@type' => 'ItemList',
+      'name' => 'Himachal Tour Packages',
+      'itemListOrder' => 'https://schema.org/ItemListUnordered',
+      'numberOfItems' => count($tourist_trips),
+      'itemListElement' => array_map(function ($trip, $i) {
+        return [
+          '@type' => 'ListItem',
+          'position' => $i + 1,
+          'item' => $trip,
+        ];
+      }, $tourist_trips, array_keys($tourist_trips)),
+    ]],
+    $tourist_trips
+  ),
+];
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-lp-theme="<?php echo htmlspecialchars($lp_theme); ?>" data-lp-intent="<?php echo htmlspecialchars($lp_intent); ?>">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Himachal Tour Packages | Shimla Manali Dharamshala Tour - Uno Trips</title>
-  <meta name="description" content="Book best Himachal tour packages - Shimla, Manali, Dharamshala, Kullu. Himachal honeymoon & group tours. Get free quote. Best price guaranteed." />
-  <meta name="keywords" content="himachal tour packages, himachal trip, himachal travel package, shimla manali tour, himachal holiday packages, himachal honeymoon package, himachal group tour, himachal tour price, book himachal tour, himachal vacation package, himachal trip cost, best himachal packages" />
+  <title><?php echo htmlspecialchars($hero['meta_title']); ?></title>
+  <meta name="description" content="<?php echo htmlspecialchars($hero['meta_desc']); ?>" />
+  <meta name="keywords" content="himachal tour packages, himachal family package, himachal honeymoon package, shimla manali tour, himachal holiday packages, himachal group tour, himachal tour price, book himachal tour, premium himachal packages from 25000" />
   <meta name="robots" content="index, follow" />
   <?php if (!empty($canonical_url)) {
     echo '<link rel="canonical" href="' . htmlspecialchars($canonical_url) . '" />';
   } ?>
   <meta name="theme-color" content="#1f2937" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Himachal Tour Packages | Shimla Manali Dharamshala - Uno Trips" />
-  <meta property="og:description" content="Book best Himachal tour packages - Shimla, Manali, Dharamshala. Get free quote. Best price guaranteed." />
+  <meta property="og:title" content="<?php echo htmlspecialchars($hero['meta_title']); ?>" />
+  <meta property="og:description" content="<?php echo htmlspecialchars($hero['meta_desc']); ?>" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
-  <link rel="preload" href="img/full_himachal.webp" as="image" fetchpriority="high" />
+  <link rel="preload" href="img/hero.webp" as="image" fetchpriority="high" />
   <link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'" />
@@ -139,16 +353,27 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
       "@context": "https://schema.org",
       "@type": "TravelAgency",
       "name": "Uno Trips - Himachal Tour Packages",
-      "description": "Book Himachal tour packages - Shimla, Manali, Dharamshala, Kullu. Himachal honeymoon packages, group tours, custom itineraries.",
+      "description": "Book Himachal tour packages - Shimla, Manali, Dharamshala, Kullu. Himachal honeymoon packages, group tours, custom itineraries. Packages from INR 25000.",
       "telephone": "+91-7876505119",
+      "url": <?php echo json_encode($canonical_url !== '' ? $canonical_url : 'https://unotrips.in'); ?>,
       "areaServed": "Himachal Pradesh, India",
-      "serviceType": ["Himachal Tour Packages", "Himachal Trip", "Shimla Manali Tour", "Himachal Honeymoon Package", "Himachal Group Tour"],
+      "serviceType": ["Himachal Tour Packages", "Himachal Trip", "Shimla Manali Tour", "Himachal Honeymoon Package", "Himachal Group Tour", "5-day Himachal tour"],
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "reviewCount": "14001",
+        "bestRating": "5",
+        "worstRating": "1"
+      },
       "address": {
         "@type": "PostalAddress",
         "addressRegion": "Himachal Pradesh",
         "addressCountry": "IN"
       }
     }
+  </script>
+  <script type="application/ld+json">
+<?php echo json_encode($tourist_trip_graph, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); ?>
   </script>
   <script type="application/ld+json">
     {
@@ -201,9 +426,32 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
   <link rel="stylesheet" href="style.critical.min.css" />
   <link rel="preload" href="style.deferred.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
   <noscript><link rel="stylesheet" href="style.deferred.min.css"></noscript>
+  <link rel="stylesheet" href="style.ads-fix.css" />
 </head>
 
-<body class="bg-white page-body">
+<body class="bg-white page-body intent-<?php echo htmlspecialchars($lp_intent); ?>">
+  <!-- Mobile top CTA — WhatsApp primary -->
+  <div class="mobile-top-cta md:hidden">
+    <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="mobile-top-cta-wa mobile-top-cta-primary">
+      <i class="fab fa-whatsapp"></i>
+      <span>WhatsApp Quote</span>
+    </a>
+    <button type="button" class="mobile-top-cta-quote" onclick="openEnquiryModal()">
+      <i class="fas fa-file-invoice"></i>
+      <span>Free Quote Form</span>
+    </button>
+  </div>
+
+  <!-- Scarcity nudge -->
+  <div class="scarcity-bar" role="status">
+    <i class="fas fa-bolt scarcity-icon" aria-hidden="true"></i>
+    <div class="scarcity-copy">
+      <strong><?php echo htmlspecialchars($scarcity_text); ?></strong>
+      <span><?php echo htmlspecialchars($scarcity_sub); ?></span>
+    </div>
+    <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="scarcity-wa">Lock on WhatsApp</a>
+  </div>
+
   <!-- Page Loader -->
   <div id="page-loader" class="page-loader">
     <div class="loader-backdrop">
@@ -250,12 +498,21 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
       </div>
 
       <!-- Right Side -->
-      <div class="flex items-center space-x-3 md:space-x-4">
+      <div class="flex items-center space-x-2 md:space-x-4">
+        <a
+          href="<?php echo htmlspecialchars($wa_quote_url); ?>"
+          target="_blank"
+          rel="noopener"
+          class="hidden sm:inline-flex header-wa-btn px-3 py-2 rounded-xl text-white font-semibold text-sm items-center gap-2">
+          <i class="fab fa-whatsapp text-sm"></i>
+          <span>WhatsApp Quote</span>
+        </a>
         <a
           href="tel:+917876505119"
           class="header-call-btn px-4 py-2 rounded-xl text-white font-semibold text-sm flex items-center gap-2">
           <i class="fas fa-phone text-xs"></i>
-          <span>+91-7876505119</span>
+          <span class="hidden xs:inline md:inline">+91-7876505119</span>
+          <span class="md:hidden">Call</span>
         </a>
       </div>
     </div>
@@ -264,8 +521,8 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
   <!-- Hero Section with Image -->
   <section class="hero-image relative hero-section">
     <img
-      src="img/full_himachal.webp"
-      alt="Himachal Pradesh - Shimla Manali Dharamshala"
+      src="img/hero.webp"
+      alt="<?php echo htmlspecialchars($hero['title']); ?> — Shimla Manali Dharamshala"
       class="hero-bg-img"
       width="1920"
       height="1080"
@@ -274,23 +531,33 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
     <div class="hero-overlay"></div>
     <!-- Hero content -->
     <div class="hero-content absolute inset-0 flex flex-col items-center justify-center w-full px-4 z-10 text-center">
-      <p class="hero-badge text-white/90 text-xs md:text-sm font-semibold tracking-widest uppercase mb-3">Best Himachal Tour Packages</p>
-      <h1 class="hero-title text-white text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-2 drop-shadow-lg">Explore the Mountains</h1>
-      <p class="hero-subtitle text-white/90 text-base md:text-lg lg:text-xl mb-6 md:mb-8 max-w-xl">Shimla • Manali • Dharamshala • Kullu</p>
-      <button
-        type="button"
-        class="cta-primary gradient-btn hero-cta-btn text-white px-6 md:px-10 py-4 md:py-5 rounded-2xl text-base md:text-lg font-bold inline-flex items-center justify-center gap-2 shadow-xl"
-        onclick="openEnquiryModal()">
-        <i class="fas fa-calendar-check"></i>
-        <span>Book Now</span>
-        <i class="fas fa-arrow-right text-sm"></i>
-      </button>
+      <p class="hero-badge text-white/90 text-xs md:text-sm font-semibold tracking-widest uppercase mb-3"><?php echo htmlspecialchars($hero['badge']); ?></p>
+      <h1 class="hero-title text-white text-3xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-2 drop-shadow-lg"><?php echo htmlspecialchars($hero['title']); ?></h1>
+      <p class="hero-subtitle text-white/90 text-base md:text-lg lg:text-xl mb-3 md:mb-4 max-w-xl"><?php echo htmlspecialchars($hero['subtitle']); ?></p>
+      <p class="hero-scarcity mb-4 md:mb-5"><i class="fas fa-fire"></i> <?php echo htmlspecialchars($scarcity_text); ?></p>
+      <div class="hero-cta-row flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 w-full max-w-lg">
+        <a
+          href="<?php echo htmlspecialchars($wa_quote_url); ?>"
+          target="_blank"
+          rel="noopener"
+          class="whatsapp-btn hero-wa-btn cta-primary-wa text-white px-5 md:px-8 py-3.5 md:py-4 rounded-2xl text-sm md:text-base font-bold inline-flex items-center justify-center gap-2 shadow-xl">
+          <i class="fab fa-whatsapp text-lg"></i>
+          <span>WhatsApp Quote — Instant Reply</span>
+        </a>
+        <button
+          type="button"
+          class="cta-secondary-form hero-cta-btn text-white px-5 md:px-8 py-3.5 md:py-4 rounded-2xl text-sm md:text-base font-bold inline-flex items-center justify-center gap-2 shadow-xl"
+          onclick="openEnquiryModal()">
+          <i class="fas fa-file-invoice"></i>
+          <span>Get a Free Himachal Quote</span>
+        </button>
+      </div>
     </div>
     <!-- Review Ratings Overlay + Trust -->
     <div
       class="review-overlay absolute bottom-0 left-0 right-0 py-3 px-4 md:px-6">
       <div class="container mx-auto">
-        <p class="text-center text-gray-300 text-xs mb-2">No spam • Free consultation • Instant response on WhatsApp</p>
+        <p class="text-center text-gray-300 text-xs mb-2">No spam • Free consultation • Instant WhatsApp quote</p>
         <div
           class="flex flex-nowrap items-center justify-center md:justify-start gap-2 md:gap-6 overflow-x-auto">
           <!-- Google Review -->
@@ -347,56 +614,112 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
     <div class="container mx-auto max-w-4xl">
       <!-- Destination Title -->
       <div class="text-center mb-5">
-        <h1 class="section-title text-3xl md:text-4xl font-bold text-gray-800 mb-2 tracking-tight">
-          Best Himachal Tour Packages
-        </h1>
-        <p class="text-gray-500 text-sm md:text-base">Explore the land of snow-clad peaks and valleys</p>
+        <h2 class="section-title text-3xl md:text-4xl font-bold text-gray-800 mb-2 tracking-tight">
+          <?php echo htmlspecialchars($hero['section']); ?>
+        </h2>
+        <p class="text-gray-500 text-sm md:text-base"><?php echo htmlspecialchars($hero['section_sub']); ?></p>
       </div>
 
-      <!-- ONE Primary CTA + Secondary WhatsApp -->
-      <div class="flex flex-col items-center gap-4 mt-6">
+      <!-- Tiered pricing: Budget vs Premium (intent gap fix) -->
+      <div class="pricing-tiers grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <button type="button" class="pricing-tier pricing-tier-budget text-left" onclick="selectPricingTier('budget')" data-tier="budget">
+          <div class="pricing-tier-label">Budget</div>
+          <div class="pricing-tier-name">Value Family / Couples</div>
+          <div class="pricing-tier-price">From <strong>₹25,000</strong> <span>/ person</span></div>
+          <ul class="pricing-tier-perks">
+            <li>3★ stays • Private transfers</li>
+            <li>Breakfast • Sightseeing</li>
+            <li>Best for first-time visitors</li>
+          </ul>
+          <span class="pricing-tier-cta">Get Budget Quote →</span>
+        </button>
+        <button type="button" class="pricing-tier pricing-tier-premium text-left" onclick="selectPricingTier('premium')" data-tier="premium">
+          <div class="pricing-tier-badge">Most booked</div>
+          <div class="pricing-tier-label">Premium</div>
+          <div class="pricing-tier-name">Premium Family Packages</div>
+          <div class="pricing-tier-price">From <strong>₹45,000</strong> <span>/ person</span></div>
+          <ul class="pricing-tier-perks">
+            <li>4★ / boutique stays • Private cab</li>
+            <li>Meals • Experiences • Trip captain</li>
+            <li>Ideal for families & honeymoons</li>
+          </ul>
+          <span class="pricing-tier-cta">Get Premium Quote →</span>
+        </button>
+      </div>
+      <p class="text-center text-xs text-gray-400 mb-6">Prices are indicative starting fares for popular 5–6 day circuits. Final quote depends on dates, hotel category & group size.</p>
+
+      <!-- WhatsApp primary + form secondary -->
+      <div class="flex flex-col items-center gap-4 mt-2">
+        <a
+          href="<?php echo htmlspecialchars($wa_quote_url); ?>"
+          target="_blank"
+          rel="noopener"
+          class="whatsapp-btn cta-primary-wa text-white px-6 md:px-10 py-4 md:py-5 rounded-2xl text-base md:text-lg font-bold inline-flex items-center justify-center gap-2 w-full max-w-md">
+          <i class="fab fa-whatsapp text-xl"></i>
+          <span>WhatsApp Quote — Instant Reply</span>
+        </a>
         <button
           type="button"
-          class="cta-primary gradient-btn text-white px-6 md:px-10 py-4 md:py-5 rounded-2xl text-base md:text-lg font-bold flex items-center justify-center gap-2 w-full max-w-md"
+          class="cta-secondary-form text-white px-6 md:px-10 py-3 md:py-4 rounded-2xl text-sm md:text-base font-semibold flex items-center justify-center gap-2 w-full max-w-md"
           onclick="openEnquiryModal()">
-          <i class="fas fa-calendar-check"></i>
-          <span>Book Now</span>
-          <i class="fas fa-arrow-right"></i>
+          <i class="fas fa-file-invoice"></i>
+          <span>Or get a Free Quote form</span>
         </button>
-        <a
-          href="https://wa.me/917876505119"
-          target="_blank"
-          class="whatsapp-btn text-white px-6 md:px-10 py-3 md:py-4 rounded-2xl text-sm md:text-base font-semibold inline-flex items-center justify-center gap-2 w-full max-w-md">
-          <i class="fab fa-whatsapp text-lg"></i>
-          <span>Chat on WhatsApp</span>
-        </a>
-        <!-- Trust below CTA -->
         <div class="cta-trust text-center text-sm text-gray-500 mt-1">
           <p class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-            <span><i class="fas fa-shield-alt text-green-500"></i> No spam, free consultation</span>
-            <span><i class="fas fa-star text-yellow-500"></i> 10+ years experience</span>
-            <span><i class="fab fa-whatsapp text-green-500"></i> Instant response</span>
+            <span><i class="fas fa-bolt text-orange-500"></i> <?php echo htmlspecialchars($scarcity_text); ?></span>
+            <span><i class="fab fa-whatsapp text-green-500"></i> Instant human reply</span>
           </p>
         </div>
       </div>
     </div>
   </section>
 
+  <!-- Informational intent: quick travel guide (soft convert) -->
+  <section id="himachal-guide" class="guide-section py-10 px-4 md:px-6 <?php echo $lp_intent === 'informational' ? 'guide-priority' : ''; ?>">
+    <div class="container mx-auto max-w-4xl">
+      <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Himachal Travel Guide</h2>
+      <p class="text-gray-500 text-sm md:text-base mb-6">Planning research? Start here — when you’re ready to book, WhatsApp us for a live quote.</p>
+      <div class="guide-grid">
+        <article class="guide-card">
+          <h3>Best time to visit</h3>
+          <p>Mar–Jun & Sep–Nov for pleasant weather. Dec–Feb for snow in Manali & Shimla. Perfect for a 5-day Himachal tour.</p>
+        </article>
+        <article class="guide-card">
+          <h3>Classic 5–6 day circuit</h3>
+          <p>Shimla (2N) → Manali (3N) covers Mall Road, Solang, and Kullu — the most booked family & honeymoon loop.</p>
+        </article>
+        <article class="guide-card">
+          <h3>What budget to expect</h3>
+          <p>Value packages from <strong>₹25,000</strong>/person. Premium family stays from <strong>₹45,000</strong>/person (ex-flights).</p>
+        </article>
+      </div>
+      <div class="guide-cta-row">
+        <a href="#packages" class="guide-link-packages">See packages ↓</a>
+        <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="whatsapp-btn guide-wa">
+          <i class="fab fa-whatsapp"></i> Ready to book? WhatsApp Quote
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- Himachal Packages Section -->
-  <section id="packages" class="packages-section py-10 px-4 md:px-6">
+  <section id="packages" class="packages-section py-10 px-4 md:px-6 <?php echo $lp_intent === 'transactional' ? 'packages-priority' : ''; ?>">
     <div class="container mx-auto">
       <h2 class="section-heading text-2xl md:text-3xl font-bold text-gray-800 mb-2">
-        Himachal Tour Packages
+        <?php echo htmlspecialchars($hero['section']); ?>
       </h2>
-      <p class="text-gray-500 mb-8 text-sm md:text-base">Handpicked itineraries for every traveller</p>
+      <p class="text-gray-500 mb-3 text-sm md:text-base">Handpicked itineraries — Budget from ₹25,000 • Premium from ₹45,000</p>
+      <p class="scarcity-inline mb-8"><i class="fas fa-bolt"></i> <?php echo htmlspecialchars($scarcity_text); ?> — book via WhatsApp to reserve.</p>
 
       <!-- Package Card 1: Hill Station Special -->
-      <div id="8-day-himachal-group-tour-hill-station-special-shimla-manali-dalhousie-dharamshala" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100">
+      <div id="8-day-himachal-group-tour-hill-station-special-shimla-manali-dalhousie-dharamshala" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100 relative">
+        <div class="scarcity-tag">Only 2 slots · Oct Festival</div>
         <div class="flex flex-col md:flex-row">
           <!-- Package Image -->
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/himachal%20grop.webp"
+              src="img/himachal-group-opt.webp"
               alt="Himachal Hill Station Special"
               class="w-full h-full object-cover"
               width="600"
@@ -541,7 +864,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
 
             <!-- Card actions: WhatsApp, Call Now, Enquire Now -->
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
               </a>
@@ -571,7 +894,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
           <!-- Package Image -->
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/solang.jpg"
+              src="img/solang.webp"
               alt="Himachal Adventure Special"
               class="w-full h-full object-cover"
               width="600"
@@ -686,7 +1009,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
 
             <!-- Card actions: WhatsApp, Call Now, Enquire Now -->
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
               </a>
@@ -704,11 +1027,12 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
       </div>
 
       <!-- Package Card 3: Shimla Manali Tour Package -->
-      <div id="shimla-manali-tour-package-5n-6d" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100">
+      <div id="shimla-manali-tour-package-5n-6d" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100 relative">
+        <div class="scarcity-tag">Only 2 slots · Oct Festival</div>
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/shimla.jpg"
+              src="img/shimla.webp"
               alt="Shimla Manali Tour"
               class="w-full h-full object-cover"
               width="600"
@@ -790,7 +1114,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
             </div>
             <!-- Card actions: WhatsApp, Call Now, Enquire Now -->
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
               </a>
@@ -812,7 +1136,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/dharamshala.webp"
+              src="img/dharamshala-opt.webp"
               alt="Shimla Manali Dharamshala Tour"
               class="w-full h-full object-cover"
               width="600"
@@ -896,7 +1220,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
             </div>
             <!-- Card actions: WhatsApp, Call Now, Enquire Now -->
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
               </a>
@@ -918,7 +1242,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/kullu.jpg"
+              src="img/kullu.webp"
               alt="Manali Kullu Tour"
               class="w-full h-full object-cover"
               width="600"
@@ -999,7 +1323,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
             </div>
             <!-- Card actions: WhatsApp, Call Now, Enquire Now -->
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
               </a>
@@ -1021,7 +1345,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/himachal.webp"
+              src="img/himachal-opt.webp"
               alt="Shimla Manali Tour"
               class="w-full h-full object-cover"
               width="600"
@@ -1102,7 +1426,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
             </div>
             <!-- Card actions: WhatsApp, Call Now, Enquire Now -->
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
               </a>
@@ -1124,7 +1448,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/full_himachal.webp"
+              src="img/hero.webp"
               alt="Complete Himachal Tour"
               class="w-full h-full object-cover"
               width="600"
@@ -1208,7 +1532,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
             </div>
             <!-- Card actions: WhatsApp, Call Now, Enquire Now -->
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
               </a>
@@ -1231,10 +1555,11 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
           <i class="fas fa-arrow-trend-up"></i>
           <span>TRENDING NOW</span>
         </div>
+        <div class="scarcity-tag scarcity-tag-right">Only 2 slots · Oct Festival</div>
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/romatic.webp"
+              src="img/romantic-opt.webp"
               alt="Romantic Himachal Honeymoon"
               class="w-full h-full object-cover"
               width="600"
@@ -1316,7 +1641,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
             </div>
             <!-- Card actions: WhatsApp, Call Now, Enquire Now -->
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
               </a>
@@ -1348,7 +1673,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/dharamshala.webp"
+              src="img/dharamshala-opt.webp"
               alt="Dharamshala McLeodganj Tour"
               class="w-full h-full object-cover"
               width="600"
@@ -1427,7 +1752,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
             </div>
             <!-- Card actions: WhatsApp, Call Now, Enquire Now -->
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
               </a>
@@ -1449,7 +1774,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
-              src="img/himachal.webp"
+              src="img/himachal-opt.webp"
               alt="Dalhousie Tour"
               class="w-full h-full object-cover"
               width="600"
@@ -1528,7 +1853,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
             </div>
             <!-- Card actions: WhatsApp, Call Now, Enquire Now -->
             <div class="package-card-actions mt-4 flex flex-wrap items-center gap-3">
-              <a href="https://wa.me/917876505119" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="package-card-btn package-card-btn-whatsapp">
                 <i class="fab fa-whatsapp"></i>
                 <span>WhatsApp</span>
               </a>
@@ -1547,19 +1872,29 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
     </div>
   </section>
 
-  <!-- Mid-page CTA: Talk to Travel Expert -->
+  <!-- Mid-page CTA: WhatsApp primary -->
   <section class="mid-cta-section py-10 px-4 md:px-6 bg-white border-y border-gray-100">
     <div class="container mx-auto max-w-2xl text-center">
-      <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-2">Talk to a Travel Expert</h2>
-      <p class="text-gray-500 text-sm md:text-base mb-6">10+ years experience • Custom itineraries • No spam</p>
-      <button
-        type="button"
-        class="cta-primary gradient-btn text-white px-8 py-4 rounded-2xl text-base font-bold inline-flex items-center justify-center gap-2"
-        onclick="openEnquiryModal()">
-        <i class="fas fa-calendar-check"></i>
-        <span>Book Now</span>
-        <i class="fas fa-arrow-right"></i>
-      </button>
+      <p class="scarcity-inline justify-center mb-3"><i class="fas fa-bolt"></i> <?php echo htmlspecialchars($scarcity_text); ?></p>
+      <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-2">Talk to a Travel Expert on WhatsApp</h2>
+      <p class="text-gray-500 text-sm md:text-base mb-6">89% of travelers want instant replies — get your Himachal quote in minutes</p>
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <a
+          href="<?php echo htmlspecialchars($wa_quote_url); ?>"
+          target="_blank"
+          rel="noopener"
+          class="whatsapp-btn cta-primary-wa text-white px-8 py-4 rounded-2xl text-base font-bold inline-flex items-center justify-center gap-2 w-full sm:w-auto">
+          <i class="fab fa-whatsapp"></i>
+          <span>WhatsApp Quote — Instant Reply</span>
+        </a>
+        <button
+          type="button"
+          class="cta-secondary-form text-white px-8 py-4 rounded-2xl text-base font-bold inline-flex items-center justify-center gap-2 w-full sm:w-auto"
+          onclick="openEnquiryModal()">
+          <i class="fas fa-file-invoice"></i>
+          <span>Free Quote Form</span>
+        </button>
+      </div>
     </div>
   </section>
 
@@ -1671,7 +2006,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
             </li>
             <li class="flex items-center gap-2">
               <i class="fab fa-whatsapp text-green-400"></i>
-              <a href="https://wa.me/917876505119" target="_blank" class="hover:text-white transition-colors">WhatsApp Us</a>
+              <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" class="hover:text-white transition-colors">WhatsApp Us</a>
             </li>
           </ul>
         </div>
@@ -1679,7 +2014,7 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
 
       <!-- Copyright -->
       <div class="border-t border-gray-700 pt-6 text-center">
-        <p class="text-sm text-gray-300">&copy; 2025 Uno Trips. All rights reserved.</p>
+        <p class="text-sm text-gray-300">&copy; 2026 Uno Trips. All rights reserved.</p>
       </div>
     </div>
   </footer>
@@ -1687,59 +2022,111 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
   <!-- Enquiry Popup Modal -->
   <div id="enquiryModal" class="enquiry-modal">
     <div class="enquiry-modal-overlay"></div>
-    <div class="enquiry-modal-content">
-      <div class="enquiry-modal-header">
-        <h3 class="text-xl font-bold text-gray-800">Book Your Himachal Tour</h3>
-        <p class="text-sm text-gray-600 mt-1">No spam • Free consultation • We'll call you back</p>
-        <button class="enquiry-modal-close" onclick="closeEnquiryModal()">
-          <i class="fas fa-times"></i>
-        </button>
+    <div class="enquiry-modal-shell">
+      <div class="enquiry-trust-panel">
+        <h4 class="enquiry-trust-title">Verified Traveler Memories</h4>
+        <div class="enquiry-testimonial">
+          <div class="enquiry-stars">★★★★★</div>
+          <p>“Booked a Shimla–Manali honeymoon. Hotels were exactly as promised and WhatsApp support was instant.”</p>
+          <span>— Priya & Rohan, Delhi</span>
+        </div>
+        <div class="enquiry-testimonial">
+          <div class="enquiry-stars">★★★★★</div>
+          <p>“Family of 5 — kids loved Solang. Transparent pricing, no last-minute surprises.”</p>
+          <span>— Ankit Sharma, Chandigarh</span>
+        </div>
+        <div class="enquiry-certs">
+          <div class="enquiry-cert"><i class="fas fa-certificate"></i> IATA Partner 2026</div>
+          <div class="enquiry-cert"><i class="fas fa-shield-alt"></i> GST Registered</div>
+          <div class="enquiry-cert"><i class="fas fa-award"></i> 10+ Years Trusted</div>
+          <div class="enquiry-cert"><i class="fas fa-star"></i> 4.9 Google · 14k+ reviews</div>
+        </div>
+        <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="enquiry-wa-link">
+          <i class="fab fa-whatsapp"></i> Prefer WhatsApp Quote?
+        </a>
       </div>
-      <form class="query-form" action="" method="POST">
-        <input type="hidden" name="subjecty" value="Himachal Tour Query ">
-        <input type="hidden" name="cityy" value="">
-        <input type="hidden" name="destinationy" value="Himachal">
-        <div class="form-group">
-          <div class="input-wrapper">
-            <i class="fas fa-user input-icon"></i>
-            <input
-              type="text"
-              name="namey"
-              placeholder="Your name *"
-              required
-              class="form-input" />
+      <div class="enquiry-modal-content">
+        <div class="enquiry-modal-header">
+          <h3 class="text-xl font-bold text-gray-800"><?php echo htmlspecialchars($hero['form_title']); ?></h3>
+          <p class="text-sm text-gray-600 mt-1">Packages from ₹25,000 · <?php echo htmlspecialchars($scarcity_text); ?></p>
+          <button class="enquiry-modal-close" onclick="closeEnquiryModal()" type="button" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="enquiry-wa-primary">
+          <i class="fab fa-whatsapp"></i>
+          <span>WhatsApp Quote — Instant Reply</span>
+        </a>
+        <p class="enquiry-or-divider"><span>or fill the form</span></p>
+        <div class="enquiry-mobile-trust md:hidden">
+          <div class="enquiry-stars">★★★★★ Verified reviews</div>
+          <div class="enquiry-certs enquiry-certs-inline">
+            <span>IATA 2026</span>
+            <span>GST</span>
+            <span>4.9★ Google</span>
           </div>
         </div>
-        <div class="form-group">
-          <div class="input-wrapper">
-            <i class="fas fa-phone input-icon"></i>
-            <input
-              type="tel"
-              name="phoney"
-              placeholder="Phone number *"
-              required
-              class="form-input" />
+        <form class="query-form" action="" method="POST">
+          <input type="hidden" name="subjecty" value="Himachal Tour Query ">
+          <input type="hidden" name="cityy" value="">
+          <input type="hidden" name="destinationy" value="Himachal">
+          <input type="hidden" id="pricing-tier" name="pricing-tier" value="">
+          <div class="form-group">
+            <div class="input-wrapper">
+              <i class="fas fa-user input-icon"></i>
+              <input
+                type="text"
+                name="namey"
+                placeholder="Your name *"
+                required
+                class="form-input" />
+            </div>
           </div>
-        </div>
-        <div class="form-group">
-          <div class="input-wrapper">
-            <i class="fas fa-envelope input-icon"></i>
-            <input
-              type="email"
-              name="emaily"
-              placeholder="Email (optional)"
-              class="form-input" />
+          <div class="form-group">
+            <div class="input-wrapper">
+              <i class="fas fa-phone input-icon"></i>
+              <input
+                type="tel"
+                name="phoney"
+                placeholder="Phone number *"
+                required
+                class="form-input" />
+            </div>
           </div>
-        </div>
-        <input type="hidden" id="package-title" name="package-title" value="">
+          <div class="form-group">
+            <div class="input-wrapper">
+              <i class="fas fa-envelope input-icon"></i>
+              <input
+                type="email"
+                name="emaily"
+                placeholder="Email (optional)"
+                class="form-input" />
+            </div>
+          </div>
+          <input type="hidden" id="package-title" name="package-title" value="">
 
-        <button type="submit" name="submit" class="enquiry-submit-btn" id="btnSubmit">
-          <i class="fas fa-spinner btn-spinner" aria-hidden="true"></i>
-          <span class="btn-text">Book Now</span>
-        </button>
-
-      </form>
+          <button type="submit" name="submit" class="enquiry-submit-btn" id="btnSubmit">
+            <i class="fas fa-spinner btn-spinner" aria-hidden="true"></i>
+            <span class="btn-text">Get Free Quote</span>
+          </button>
+          <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="enquiry-wa-btn-mobile">
+            <i class="fab fa-whatsapp"></i> WhatsApp Quote instead
+          </a>
+        </form>
+      </div>
     </div>
+  </div>
+
+  <!-- Mobile sticky: WhatsApp primary -->
+  <div class="mobile-sticky-footer fixed bottom-0 left-0 right-0 z-50 md:hidden px-3 py-2 flex gap-2">
+    <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="cta-whatsapp flex-[1.4] text-white font-bold text-sm py-3 rounded-xl inline-flex items-center justify-center gap-2">
+      <i class="fab fa-whatsapp"></i>
+      <span>WhatsApp Quote</span>
+    </a>
+    <button type="button" class="cta-secondary-form flex-1 text-white font-bold text-sm py-3 rounded-xl inline-flex items-center justify-center gap-2" onclick="openEnquiryModal()">
+      <i class="fas fa-file-invoice"></i>
+      <span>Form</span>
+    </button>
   </div>
 
   <!-- Chatbot Widget (WhatsApp style) -->
@@ -1765,6 +2152,9 @@ $canonical_url = rtrim(preg_replace('/\?.*/', '', $canonical_url), '/') ?: '';
     </button>
   </div>
 
+  <script>
+    window.HIMACHAL_WA_QUOTE = <?php echo json_encode($wa_quote_url); ?>;
+  </script>
   <script src="script.js"></script>
   <script src="https://cdn.tailwindcss.com" defer></script>
 </body>

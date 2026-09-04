@@ -1,13 +1,16 @@
-// Page Loader - hide when page is ready (with minimum display time)
+// Page Loader - hide ASAP (ads: sub-2s mobile; avoid forced 1s wait)
 (function () {
   const loader = document.getElementById("page-loader");
   if (!loader) return;
 
   document.body.style.overflow = "hidden";
-  const minLoadTime = 1000;
+  const minLoadTime = 200;
   const startTime = Date.now();
+  let hidden = false;
 
   function hideLoader() {
+    if (hidden) return;
+    hidden = true;
     const elapsed = Date.now() - startTime;
     const remaining = Math.max(0, minLoadTime - elapsed);
     setTimeout(() => {
@@ -21,49 +24,51 @@
   } else {
     window.addEventListener("load", hideLoader);
   }
+  // Fallback: never block past 1.2s even if assets hang
+  setTimeout(hideLoader, 1200);
 })();
 
-// Run DOM-dependent code when ready (script has defer, so DOM is ready; this groups init)
-document.addEventListener("DOMContentLoaded", function() {
-
-// WhatsApp Button Click (only for buttons; links use href)
-document.querySelectorAll(".whatsapp-btn").forEach((btn) => {
-  if (btn.tagName === "BUTTON") {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      window.open("https://wa.me/917876505119", "_blank");
-    });
-  }
-});
-
-// Chatbot: load script only when user first clicks the toggle (defer non-critical JS)
-(function() {
-  var toggle = document.getElementById("chatbotToggle");
-  if (!toggle) return;
-  var loaded = false;
-  function loadChatbotAndOpen() {
-    if (loaded) return;
-    loaded = true;
-    var s = document.createElement("script");
-    s.src = "chatbot.js";
-    s.async = true;
-    s.onload = function() {
-      toggle.click();
-    };
-    document.body.appendChild(s);
-  }
-  toggle.addEventListener("click", function(e) {
-    if (!loaded) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      loadChatbotAndOpen();
+// Run DOM-dependent code when ready
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".whatsapp-btn").forEach((btn) => {
+    if (btn.tagName === "BUTTON") {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        window.open(window.HIMACHAL_WA_QUOTE || "https://wa.me/917876505119", "_blank");
+      });
     }
-  }, true);
-})();
+  });
 
+  // Chatbot: load script only when user first clicks the toggle
+  (function () {
+    var toggle = document.getElementById("chatbotToggle");
+    if (!toggle) return;
+    var loaded = false;
+    function loadChatbotAndOpen() {
+      if (loaded) return;
+      loaded = true;
+      var s = document.createElement("script");
+      s.src = "chatbot.js";
+      s.async = true;
+      s.onload = function () {
+        toggle.click();
+      };
+      document.body.appendChild(s);
+    }
+    toggle.addEventListener(
+      "click",
+      function (e) {
+        if (!loaded) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          loadChatbotAndOpen();
+        }
+      },
+      true
+    );
+  })();
 });
 
-// Enquiry Modal Functions
 function openEnquiryModal() {
   const modal = document.getElementById("enquiryModal");
   modal.classList.add("active");
@@ -76,14 +81,28 @@ function closeEnquiryModal() {
   document.body.style.overflow = "";
 }
 
-// Close modal when clicking overlay
+function selectPricingTier(tier) {
+  var field = document.getElementById("pricing-tier");
+  if (field) field.value = tier || "";
+  var pkg = document.getElementById("package-title");
+  if (pkg) {
+    pkg.value =
+      tier === "premium"
+        ? "Premium Himachal Family Package (from ₹45,000)"
+        : "Budget Himachal Package (from ₹25,000)";
+  }
+  document.querySelectorAll(".pricing-tier").forEach(function (el) {
+    el.classList.toggle("is-selected", el.getAttribute("data-tier") === tier);
+  });
+  openEnquiryModal();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const modal = document.getElementById("enquiryModal");
+  if (!modal) return;
   const overlay = modal.querySelector(".enquiry-modal-overlay");
+  if (overlay) overlay.addEventListener("click", closeEnquiryModal);
 
-  overlay.addEventListener("click", closeEnquiryModal);
-
-  // Close modal on Escape key
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && modal.classList.contains("active")) {
       closeEnquiryModal();
@@ -91,17 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// Primary CTA - Book Now (hero, pricing, mid-page)
-document.querySelectorAll(".cta-primary, .gradient-btn").forEach((btn) => {
-  if (btn.tagName === "BUTTON") {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      openEnquiryModal();
-    });
-  }
-});
-
-// Package Enquire Now Button Click - Handle all package enquiry buttons
 document.querySelectorAll(".package-enquire-btn").forEach((btn) => {
   btn.addEventListener("click", (e) => {
     e.preventDefault();
@@ -112,20 +120,20 @@ document.querySelectorAll(".package-enquire-btn").forEach((btn) => {
   });
 });
 
-// Customize Package link - same as enquiry: set package title and open modal
 document.querySelectorAll(".customize-package-link").forEach((link) => {
   link.addEventListener("click", (e) => {
     e.preventDefault();
     const card = link.closest(".package-card");
     const enquireBtn = card ? card.querySelector(".package-enquire-btn") : null;
-    const packageTitle = enquireBtn ? (enquireBtn.getAttribute("data-package-title") || "") : "";
+    const packageTitle = enquireBtn
+      ? enquireBtn.getAttribute("data-package-title") || ""
+      : "";
     const packageTitleField = document.getElementById("package-title");
     if (packageTitleField) packageTitleField.value = packageTitle;
     openEnquiryModal();
   });
 });
 
-// Form submit (native submit - button name="submit" overrides form.submit)
 function nativeFormSubmit(form) {
   var sub = document.createElement("input");
   sub.type = "hidden";
@@ -135,10 +143,10 @@ function nativeFormSubmit(form) {
   HTMLFormElement.prototype.submit.call(form);
 }
 
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
   var form = document.querySelector(".query-form");
   if (!form) return;
-  form.addEventListener("submit", function(e) {
+  form.addEventListener("submit", function (e) {
     e.preventDefault();
     var btn = document.getElementById("btnSubmit");
     function setLoading(loading) {
@@ -146,26 +154,21 @@ document.addEventListener("DOMContentLoaded", function() {
       btn.disabled = loading;
       btn.classList.toggle("loading", loading);
       var text = btn.querySelector(".btn-text");
-      if (text) text.textContent = loading ? "Submitting..." : "Book Now";
+      if (text) text.textContent = loading ? "Submitting..." : "Get Free Quote";
     }
     setLoading(true);
     nativeFormSubmit(form);
   });
 });
 
-// Mobile sticky: Call + WhatsApp are direct links (no modal)
-
-// Collapsible Sections Toggle
 function toggleCollapsible(button) {
   const content = button.nextElementSibling;
   const icon = button.querySelector("i");
 
-  // Toggle active class
   button.classList.toggle("active");
   content.classList.toggle("active");
   content.classList.toggle("hidden");
 
-  // Rotate icon
   if (content.classList.contains("active")) {
     icon.style.transform = "rotate(180deg)";
   } else {
@@ -173,13 +176,11 @@ function toggleCollapsible(button) {
   }
 }
 
-// FAQ Toggle Function
 function toggleFaq(button) {
   const faqItem = button.closest(".faq-item");
   const answer = faqItem.querySelector(".faq-answer");
   const icon = button.querySelector("i");
 
-  // Close other FAQ items
   document.querySelectorAll(".faq-item").forEach((item) => {
     if (item !== faqItem) {
       item.querySelector(".faq-answer").classList.add("hidden");
@@ -188,14 +189,32 @@ function toggleFaq(button) {
     }
   });
 
-  // Toggle current FAQ
   answer.classList.toggle("hidden");
   button.classList.toggle("active");
 
-  // Rotate icon
   if (answer.classList.contains("hidden")) {
     icon.style.transform = "rotate(0deg)";
   } else {
     icon.style.transform = "rotate(180deg)";
   }
 }
+
+// Intent routing: informational → guide; transactional → packages/form
+document.addEventListener("DOMContentLoaded", function () {
+  var intent = document.documentElement.getAttribute("data-lp-intent") || "transactional";
+  if (intent === "informational") {
+    var guide = document.getElementById("himachal-guide");
+    if (guide && window.location.hash === "") {
+      setTimeout(function () {
+        guide.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 400);
+    }
+  } else if (intent === "transactional" && /[?&](intent|utm_term)=(book|package|quote)/i.test(window.location.search)) {
+    var pkgs = document.getElementById("packages");
+    if (pkgs && window.location.hash === "") {
+      setTimeout(function () {
+        pkgs.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 500);
+    }
+  }
+});
