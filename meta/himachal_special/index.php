@@ -104,9 +104,9 @@ $hero_by_theme = [
     'title' => 'Himachal Honeymoon Specials',
     'subtitle' => 'Romantic Shimla • Manali getaways for couples',
     'section' => 'Himachal Honeymoon Packages',
-    'section_sub' => 'Curated romantic itineraries — transparent pricing from ₹25,000',
+    'section_sub' => 'Curated romantic itineraries — transparent pricing from ₹5,000',
     'meta_title' => 'Himachal Honeymoon Packages | Shimla Manali Couples Tour - Uno Trips',
-    'meta_desc' => 'Book Himachal honeymoon specials — romantic Shimla & Manali packages from ₹25,000. Free quote on WhatsApp. Verified traveler reviews.',
+    'meta_desc' => 'Book Himachal honeymoon specials — romantic Shimla & Manali packages from ₹5,000. Free quote on WhatsApp. Verified traveler reviews.',
     'wa' => 'Hi Uno Trips, I want a free quote for Himachal Honeymoon package',
     'form_title' => 'Book Your Himachal Honeymoon',
   ],
@@ -115,20 +115,20 @@ $hero_by_theme = [
     'title' => 'Himachal Family Tour Packages',
     'subtitle' => 'Safe, kid-friendly Shimla • Manali • Dharamshala trips',
     'section' => 'Himachal Family Packages',
-    'section_sub' => 'Premium family packages from ₹25,000 — budget & premium tiers',
+    'section_sub' => 'Premium family packages from ₹5,000 — budget & premium tiers',
     'meta_title' => 'Himachal Family Tour Packages | Shimla Manali Family Trip - Uno Trips',
-    'meta_desc' => 'Book premium Himachal family packages from ₹25,000 — Shimla, Manali, Dharamshala. Free quote. Verified reviews & WhatsApp support.',
+    'meta_desc' => 'Book premium Himachal family packages from ₹5,000 — Shimla, Manali, Dharamshala. Free quote. Verified reviews & WhatsApp support.',
     'wa' => 'Hi Uno Trips, I want a free quote for Himachal Family package',
     'form_title' => 'Book Your Himachal Family Tour',
   ],
   'general' => [
     'badge' => 'Family & Honeymoon Specials 2026',
     'title' => 'Himachal Family & Honeymoon Packages',
-    'subtitle' => 'Shimla • Manali • Dharamshala • Kullu — from ₹25,000',
+    'subtitle' => 'Shimla • Manali • Dharamshala • Kullu — from ₹5,000',
     'section' => 'Best Himachal Tour Packages',
-    'section_sub' => 'Premium family & honeymoon packages from ₹25,000',
+    'section_sub' => 'Premium family & honeymoon packages from ₹5,000',
     'meta_title' => 'Himachal Family & Honeymoon Packages | Shimla Manali - Uno Trips',
-    'meta_desc' => 'Premium Himachal family & honeymoon packages from ₹25,000. Shimla, Manali, Dharamshala. Free quote on WhatsApp. Verified reviews.',
+    'meta_desc' => 'Premium Himachal family & honeymoon packages from ₹5,000. Shimla, Manali, Dharamshala. Free quote on WhatsApp. Verified reviews.',
     'wa' => 'Hi Uno Trips, I want a free Himachal quote',
     'form_title' => 'Get a Free Himachal Quote',
   ],
@@ -175,7 +175,7 @@ $tourist_trips = [
       '@type' => 'Offer',
       'url' => $canonical_url !== '' ? $canonical_url . '#shimla-manali-tour-package-5n-6d' : '#shimla-manali-tour-package-5n-6d',
       'priceCurrency' => 'INR',
-      'price' => '25000',
+      'price' => '5000',
       'priceValidUntil' => '2026-12-31',
       'availability' => 'https://schema.org/LimitedAvailability',
       'category' => 'Budget',
@@ -243,7 +243,7 @@ $tourist_trips = [
       '@type' => 'Offer',
       'url' => $canonical_url !== '' ? $canonical_url . '#complete-himachal-tour-shimla-manali-dharamshala-8n-9d' : '#complete-himachal-tour-shimla-manali-dharamshala-8n-9d',
       'priceCurrency' => 'INR',
-      'price' => '45000',
+      'price' => '15000',
       'priceValidUntil' => '2026-12-31',
       'availability' => 'https://schema.org/LimitedAvailability',
       'category' => 'Premium',
@@ -265,7 +265,7 @@ $tourist_trips = [
       '@type' => 'Offer',
       'url' => $canonical_url !== '' ? $canonical_url . '#manali-kullu-tour-package-4n-5d' : '#manali-kullu-tour-package-4n-5d',
       'priceCurrency' => 'INR',
-      'price' => '25000',
+      'price' => '5000',
       'priceValidUntil' => '2026-12-31',
       'availability' => 'https://schema.org/InStock',
       'category' => 'Budget',
@@ -300,7 +300,7 @@ $tourist_trip_graph = [
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title><?php echo htmlspecialchars($hero['meta_title']); ?></title>
   <meta name="description" content="<?php echo htmlspecialchars($hero['meta_desc']); ?>" />
-  <meta name="keywords" content="himachal tour packages, himachal family package, himachal honeymoon package, shimla manali tour, himachal holiday packages, himachal group tour, himachal tour price, book himachal tour, premium himachal packages from 25000" />
+  <meta name="keywords" content="himachal tour packages, himachal family package, himachal honeymoon package, shimla manali tour, himachal holiday packages, himachal group tour, himachal tour price, book himachal tour, premium himachal packages from 5000" />
   <meta name="robots" content="index, follow" />
   <?php if (!empty($canonical_url)) {
     echo '<link rel="canonical" href="' . htmlspecialchars($canonical_url) . '" />';
@@ -353,7 +353,7 @@ $tourist_trip_graph = [
       "@context": "https://schema.org",
       "@type": "TravelAgency",
       "name": "Uno Trips - Himachal Tour Packages",
-      "description": "Book Himachal tour packages - Shimla, Manali, Dharamshala, Kullu. Himachal honeymoon packages, group tours, custom itineraries. Packages from INR 25000.",
+      "description": "Book Himachal tour packages - Shimla, Manali, Dharamshala, Kullu. Himachal honeymoon packages, group tours, custom itineraries. Packages from INR 5000.",
       "telephone": "+91-7876505119",
       "url": <?php echo json_encode($canonical_url !== '' ? $canonical_url : 'https://unotrips.in'); ?>,
       "areaServed": "Himachal Pradesh, India",
@@ -625,7 +625,7 @@ $tourist_trip_graph = [
         <button type="button" class="pricing-tier pricing-tier-budget text-left" onclick="selectPricingTier('budget')" data-tier="budget">
           <div class="pricing-tier-label">Budget</div>
           <div class="pricing-tier-name">Value Family / Couples</div>
-          <div class="pricing-tier-price">From <strong>₹25,000</strong> <span>/ person</span></div>
+          <div class="pricing-tier-price">From <strong>₹5,000</strong> <span>/ person</span></div>
           <ul class="pricing-tier-perks">
             <li>3★ stays • Private transfers</li>
             <li>Breakfast • Sightseeing</li>
@@ -637,7 +637,7 @@ $tourist_trip_graph = [
           <div class="pricing-tier-badge">Most booked</div>
           <div class="pricing-tier-label">Premium</div>
           <div class="pricing-tier-name">Premium Family Packages</div>
-          <div class="pricing-tier-price">From <strong>₹45,000</strong> <span>/ person</span></div>
+          <div class="pricing-tier-price">From <strong>₹15,000</strong> <span>/ person</span></div>
           <ul class="pricing-tier-perks">
             <li>4★ / boutique stays • Private cab</li>
             <li>Meals • Experiences • Trip captain</li>
@@ -691,7 +691,7 @@ $tourist_trip_graph = [
         </article>
         <article class="guide-card">
           <h3>What budget to expect</h3>
-          <p>Value packages from <strong>₹25,000</strong>/person. Premium family stays from <strong>₹45,000</strong>/person (ex-flights).</p>
+          <p>Value packages from <strong>₹5,000</strong>/person. Premium family stays from <strong>₹15,000</strong>/person (ex-flights).</p>
         </article>
       </div>
       <div class="guide-cta-row">
@@ -709,7 +709,7 @@ $tourist_trip_graph = [
       <h2 class="section-heading text-2xl md:text-3xl font-bold text-gray-800 mb-2">
         <?php echo htmlspecialchars($hero['section']); ?>
       </h2>
-      <p class="text-gray-500 mb-3 text-sm md:text-base">Handpicked itineraries — Budget from ₹25,000 • Premium from ₹45,000</p>
+      <p class="text-gray-500 mb-3 text-sm md:text-base">Handpicked itineraries — Budget from ₹5,000 • Premium from ₹15,000</p>
       <p class="scarcity-inline mb-8"><i class="fas fa-bolt"></i> <?php echo htmlspecialchars($scarcity_text); ?> — book via WhatsApp to reserve.</p>
 
       <!-- Package Card 1: Hill Station Special -->
@@ -2048,7 +2048,7 @@ $tourist_trip_graph = [
       <div class="enquiry-modal-content">
         <div class="enquiry-modal-header">
           <h3 class="text-xl font-bold text-gray-800"><?php echo htmlspecialchars($hero['form_title']); ?></h3>
-          <p class="text-sm text-gray-600 mt-1">Packages from ₹25,000 · <?php echo htmlspecialchars($scarcity_text); ?></p>
+          <p class="text-sm text-gray-600 mt-1">Packages from ₹5,000 · <?php echo htmlspecialchars($scarcity_text); ?></p>
           <button class="enquiry-modal-close" onclick="closeEnquiryModal()" type="button" aria-label="Close">
             <i class="fas fa-times"></i>
           </button>

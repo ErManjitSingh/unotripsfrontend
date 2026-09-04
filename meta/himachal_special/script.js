@@ -88,8 +88,8 @@ function selectPricingTier(tier) {
   if (pkg) {
     pkg.value =
       tier === "premium"
-        ? "Premium Himachal Family Package (from ₹45,000)"
-        : "Budget Himachal Package (from ₹25,000)";
+        ? "Premium Himachal Family Package (from ₹15,000)"
+        : "Budget Himachal Package (from ₹5,000)";
   }
   document.querySelectorAll(".pricing-tier").forEach(function (el) {
     el.classList.toggle("is-selected", el.getAttribute("data-tier") === tier);
