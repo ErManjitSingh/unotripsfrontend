@@ -2054,15 +2054,13 @@ $tourist_trip_graph = [
     </div>
   </div>
 
-  <!-- Floating Call + WhatsApp -->
+  <!-- Floating Call + WhatsApp (icon FABs) -->
   <div class="floating-cta-stack" aria-label="Quick contact">
-    <a href="tel:+917876505119" class="floating-cta-btn floating-cta-call" aria-label="Call Uno Trips">
-      <i class="fas fa-phone"></i>
-      <span class="floating-cta-label">Call</span>
+    <a href="tel:+917876505119" class="floating-cta-btn floating-cta-call" aria-label="Call Uno Trips" title="Call Now">
+      <i class="fas fa-phone" aria-hidden="true"></i>
     </a>
-    <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="floating-cta-btn floating-cta-wa" aria-label="WhatsApp Quote">
-      <i class="fab fa-whatsapp"></i>
-      <span class="floating-cta-label">WhatsApp</span>
+    <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="floating-cta-btn floating-cta-wa" aria-label="WhatsApp Quote" title="WhatsApp">
+      <i class="fab fa-whatsapp" aria-hidden="true"></i>
     </a>
   </div>
 

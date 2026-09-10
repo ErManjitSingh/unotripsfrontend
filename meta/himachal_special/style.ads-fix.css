@@ -130,9 +130,6 @@
   .page-body {
     padding-bottom: 72px;
   }
-  .chatbot-widget {
-    bottom: 72px !important;
-  }
 }
 .enquiry-modal.active {
   align-items: center;
@@ -502,76 +499,87 @@ body.intent-transactional .packages-section .section-heading::after {
   .container { max-width: 1280px; }
 }
 
-/* Floating Call + WhatsApp */
+/* Floating Call + WhatsApp — clean circular FABs */
 .floating-cta-stack {
   position: fixed;
-  right: 14px;
-  bottom: 88px;
-  z-index: 55;
+  left: 12px;
+  right: auto;
+  bottom: 84px;
+  z-index: 56;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-end;
+  flex-direction: column-reverse;
+  gap: 12px;
+  align-items: center;
+  pointer-events: none;
 }
 .floating-cta-btn {
+  pointer-events: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-width: 52px;
-  min-height: 52px;
-  padding: 0 14px;
-  border-radius: 999px;
+  width: 54px;
+  height: 54px;
+  min-width: 54px;
+  min-height: 54px;
+  padding: 0;
+  border-radius: 50%;
   color: #fff !important;
   text-decoration: none;
-  font-weight: 700;
-  font-size: 13px;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  line-height: 1;
 }
 .floating-cta-btn i {
-  font-size: 18px;
-}
-.floating-cta-label {
-  display: none;
+  width: 22px !important;
+  height: 22px !important;
+  font-size: 22px;
+  margin: 0;
+  flex-shrink: 0;
 }
 .floating-cta-call {
-  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-  animation: floatingCallPulse 2.4s ease-in-out infinite;
+  background: #2563eb;
+  animation: floatingCallPulse 2.6s ease-in-out infinite;
 }
 .floating-cta-wa {
-  background: #22c55e;
+  background: #25d366;
+}
+/* Mobile sticky footer already has WhatsApp — hide duplicate FAB */
+@media (max-width: 767px) {
+  .floating-cta-wa {
+    display: none;
+  }
+  .floating-cta-stack {
+    bottom: 78px;
+    left: 12px;
+  }
+  .chatbot-widget {
+    bottom: 78px !important;
+    right: 12px !important;
+  }
 }
 .floating-cta-btn:hover {
-  transform: translateY(-2px) scale(1.04);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  transform: translateY(-2px) scale(1.06);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32);
 }
 .floating-cta-btn:active {
-  transform: translateY(0) scale(0.98);
+  transform: translateY(0) scale(0.96);
 }
 @keyframes floatingCallPulse {
-  0%, 100% { box-shadow: 0 8px 22px rgba(37, 99, 235, 0.35); }
-  50% { box-shadow: 0 8px 28px rgba(37, 99, 235, 0.55), 0 0 0 8px rgba(37, 99, 235, 0.12); }
+  0%, 100% { box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4); }
+  50% { box-shadow: 0 6px 22px rgba(37, 99, 235, 0.55), 0 0 0 6px rgba(37, 99, 235, 0.15); }
 }
 @media (min-width: 768px) {
   .floating-cta-stack {
-    bottom: 28px;
-    right: 22px;
+    left: auto;
+    right: 20px;
+    bottom: 24px;
+    flex-direction: column;
   }
-  .floating-cta-label {
-    display: inline;
-  }
-  .floating-cta-btn {
-    min-width: auto;
-    padding: 0 18px;
-    min-height: 48px;
+  .floating-cta-wa {
+    display: inline-flex;
   }
   .chatbot-widget {
-    bottom: 120px !important;
-  }
-}
-@media (max-width: 767px) {
-  .chatbot-widget {
-    bottom: 150px !important;
+    bottom: 140px !important;
+    right: 20px !important;
   }
 }
