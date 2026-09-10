@@ -195,7 +195,7 @@ $tourist_trips = [
     ],
     'offers' => [
       '@type' => 'Offer',
-      'url' => $canonical_url !== '' ? $canonical_url . '#romantic-himachal-honeymoon-shimla-manali-5n-6d' : '#romantic-himachal-honeymoon-shimla-manali-5n-6d',
+      'url' => $canonical_url !== '' ? $canonical_url . '#HoneymoonTour' : '#HoneymoonTour',
       'priceCurrency' => 'INR',
       'price' => '32000',
       'priceValidUntil' => '2026-12-31',
@@ -241,7 +241,7 @@ $tourist_trips = [
     ],
     'offers' => [
       '@type' => 'Offer',
-      'url' => $canonical_url !== '' ? $canonical_url . '#complete-himachal-tour-shimla-manali-dharamshala-8n-9d' : '#complete-himachal-tour-shimla-manali-dharamshala-8n-9d',
+      'url' => $canonical_url !== '' ? $canonical_url . '#CompleteHimachalTour' : '#CompleteHimachalTour',
       'priceCurrency' => 'INR',
       'price' => '15000',
       'priceValidUntil' => '2026-12-31',
@@ -312,12 +312,14 @@ $tourist_trip_graph = [
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
   <link rel="preload" href="img/hero-sm.webp" as="image" fetchpriority="high" />
-  <link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" media="print" onload="this.media='all'" />
-  <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" /></noscript>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
+  <!-- Critical CSS first — avoids unstyled flash on open -->
+  <link rel="stylesheet" href="style.critical.min.css" />
+  <link rel="stylesheet" href="style.utilities.min.css" />
+  <link rel="stylesheet" href="style.icons.css" />
+  <link rel="stylesheet" href="style.ads-fix.css" />
+  <link rel="stylesheet" href="style.deferred.min.css" />
 
   <!-- Google Ads: Required - do not remove/defer/delay. -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17928878008"></script>
@@ -424,25 +426,9 @@ $tourist_trip_graph = [
     }
   </script>
 
-  <link rel="stylesheet" href="style.critical.min.css" />
-  <link rel="preload" href="style.deferred.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
-  <noscript><link rel="stylesheet" href="style.deferred.min.css"></noscript>
-  <link rel="stylesheet" href="style.ads-fix.css" />
 </head>
 
 <body class="bg-white page-body intent-<?php echo htmlspecialchars($lp_intent); ?>">
-  <!-- Mobile top CTA — WhatsApp primary -->
-  <div class="mobile-top-cta md:hidden">
-    <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="mobile-top-cta-wa mobile-top-cta-primary">
-      <i class="fab fa-whatsapp"></i>
-      <span>WhatsApp Quote</span>
-    </a>
-    <button type="button" class="mobile-top-cta-quote" onclick="openEnquiryModal()">
-      <i class="fas fa-file-invoice"></i>
-      <span>Free Quote Form</span>
-    </button>
-  </div>
-
   <!-- Scarcity nudge -->
   <div class="scarcity-bar" role="status">
     <i class="fas fa-bolt scarcity-icon" aria-hidden="true"></i>
@@ -456,7 +442,6 @@ $tourist_trip_graph = [
   <!-- Header -->
   <header class="site-header text-white py-3 px-4 md:px-6 shadow-lg">
     <div class="container mx-auto flex items-center justify-between">
-      <!-- Logo -->
       <div class="flex items-center">
         <img
           src="img/logo.png"
@@ -465,25 +450,6 @@ $tourist_trip_graph = [
           width="120"
           height="40"
           decoding="async" />
-      </div>
-
-      <!-- Right Side -->
-      <div class="flex items-center space-x-2 md:space-x-4">
-        <a
-          href="<?php echo htmlspecialchars($wa_quote_url); ?>"
-          target="_blank"
-          rel="noopener"
-          class="hidden sm:inline-flex header-wa-btn px-3 py-2 rounded-xl text-white font-semibold text-sm items-center gap-2">
-          <i class="fab fa-whatsapp text-sm"></i>
-          <span>WhatsApp Quote</span>
-        </a>
-        <a
-          href="tel:+917876505119"
-          class="header-call-btn px-4 py-2 rounded-xl text-white font-semibold text-sm flex items-center gap-2">
-          <i class="fas fa-phone text-xs"></i>
-          <span class="hidden xs:inline md:inline">+91-7876505119</span>
-          <span class="md:hidden">Call</span>
-        </a>
       </div>
     </div>
   </header>
@@ -645,34 +611,6 @@ $tourist_trip_graph = [
     </div>
   </section>
 
-  <!-- Informational intent: quick travel guide (soft convert) -->
-  <section id="himachal-guide" class="guide-section py-10 px-4 md:px-6 <?php echo $lp_intent === 'informational' ? 'guide-priority' : ''; ?>">
-    <div class="container mx-auto max-w-4xl">
-      <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Himachal Travel Guide</h2>
-      <p class="text-gray-500 text-sm md:text-base mb-6">Planning research? Start here — when you’re ready to book, WhatsApp us for a live quote.</p>
-      <div class="guide-grid">
-        <article class="guide-card">
-          <h3>Best time to visit</h3>
-          <p>Mar–Jun & Sep–Nov for pleasant weather. Dec–Feb for snow in Manali & Shimla. Perfect for a 5-day Himachal tour.</p>
-        </article>
-        <article class="guide-card">
-          <h3>Classic 5–6 day circuit</h3>
-          <p>Shimla (2N) → Manali (3N) covers Mall Road, Solang, and Kullu — the most booked family & honeymoon loop.</p>
-        </article>
-        <article class="guide-card">
-          <h3>What budget to expect</h3>
-          <p>Value packages from <strong>₹5,000</strong>/person. Premium family stays from <strong>₹15,000</strong>/person (ex-flights).</p>
-        </article>
-      </div>
-      <div class="guide-cta-row">
-        <a href="#packages" class="guide-link-packages">See packages ↓</a>
-        <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="whatsapp-btn guide-wa">
-          <i class="fab fa-whatsapp"></i> Ready to book? WhatsApp Quote
-        </a>
-      </div>
-    </div>
-  </section>
-
   <!-- Himachal Packages Section -->
   <section id="packages" class="packages-section py-10 px-4 md:px-6 <?php echo $lp_intent === 'transactional' ? 'packages-priority' : ''; ?>">
     <div class="container mx-auto">
@@ -683,7 +621,7 @@ $tourist_trip_graph = [
       <p class="scarcity-inline mb-8"><i class="fas fa-bolt"></i> <?php echo htmlspecialchars($scarcity_text); ?> — book via WhatsApp to reserve.</p>
 
       <!-- Package Card 1: Hill Station Special -->
-      <div id="8-day-himachal-group-tour-hill-station-special-shimla-manali-dalhousie-dharamshala" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100 relative">
+      <div id="HimachalGroupTour" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100 relative">
         <div class="scarcity-tag">Only 2 slots · Oct Festival</div>
         <div class="flex flex-col md:flex-row">
           <!-- Package Image -->
@@ -1414,7 +1352,7 @@ $tourist_trip_graph = [
       </div>
 
       <!-- Package Card 7: Complete Himachal Tour -->
-      <div id="complete-himachal-tour-shimla-manali-dharamshala-8n-9d" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100">
+      <div id="CompleteHimachalTour" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100">
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
@@ -1520,7 +1458,7 @@ $tourist_trip_graph = [
       </div>
 
       <!-- Package Card 8: Romantic Himachal Honeymoon -->
-      <div id="romantic-himachal-honeymoon-shimla-manali-5n-6d" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100 relative">
+      <div id="HoneymoonTour" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100 relative">
         <div class="trending-tag absolute top-4 left-4 z-10 bg-yellow-400 px-3 py-1 rounded flex items-center gap-2 text-xs font-bold text-gray-800">
           <i class="fas fa-arrow-trend-up"></i>
           <span>TRENDING NOW</span>
@@ -1639,7 +1577,8 @@ $tourist_trip_graph = [
       <p class="text-gray-500 mb-8 text-sm md:text-base">Dedicated packages for Dharamshala, McLeod Ganj and Dalhousie</p>
 
       <!-- Dharamshala & McLeodganj Tour -->
-      <div id="dharamshala-mcleodganj-tour-package-3n-4d" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100">
+      <div id="DharamshalaTourPackage" class="package-card bg-white rounded-2xl shadow-card mb-6 overflow-hidden border border-gray-100">
+        <span id="McLeodganjTourPackage" class="hash-anchor" aria-hidden="true"></span>
         <div class="flex flex-col md:flex-row">
           <div class="package-image md:w-1/2 h-64 md:h-auto relative">
             <img
@@ -1943,6 +1882,34 @@ $tourist_trip_graph = [
     </div>
   </section>
 
+  <!-- Himachal Travel Guide (above footer) -->
+  <section id="himachal-guide" class="guide-section py-10 px-4 md:px-6 <?php echo $lp_intent === 'informational' ? 'guide-priority' : ''; ?>">
+    <div class="container mx-auto max-w-4xl">
+      <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mb-2">Himachal Travel Guide</h2>
+      <p class="text-gray-500 text-sm md:text-base mb-6">Planning research? Start here — when you’re ready to book, WhatsApp us for a live quote.</p>
+      <div class="guide-grid">
+        <article class="guide-card">
+          <h3>Best time to visit</h3>
+          <p>Mar–Jun & Sep–Nov for pleasant weather. Dec–Feb for snow in Manali & Shimla. Perfect for a 5-day Himachal tour.</p>
+        </article>
+        <article class="guide-card">
+          <h3>Classic 5–6 day circuit</h3>
+          <p>Shimla (2N) → Manali (3N) covers Mall Road, Solang, and Kullu — the most booked family & honeymoon loop.</p>
+        </article>
+        <article class="guide-card">
+          <h3>What budget to expect</h3>
+          <p>Value packages from <strong>₹5,000</strong>/person. Premium family stays from <strong>₹15,000</strong>/person (ex-flights).</p>
+        </article>
+      </div>
+      <div class="guide-cta-row">
+        <a href="#packages" class="guide-link-packages">See packages ↑</a>
+        <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="whatsapp-btn guide-wa">
+          <i class="fab fa-whatsapp"></i> Ready to book? WhatsApp Quote
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- Desktop Footer -->
   <footer class="desktop-footer bg-gray-800 text-white py-8 px-4 md:px-6 mt-6">
     <div class="container mx-auto">
@@ -2087,6 +2054,18 @@ $tourist_trip_graph = [
     </div>
   </div>
 
+  <!-- Floating Call + WhatsApp -->
+  <div class="floating-cta-stack" aria-label="Quick contact">
+    <a href="tel:+917876505119" class="floating-cta-btn floating-cta-call" aria-label="Call Uno Trips">
+      <i class="fas fa-phone"></i>
+      <span class="floating-cta-label">Call</span>
+    </a>
+    <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="floating-cta-btn floating-cta-wa" aria-label="WhatsApp Quote">
+      <i class="fab fa-whatsapp"></i>
+      <span class="floating-cta-label">WhatsApp</span>
+    </a>
+  </div>
+
   <!-- Mobile sticky: WhatsApp primary -->
   <div class="mobile-sticky-footer fixed bottom-0 left-0 right-0 z-50 md:hidden px-3 py-2 flex gap-2">
     <a href="<?php echo htmlspecialchars($wa_quote_url); ?>" target="_blank" rel="noopener" class="cta-whatsapp flex-[1.4] text-white font-bold text-sm py-3 rounded-xl inline-flex items-center justify-center gap-2">
@@ -2126,7 +2105,6 @@ $tourist_trip_graph = [
     window.HIMACHAL_WA_QUOTE = <?php echo json_encode($wa_quote_url); ?>;
   </script>
   <script src="script.js" defer></script>
-  <script src="https://cdn.tailwindcss.com" defer></script>
 </body>
 
 </html>

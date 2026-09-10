@@ -356,6 +356,24 @@
   box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
 }
 .scarcity-tag-right { top: 48px; }
+.hash-anchor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.package-card.is-hash-target,
+.package-card:target {
+  outline: 3px solid rgba(249, 115, 22, 0.55);
+  outline-offset: 3px;
+  box-shadow: 0 12px 32px -8px rgba(249, 115, 22, 0.25), 0 8px 16px -4px rgba(0, 0, 0, 0.08);
+  scroll-margin-top: 96px;
+}
+.package-card {
+  scroll-margin-top: 96px;
+}
 .mobile-top-cta-primary {
   flex: 1.35;
   font-size: 13px;
@@ -457,8 +475,103 @@ body.intent-informational .guide-section {
   box-shadow: 0 8px 24px rgba(249, 115, 22, 0.12);
 }
 body.intent-transactional .packages-section .section-heading::after {
-  content: " — Book now";
+  content: " â€” Book now";
   font-weight: 600;
   color: #ea580c;
   font-size: 0.85em;
+}
+
+/* Layout container (replaces Tailwind CDN container) */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+@media (min-width: 640px) {
+  .container { max-width: 640px; }
+}
+@media (min-width: 768px) {
+  .container { max-width: 768px; }
+}
+@media (min-width: 1024px) {
+  .container { max-width: 1024px; }
+}
+@media (min-width: 1280px) {
+  .container { max-width: 1280px; }
+}
+
+/* Floating Call + WhatsApp */
+.floating-cta-stack {
+  position: fixed;
+  right: 14px;
+  bottom: 88px;
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+.floating-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 52px;
+  min-height: 52px;
+  padding: 0 14px;
+  border-radius: 999px;
+  color: #fff !important;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.floating-cta-btn i {
+  font-size: 18px;
+}
+.floating-cta-label {
+  display: none;
+}
+.floating-cta-call {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  animation: floatingCallPulse 2.4s ease-in-out infinite;
+}
+.floating-cta-wa {
+  background: #22c55e;
+}
+.floating-cta-btn:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+.floating-cta-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+@keyframes floatingCallPulse {
+  0%, 100% { box-shadow: 0 8px 22px rgba(37, 99, 235, 0.35); }
+  50% { box-shadow: 0 8px 28px rgba(37, 99, 235, 0.55), 0 0 0 8px rgba(37, 99, 235, 0.12); }
+}
+@media (min-width: 768px) {
+  .floating-cta-stack {
+    bottom: 28px;
+    right: 22px;
+  }
+  .floating-cta-label {
+    display: inline;
+  }
+  .floating-cta-btn {
+    min-width: auto;
+    padding: 0 18px;
+    min-height: 48px;
+  }
+  .chatbot-widget {
+    bottom: 120px !important;
+  }
+}
+@media (max-width: 767px) {
+  .chatbot-widget {
+    bottom: 150px !important;
+  }
 }

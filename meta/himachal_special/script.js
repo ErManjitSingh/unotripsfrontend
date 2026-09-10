@@ -169,8 +169,57 @@ function toggleFaq(button) {
   }
 }
 
-// Intent routing: informational → guide; transactional → packages/form
+// Deep-link hashes → matching package cards (e.g. #HoneymoonTour)
 document.addEventListener("DOMContentLoaded", function () {
+  var HASH_ALIASES = {
+    McLeodganjTourPackage: "DharamshalaTourPackage",
+    McLeodGanjTourPackage: "DharamshalaTourPackage",
+    Dharamshala: "DharamshalaTourPackage",
+    Honeymoon: "HoneymoonTour",
+    HimachalGroup: "HimachalGroupTour",
+    CompleteHimachal: "CompleteHimachalTour",
+    "romantic-himachal-honeymoon-shimla-manali-5n-6d": "HoneymoonTour",
+    "complete-himachal-tour-shimla-manali-dharamshala-8n-9d": "CompleteHimachalTour",
+    "dharamshala-mcleodganj-tour-package-3n-4d": "DharamshalaTourPackage",
+    "8-day-himachal-group-tour-hill-station-special-shimla-manali-dalhousie-dharamshala": "HimachalGroupTour",
+  };
+
+  function packageCardFor(el) {
+    if (!el) return null;
+    return el.classList.contains("package-card")
+      ? el
+      : el.closest(".package-card");
+  }
+
+  function scrollToPackageHash() {
+    var raw = (window.location.hash || "").replace(/^#/, "").trim();
+    if (!raw) return false;
+    if (raw === "book-now" || raw === "BookNow" || raw === "packages" || raw === "himachal-guide") {
+      return false;
+    }
+    var targetId = HASH_ALIASES[raw] || raw;
+    var el = document.getElementById(targetId) || document.getElementById(raw);
+    var card = packageCardFor(el);
+    if (!card) return false;
+
+    document.querySelectorAll(".package-card.is-hash-target").forEach(function (c) {
+      c.classList.remove("is-hash-target");
+    });
+    card.classList.add("is-hash-target");
+
+    var headerOffset = 90;
+    var top = card.getBoundingClientRect().top + window.pageYOffset - headerOffset;
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    return true;
+  }
+
+  var scrolledToHash = scrollToPackageHash();
+  window.addEventListener("hashchange", scrollToPackageHash);
+
+  // Intent routing: informational → guide; transactional → packages/form
+  // Skip when a package hash is present so deep-links win.
+  if (scrolledToHash) return;
+
   var intent = document.documentElement.getAttribute("data-lp-intent") || "transactional";
   if (intent === "informational") {
     var guide = document.getElementById("himachal-guide");
