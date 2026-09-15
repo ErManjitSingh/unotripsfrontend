@@ -372,6 +372,11 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
 
   // To City
   const [to, setTo]         = useState(initialTo ?? "");
+  // Picked city suggestion, separate from the input text: `label` is shown,
+  // `value` is submitted. /packages feeds `q` to a substring search on package
+  // name/destination/state/country, which "Shimla, India" never matches.
+  // Same fix as DestinationEaseHero. Cleared on edit so it can't go stale.
+  const [selectedTo, setSelectedTo] = useState<{ label: string; value: string } | null>(null);
   const [toOpen, setToOpen] = useState(false);
   const toRef = useRef<HTMLDivElement>(null);
   useOutsideClick(toRef, () => setToOpen(false), toOpen);
@@ -426,9 +431,11 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
   useEffect(() => {
     const q = to.trim();
     if (!q || q.length < 2) { setCityHits([]); return; }
+    // Input holds a just-picked suggestion's label — don't re-query with it.
+    if (selectedTo && selectedTo.label === to) return;
     const id = setTimeout(() => fetchCities(q), 320);
     return () => clearTimeout(id);
-  }, [to, fetchCities]);
+  }, [to, fetchCities, selectedTo]);
 
   // Date
   const [dateIso, setDateIso]   = useState(initialDate ?? "");
@@ -472,7 +479,9 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
   const onSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     const params = new URLSearchParams();
-    if (to.trim())            params.set("q",        to.trim());
+    // Picked suggestion → canonical value; otherwise typed text, as before.
+    const destination = selectedTo && selectedTo.label === to ? selectedTo.value : to.trim();
+    if (destination)          params.set("q",        destination);
     if (from.trim())          params.set("from",      from.trim());
     if (dateIso)              params.set("date",      dateIso);
     if (guests.rooms > 1)     params.set("rooms",     String(guests.rooms));
@@ -649,7 +658,7 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
                   </span>
                   <input
                     value={to}
-                    onChange={e => { setTo(e.target.value); setToOpen(true); }}
+                    onChange={e => { setTo(e.target.value); setSelectedTo(null); setToOpen(true); }}
                     onFocus={() => setToOpen(true)}
                     onKeyDown={e => { if (e.key === "Escape") setToOpen(false); if (e.key === "Enter") { e.preventDefault(); onSubmit(); } }}
                     autoComplete="off"
@@ -694,7 +703,12 @@ export function HolidayPackagesSearchBar({ className, catalog: rawCatalog, initi
                         <button
                           key={`${c.name}-${c.country}-${i}`}
                           type="button"
-                          onClick={() => { setTo(`${c.name}${c.country ? `, ${c.country}` : ""}`); setToOpen(false); }}
+                          onClick={() => {
+                            const label = `${c.name}${c.country ? `, ${c.country}` : ""}`;
+                            setTo(label);
+                            setSelectedTo({ label, value: c.name.trim() });
+                            setToOpen(false);
+                          }}
                           className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50"
                         >
                           <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
