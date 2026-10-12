@@ -37,8 +37,8 @@ const PROMO_SLIDES = [
     src: "/images/promo/winter-tours.png",
     alt: "Winter Tours for Schools, Colleges, Institutes & Universities — Up to 10% off",
     href: "/packages",
-    width: 1024,
-    height: 341,
+    width: 824,
+    height: 198,
   },
 ] as const;
 
