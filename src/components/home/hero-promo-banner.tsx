@@ -30,11 +30,15 @@ const PROMO_SLIDES = [
     src: "/images/promo/navratri-special.png",
     alt: "Navratri Special Tour Offers — Book now and save more",
     href: "/packages",
+    width: 824,
+    height: 198,
   },
   {
     src: "/images/promo/winter-tours.png",
     alt: "Winter Tours for Schools, Colleges, Institutes & Universities — Up to 10% off",
     href: "/packages",
+    width: 1024,
+    height: 341,
   },
 ] as const;
 
@@ -137,11 +141,15 @@ function ImagePromoSlide({
   src,
   alt,
   href,
+  width,
+  height,
   priority = false,
 }: {
   src: string;
   alt: string;
   href: string;
+  width: number;
+  height: number;
   priority?: boolean;
 }) {
   return (
@@ -150,12 +158,12 @@ function ImagePromoSlide({
       aria-label={alt}
       className="group relative block w-full overflow-hidden rounded-[22px] border border-[#ffc5a7] bg-transparent shadow-[0_18px_42px_-24px_rgba(15,23,42,0.5)] ring-1 ring-orange-100 transition-all duration-300 hover:border-primary/35 hover:shadow-[0_8px_32px_-6px_rgba(234,88,12,0.18),0_4px_12px_rgba(15,23,42,0.08)] sm:rounded-[1.25rem] md:border-2"
     >
-      {/* Full banner visible: width 100%, height follows image ratio — no crop, no stretch */}
+      {/* Full width, natural height — no crop, no stretch */}
       <Image
         src={src}
         alt={alt}
-        width={1024}
-        height={341}
+        width={width}
+        height={height}
         priority={priority}
         className="block h-auto w-full"
         sizes="(max-width: 1320px) 100vw, 1320px"
