@@ -9,13 +9,9 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  Facebook,
   Hotel,
-  Instagram,
-  Linkedin,
   Plane,
   UtensilsCrossed,
-  Youtube,
 } from "lucide-react";
 
 const HOTEL_INCLUSIONS = [
@@ -28,6 +24,19 @@ const HOTEL_INCLUSIONS = [
 
 const BANNER_SHELL =
   "group relative block h-[220px] min-w-full w-full overflow-hidden rounded-[22px] border border-[#ffc5a7] bg-[#ffe6c9] shadow-[0_18px_42px_-24px_rgba(15,23,42,0.5)] ring-1 ring-orange-100 transition-all duration-300 hover:border-primary/35 hover:shadow-[0_8px_32px_-6px_rgba(234,88,12,0.18),0_4px_12px_rgba(15,23,42,0.08)] sm:h-[190px] sm:rounded-[1.25rem] md:h-[198px] md:border-2";
+
+const PROMO_SLIDES = [
+  {
+    src: "/images/promo/navratri-special.png",
+    alt: "Navratri Special Tour Offers — Book now and save more",
+    href: "/packages",
+  },
+  {
+    src: "/images/promo/winter-tours.png",
+    alt: "Winter Tours for Schools, Colleges, Institutes & Universities — Up to 10% off",
+    href: "/packages",
+  },
+] as const;
 
 function CabsPromoSlide() {
   return (
@@ -124,42 +133,32 @@ function VietnamPromoSlide() {
   );
 }
 
-function InstagramPromoSlide() {
+function ImagePromoSlide({
+  src,
+  alt,
+  href,
+  priority = false,
+}: {
+  src: string;
+  alt: string;
+  href: string;
+  priority?: boolean;
+}) {
   return (
-    <div className={BANNER_SHELL}>
-      <Image src="/images/holiday-packages-hero.png" alt="Mountain road and lake" fill sizes="(max-width: 1320px) 100vw, 1320px" className="object-cover object-center" />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#071426]/95 via-[#071426]/66 to-[#091029]/25" />
-      <div className="absolute inset-y-0 left-0 w-[58%] bg-gradient-to-r from-[#071426]/75 to-transparent" />
-
-      <div className="relative h-full px-5 py-3 sm:px-7 md:px-9">
-        <div className="flex h-full max-w-[52%] flex-col justify-between py-1 sm:max-w-[48%]">
-          <div>
-            <div className="mb-1.5 flex items-center gap-3 text-[9px] font-black uppercase tracking-[0.16em] text-white/75"><span className="h-0.5 w-5 bg-[#ef8a24]" />UNO Trips / everywhere</div>
-            <h2 className="text-[21px] font-black leading-[.95] tracking-[-.045em] text-white sm:text-[25px] md:text-[29px]">Travel isn&apos;t a feed.<br /><em className="font-serif font-semibold text-[#ff9a42]">It&apos;s a feeling.</em></h2>
-          </div>
-          <p className="max-w-sm text-[10px] font-medium leading-snug text-white/80 sm:text-[11px]">Follow the places, people and little detours that make every trip yours.</p>
-          <a href="https://www.instagram.com/uno_trips/" target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-2 rounded-full bg-gradient-to-r from-[#ff8a20] to-[#ee3e87] px-3.5 py-2 text-[10px] font-extrabold text-white shadow-[0_12px_28px_-10px_rgba(0,0,0,.8)] sm:px-4 sm:text-[11px]">Find UNO Trips everywhere <span aria-hidden>↗</span></a>
-        </div>
-
-        <div className="absolute bottom-2.5 right-3 top-2.5 hidden w-[45%] flex-col rounded-[18px] border border-white/20 bg-[#10142f]/72 p-3 shadow-[0_20px_45px_-18px_rgba(0,0,0,.9)] backdrop-blur-md sm:flex">
-          <div className="flex items-center gap-3">
-            <div className="relative grid h-12 w-12 place-items-center rounded-full bg-[conic-gradient(#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5,#feda75)] p-[3px]"><div className="grid h-full w-full place-items-center rounded-full bg-[#090b11] text-[22px] font-black text-[#ff9b2f]">U</div><span className="absolute -bottom-1 -right-1 grid h-5 w-5 place-items-center rounded-full bg-[#2997f2] text-[10px] font-black text-white">✓</span></div>
-            <div><p className="text-[15px] font-black text-white">uno_trips <span className="text-white/55">· 16K explorers</span></p><p className="mt-1 text-[10px] font-medium text-white/65">Safar khoobsurat hai ✈️</p></div>
-          </div>
-          <div className="mt-auto border-t border-white/15 pt-2.5">
-            <div className="flex items-center justify-between">
-              <a href="https://www.instagram.com/uno_trips/" target="_blank" rel="noreferrer" aria-label="UNO Trips on Instagram" className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-[#ffb454] transition hover:bg-white/20"><Instagram className="h-5 w-5" /></a>
-              <a href="https://www.facebook.com/profile.php?id=61585094895115" target="_blank" rel="noreferrer" aria-label="UNO Trips on Facebook" className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-[#79aaff] transition hover:bg-white/20"><Facebook className="h-5 w-5" /></a>
-              <a href="https://www.linkedin.com/in/uno-trips-4b05833b1" target="_blank" rel="noreferrer" aria-label="UNO Trips on LinkedIn" className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-[#6bc8ff] transition hover:bg-white/20"><Linkedin className="h-5 w-5" /></a>
-              <a href="https://www.youtube.com/@UnoTrips" target="_blank" rel="noreferrer" aria-label="UNO Trips on YouTube" className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/10 text-[#ff7e77] transition hover:bg-white/20"><Youtube className="h-5 w-5" /></a>
-              <span className="ml-2 text-[10px] font-black tracking-[.08em] text-white/85">@UNO_TRIPS</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Link href={href} className={BANNER_SHELL} aria-label={alt}>
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        priority={priority}
+        className="object-cover object-center transition-transform duration-500 group-hover:scale-[1.02]"
+        sizes="(max-width: 1320px) 100vw, 1320px"
+      />
+    </Link>
   );
 }
+
+const SLIDE_COUNT = 2 + PROMO_SLIDES.length;
 
 /** Promo strip directly below the home hero — carousel of product banners. */
 export function HeroPromoBanner() {
@@ -168,19 +167,36 @@ export function HeroPromoBanner() {
 
   useEffect(() => {
     if (paused) return;
-    const timer = window.setInterval(() => setActive((current) => (current + 1) % 3), 5500);
+    const timer = window.setInterval(
+      () => setActive((current) => (current + 1) % SLIDE_COUNT),
+      5500,
+    );
     return () => window.clearInterval(timer);
   }, [paused]);
 
-  const showPrevious = () => setActive((current) => (current + 2) % 3);
-  const showNext = () => setActive((current) => (current + 1) % 3);
+  const showPrevious = () =>
+    setActive((current) => (current - 1 + SLIDE_COUNT) % SLIDE_COUNT);
+  const showNext = () => setActive((current) => (current + 1) % SLIDE_COUNT);
 
   return (
     <aside className="relative z-0 mb-5 mt-2 w-full bg-white md:mb-6 md:mt-6">
       <div className="mx-auto w-full max-w-[1320px] px-4 sm:px-4 lg:px-6">
         <div className="relative">
-          <div className="w-full overflow-hidden rounded-[22px] bg-[#ffe6c9] sm:rounded-[1.25rem]" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-            {active === 0 ? <CabsPromoSlide /> : active === 1 ? <VietnamPromoSlide /> : <InstagramPromoSlide />}
+          <div
+            className="w-full overflow-hidden rounded-[22px] bg-[#ffe6c9] sm:rounded-[1.25rem]"
+            onMouseEnter={() => setPaused(true)}
+            onMouseLeave={() => setPaused(false)}
+          >
+            {active < PROMO_SLIDES.length ? (
+              <ImagePromoSlide
+                {...PROMO_SLIDES[active]}
+                priority={active === 0}
+              />
+            ) : active === PROMO_SLIDES.length ? (
+              <CabsPromoSlide />
+            ) : (
+              <VietnamPromoSlide />
+            )}
           </div>
 
           <div className="pointer-events-none absolute inset-y-0 left-0 right-0 z-10 hidden items-center justify-between px-2 sm:flex md:px-3">
@@ -203,7 +219,7 @@ export function HeroPromoBanner() {
           </div>
 
           <div className="mt-2.5 flex items-center justify-center gap-1.5" role="tablist" aria-label="Promo slides">
-            {[0, 1, 2].map((index) => (
+            {Array.from({ length: SLIDE_COUNT }, (_, index) => (
               <button
                 key={index}
                 type="button"
