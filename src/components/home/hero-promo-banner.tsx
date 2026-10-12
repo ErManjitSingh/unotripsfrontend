@@ -148,15 +148,14 @@ function ImagePromoSlide({
     <Link
       href={href}
       aria-label={alt}
-      className="group relative block w-full overflow-hidden rounded-[22px] border border-[#ffc5a7] bg-[#ffe6c9] shadow-[0_18px_42px_-24px_rgba(15,23,42,0.5)] ring-1 ring-orange-100 transition-all duration-300 hover:border-primary/35 hover:shadow-[0_8px_32px_-6px_rgba(234,88,12,0.18),0_4px_12px_rgba(15,23,42,0.08)] sm:rounded-[1.25rem] md:border-2"
+      className="group relative block h-[132px] w-full overflow-hidden rounded-[22px] border border-[#ffc5a7] bg-[#ffe6c9] shadow-[0_18px_42px_-24px_rgba(15,23,42,0.5)] ring-1 ring-orange-100 transition-all duration-300 hover:border-primary/35 hover:shadow-[0_8px_32px_-6px_rgba(234,88,12,0.18),0_4px_12px_rgba(15,23,42,0.08)] sm:h-[148px] sm:rounded-[1.25rem] md:h-[160px] md:border-2"
     >
       <Image
         src={src}
         alt={alt}
-        width={1024}
-        height={341}
+        fill
         priority={priority}
-        className="h-auto w-full object-contain"
+        className="object-cover object-center"
         sizes="(max-width: 1320px) 100vw, 1320px"
       />
     </Link>
