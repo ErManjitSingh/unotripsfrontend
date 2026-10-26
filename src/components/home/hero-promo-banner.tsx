@@ -27,11 +27,11 @@ const BANNER_SHELL =
 
 const PROMO_SLIDES = [
   {
-    src: "/images/promo/navratri-special.png",
-    alt: "Navratri Special Tour Offers — Book now and save more",
+    src: "/images/promo/diwali-special.png",
+    alt: "Diwali Special Tour Offers — Celebrate the festival of lights with unforgettable journeys",
     href: "/packages",
-    width: 824,
-    height: 198,
+    width: 1024,
+    height: 341,
   },
   {
     src: "/images/promo/winter-tours.png",
