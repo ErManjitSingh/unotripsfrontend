@@ -34,6 +34,13 @@ const PROMO_SLIDES = [
     height: 341,
   },
   {
+    src: "/images/promo/winter-spiti.png",
+    alt: "Winter Spiti 4x4 — A thrilling winter escape to snowy valleys, ancient monasteries and raw Himalayan beauty",
+    href: "/packages/spiti-valley-expedition-from-chandigarh",
+    width: 1024,
+    height: 341,
+  },
+  {
     src: "/images/promo/winter-tours.png",
     alt: "Winter Tours for Schools, Colleges, Institutes & Universities — Up to 10% off",
     href: "/packages",
