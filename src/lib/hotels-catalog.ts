@@ -51,6 +51,8 @@ export type HotelListing = {
   roomPhotoCount: number;
   videoCount: number;
   nearbyLandmark: string;
+  checkInTime?: string;
+  checkOutTime?: string;
   defaultRoomType: string;
   roomOptionsCount: number;
   latitude?: number;
@@ -98,6 +100,16 @@ export type HotelRoomRatePlan = {
   showBestValueBadge?: boolean;
 };
 
+/** Guest-facing name for a rate. Room only and With breakfast stay explicit. */
+export function mealPlanLabel(packageName: string): string {
+  const name = packageName.toLowerCase();
+  if (name.includes("room only") || name.includes("(ep)")) return "Room only";
+  if (name.includes("breakfast") && !name.includes("dinner") && !name.includes("lunch")) return "With breakfast";
+  if (name.includes("map") || (name.includes("breakfast") && name.includes("dinner") && !name.includes("lunch"))) return "Breakfast and dinner";
+  if (name.includes("full board") || name.includes("(ap)") || (name.includes("lunch") && name.includes("dinner"))) return "All meals";
+  return packageName.replace(/\s*\([A-Za-z]+\)\s*/g, " ").trim();
+}
+
 export type HotelRoomType = {
   id: string;
   name: string;
@@ -117,6 +129,56 @@ export type HotelPhotoCategory = {
   label: string;
   images: string[];
 };
+
+type PostalHotel = {
+  name: string;
+  address?: string;
+  state?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+};
+
+/** 0,0 is the unset default, not a real pin. */
+export function hotelHasCoordinates(latitude?: number, longitude?: number): boolean {
+  if (latitude == null || longitude == null) return false;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
+  return !(latitude === 0 && longitude === 0);
+}
+
+/** Street, city, state, and a PIN when the address already contains one. */
+export function hotelPostalAddress(hotel: PostalHotel, cityName: string): string {
+  const pin = hotel.address?.match(/\b\d{6}\b/)?.[0] ?? "";
+  const parts = [hotel.address, cityName, hotel.state, pin, hotel.country]
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part));
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const part of parts) {
+    const key = part.toLowerCase();
+    if (seen.has(key)) continue;
+    if (/^\d{6}$/.test(part) && hotel.address?.includes(part)) continue;
+    seen.add(key);
+    unique.push(part);
+  }
+  return unique.join(", ");
+}
+
+export function hotelMapsLink(hotel: PostalHotel, cityName: string): string {
+  if (hotelHasCoordinates(hotel.latitude, hotel.longitude)) {
+    return `https://www.google.com/maps?q=${hotel.latitude},${hotel.longitude}`;
+  }
+  const query = hotelPostalAddress(hotel, cityName) || `${hotel.name}, ${cityName}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
+export function hotelMapEmbedUrl(hotel: PostalHotel, cityName: string): string {
+  if (hotelHasCoordinates(hotel.latitude, hotel.longitude)) {
+    return `https://maps.google.com/maps?q=${hotel.latitude},${hotel.longitude}&z=16&output=embed`;
+  }
+  const query = hotelPostalAddress(hotel, cityName) || `${hotel.name}, ${cityName}`;
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`;
+}
 
 export type HotelBookingSelection = {
   city: HotelCity;

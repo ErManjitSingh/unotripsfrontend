@@ -68,7 +68,7 @@ export function Footer({ className }: FooterProps) {
             </Link>
 
             <p className="max-w-xs text-sm leading-relaxed text-slate-500">
-              Luxury travel, redefined — curated journeys across India and the world.
+              Travel made simple — curated journeys across India and the world.
             </p>
 
             {/* Contact */}

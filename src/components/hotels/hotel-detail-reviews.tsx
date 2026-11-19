@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Star } from "lucide-react";
+import { BedDouble, Check, MessageSquare, Moon, PenLine, Star, ThumbsUp } from "lucide-react";
 import type { HotelListing } from "@/lib/hotels-catalog";
 import { buildDemoHotelReviews, type HotelReviewUi } from "@/lib/hotel-demo-reviews";
 import { mapApiReviewsForUi, type ApiReview } from "@/lib/hotels-api";
@@ -15,174 +15,326 @@ type HotelDetailReviewsProps = {
   className?: string;
 };
 
-const INITIAL_VISIBLE = 4;
+const STAR_FILTERS = [5, 4, 3, 2, 1] as const;
 
-const AVATAR_PALETTE = ["#1e293b","#3730a3","#166534","#92400e","#1e3a5f","#6b21a8","#134e4a"];
-function avatarColor(i: string) { return AVATAR_PALETTE[Math.max(0, i.charCodeAt(0) - 65) % AVATAR_PALETTE.length]; }
-function reviewerInitial(a: string) { return (a.replace(/^[^#]*#?/, "").trim().charAt(0) || "G").toUpperCase(); }
-function fmtDate(raw: string) {
+const AVATAR_TONES: Record<string, { bg: string; fg: string }> = {
+  A: { bg: "#FDE7D8", fg: "#E25B12" },
+  R: { bg: "#FFE7C2", fg: "#EA580C" },
+  M: { bg: "#DDF5E5", fg: "#15803D" },
+  S: { bg: "#E7F0FF", fg: "#1D4ED8" },
+  P: { bg: "#F3E8FF", fg: "#7E22CE" },
+  K: { bg: "#FFF4D6", fg: "#A16207" },
+};
+
+function avatarTone(initial: string) {
+  return AVATAR_TONES[initial] ?? { bg: "#F4EFEA", fg: "#9A3412" };
+}
+
+function reviewerInitial(author: string) {
+  const name = author.trim();
+  return (name.charAt(0) || "G").toUpperCase();
+}
+
+function fmtStay(raw: string) {
   if (!raw) return "";
   const d = new Date(raw);
-  return isNaN(d.getTime()) ? raw : d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
-}
-function scoreLabel(s: number) {
-  if (s >= 4.5) return "Exceptional";
-  if (s >= 4.0) return "Excellent";
-  if (s >= 3.5) return "Very Good";
-  if (s >= 3.0) return "Good";
-  return "Average";
-}
-function ratingCategories(rating: number) {
-  const c = (n: number) => Math.min(5, Math.max(0, Math.round(n * 10) / 10));
-  const r = rating > 0 ? rating : 0;
-  return [
-    { label: "Cleanliness",   score: c(r + 0.1) },
-    { label: "Sleep Quality", score: c(r + 0.2) },
-    { label: "Location",      score: c(r - 0.5) },
-    { label: "Rooms",         score: c(r - 0.1) },
-    { label: "Service",       score: c(r - 0.1) },
-    { label: "Value",         score: c(r - 0.1) },
-  ].filter((x) => x.score > 0);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+  }
+  return raw.replace(/^[A-Za-z]+/, (month) => month.slice(0, 3));
 }
 
-function Bar({ label, score }: { label: string; score: number }) {
+function scoreLabel(score: number) {
+  if (score >= 4.5) return "Exceptional";
+  if (score >= 4) return "Excellent";
+  if (score >= 3.5) return "Very Good";
+  if (score >= 3) return "Good";
+  return "Average";
+}
+
+function starBucket(rating: number) {
+  return Math.min(5, Math.max(1, Math.round(rating))) as (typeof STAR_FILTERS)[number];
+}
+
+function Stars({ value, size = 14 }: { value: number; size?: number }) {
   return (
-    <div className="flex items-center gap-2">
-      <span className="w-[88px] shrink-0 text-[11px] text-[#757575]">{label}</span>
-      <div className="h-[2px] flex-1 rounded-full bg-[#ebebeb]">
-        <div className="h-full rounded-full bg-[#1e293b]" style={{ width: `${(score / 5) * 100}%` }} />
+    <span className="inline-flex items-center gap-0.5" role="img" aria-label={`${value.toFixed(1)} out of 5 stars`}>
+      {Array.from({ length: 5 }, (_, i) => {
+        const fill = Math.max(0, Math.min(1, value - i));
+        return (
+          <span key={i} className="relative inline-block" style={{ width: size, height: size }}>
+            <Star className="fill-[#E7E1D8] text-[#E7E1D8]" style={{ width: size, height: size }} aria-hidden />
+            {fill > 0 ? (
+              <span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                <Star className="fill-[#F5B301] text-[#F5B301]" style={{ width: size, height: size }} aria-hidden />
+              </span>
+            ) : null}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function ScoreBar({
+  icon,
+  label,
+  score,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  score: number;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#FFF1E8] text-[#EF6614]">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <span className="text-[13px] font-medium text-[#3c4450]">{label}</span>
+          <span className="text-[13px] font-semibold tabular-nums text-[#1c2430]">{score.toFixed(1)}</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-[#F3EEE8]">
+          <div
+            className="h-full rounded-full bg-[#EF6614]"
+            style={{ width: `${Math.max(0, Math.min(100, (score / 5) * 100))}%` }}
+          />
+        </div>
       </div>
-      <span className="w-5 shrink-0 text-right text-[11px] font-semibold text-[#424242]">{score.toFixed(1)}</span>
     </div>
   );
 }
 
-function Card({ r }: { r: HotelReviewUi }) {
-  const init = reviewerInitial(r.author);
+function ReviewRow({ review }: { review: HotelReviewUi }) {
+  const initial = reviewerInitial(review.author);
+  const tone = avatarTone(initial);
+  const stayed = fmtStay(review.date);
+
   return (
-    <li className="flex gap-3 py-3.5 first:pt-0">
-      <div
-        className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-        style={{ backgroundColor: avatarColor(init) }}
-      >{init}</div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[12px] font-semibold text-[#212121]">
-            {r.author}
-            <span className="ml-1.5 font-normal text-[#b0b0b0]">·</span>
-            <span className="ml-1.5 font-normal text-[#9E9E9E]">{fmtDate(r.date)}</span>
-            {r.roomType && <><span className="ml-1.5 text-[#b0b0b0]">·</span><span className="ml-1.5 font-normal text-[#9E9E9E]">{r.roomType}</span></>}
-          </p>
-          <span className="flex shrink-0 items-center gap-0.5 text-[11px] font-bold text-[#212121]">
-            <Star className="h-2.5 w-2.5 fill-[#FFC107] text-[#FFC107]" aria-hidden />
-            {r.rating.toFixed(1)}
+    <li className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 py-5 sm:gap-x-4">
+      <span
+        className="flex h-10 w-10 items-center justify-center rounded-full text-[15px] font-bold"
+        style={{ backgroundColor: tone.bg, color: tone.fg }}
+        aria-hidden
+      >
+        {initial}
+      </span>
+
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-[15px] font-bold text-[#1c2430]">{review.author}</p>
+            {stayed ? <p className="mt-0.5 text-[12px] text-[#8b938c]">Stayed {stayed}</p> : null}
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#E8F8EE] px-2.5 py-1 text-[11px] font-semibold text-[#15803D]">
+            <Check className="h-3.5 w-3.5" strokeWidth={2.6} aria-hidden />
+            Verified Stay
           </span>
         </div>
-        {r.title && <p className="mt-1 text-[12px] font-semibold text-[#212121]">{r.title}</p>}
-        <p className="mt-0.5 text-[12px] leading-relaxed text-[#616161] line-clamp-2">{r.body}</p>
+
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="inline-flex items-center gap-1.5">
+            <Stars value={review.rating} />
+            <span className="text-[13px] font-semibold tabular-nums text-[#1c2430]">{review.rating.toFixed(1)}</span>
+          </span>
+          {review.roomType ? (
+            <span className="inline-flex items-center gap-1.5 text-[12px] text-[#6b7280]">
+              <BedDouble className="h-3.5 w-3.5" aria-hidden />
+              {review.roomType}
+            </span>
+          ) : null}
+        </div>
+
+        {review.title ? (
+          <p className="mt-2.5 text-[14px] font-bold text-[#1c2430]">{review.title}</p>
+        ) : null}
+        <p className="mt-1 text-[13px] leading-relaxed text-[#5c6570]">{review.body}</p>
+
+        <p className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-medium text-[#8b938c]">
+          <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
+          Helpful ({review.helpfulCount ?? 0})
+        </p>
       </div>
     </li>
   );
 }
 
 export function HotelDetailReviews({ hotel, cityName = "", apiReviews, className }: HotelDetailReviewsProps) {
-  const [showAll, setShowAll] = useState(false);
   const [writeOpen, setWriteOpen] = useState(false);
+  const [starFilter, setStarFilter] = useState<number | null>(null);
   const [userReviews, setUserReviews] = useState<HotelReviewUi[]>([]);
 
   const reviews = useMemo<HotelReviewUi[]>(() => {
     const fromApi = apiReviews?.length
-      ? mapApiReviewsForUi(apiReviews).map((r) => ({ id: r.id, author: r.author, rating: r.rating, title: r.title, body: r.body, date: r.date, roomType: r.roomType, helpfulCount: r.helpfulCount }))
+      ? mapApiReviewsForUi(apiReviews).map((review) => ({
+          id: review.id,
+          author: review.author,
+          rating: review.rating,
+          title: review.title,
+          body: review.body,
+          date: review.date,
+          roomType: review.roomType,
+          helpfulCount: review.helpfulCount,
+        }))
       : [];
     if (fromApi.length > 0 || userReviews.length > 0) return [...userReviews, ...fromApi];
     return buildDemoHotelReviews(hotel, cityName || hotel.locationLine);
   }, [apiReviews, hotel, cityName, userReviews]);
 
-  const cats        = ratingCategories(hotel.rating);
-  const overallNum  = hotel.rating > 0 ? hotel.rating : (reviews[0]?.rating ?? 0);
-  const overall     = overallNum > 0 ? overallNum.toFixed(1) : "—";
-  const totalCount  = hotel.reviewCount > 0 ? hotel.reviewCount : reviews.length;
-  const visible     = showAll ? reviews : reviews.slice(0, INITIAL_VISIBLE);
-  const fullStars   = Math.round(overallNum);
+  const overallNum = useMemo(() => {
+    if (hotel.rating > 0 && hotel.reviewCount > 0) return hotel.rating;
+    if (reviews.length === 0) return 0;
+    const sum = reviews.reduce((total, review) => total + review.rating, 0);
+    return Math.round((sum / reviews.length) * 10) / 10;
+  }, [hotel.rating, hotel.reviewCount, reviews]);
+
+  const counts = useMemo(() => {
+    const tally = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const review of reviews) tally[starBucket(review.rating)] += 1;
+    return tally;
+  }, [reviews]);
+
+  const visible = starFilter == null
+    ? reviews
+    : reviews.filter((review) => starBucket(review.rating) === starFilter);
+
+  const cleanliness = Math.min(5, Math.round((overallNum + 0.1) * 10) / 10);
+  const sleep = Math.min(5, Math.round((overallNum + 0.2) * 10) / 10);
+  const stayCount = Math.max(hotel.reviewCount, reviews.length);
 
   return (
     <section
       id="guest-reviews"
-      className={cn("scroll-mt-24 rounded-xl border border-[#e8e8e8] bg-white shadow-sm", className)}
+      className={cn(
+        "scroll-mt-24 overflow-hidden rounded-[22px] border border-[#f0e4d8] bg-white shadow-[0_10px_30px_-24px_rgba(120,53,15,0.45)]",
+        className,
+      )}
     >
-      <div className="px-5 py-4 sm:px-6">
-
-        {/* ── Header row ── */}
-        <div className="flex items-start justify-between gap-4 border-b border-[#f2f2f2] pb-4">
-          <div>
-            <h2 className="text-[15px] font-bold text-[#212121]">Guest Reviews</h2>
-            <p className="mt-0.5 text-[11px] text-[#9E9E9E]">
-              {totalCount.toLocaleString("en-IN")} verified stay{totalCount === 1 ? "" : "s"}
-            </p>
-          </div>
-          <div className="flex items-center gap-2.5">
-            <div className="text-right">
-              <span className="text-[22px] font-black leading-none text-[#212121]">{overall}</span>
-              <span className="ml-0.5 text-[12px] font-normal text-[#9E9E9E]"> / 5</span>
-              <div className="mt-1 flex justify-end gap-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className={cn("h-3 w-3", i < fullStars ? "fill-[#FFC107] text-[#FFC107]" : "fill-[#e8e8e8] text-[#e8e8e8]")} aria-hidden />
-                ))}
-              </div>
-            </div>
-            <span className="rounded border border-[#e8e8e8] bg-[#f8f8f8] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#616161]">
-              {scoreLabel(overallNum)}
+      <div className="px-4 py-5 sm:px-6 sm:py-6">
+        <div className="grid gap-6 border-b border-[#f3ece6] pb-5 lg:grid-cols-[minmax(0,1.15fr)_auto_minmax(220px,0.9fr)] lg:items-center lg:gap-8">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#FFF1E8] text-[#EF6614]">
+              <MessageSquare className="h-5 w-5" aria-hidden />
             </span>
+            <div>
+              <h2 className="text-[22px] font-bold tracking-[-0.03em] text-[#1c2430]">Guest Reviews</h2>
+              <p className="mt-0.5 text-[13px] text-[#8b938c]">Real experiences from our verified guests</p>
+              <p className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-medium text-[#EF6614]">
+                <Check className="h-3.5 w-3.5" strokeWidth={2.6} aria-hidden />
+                {stayCount.toLocaleString("en-IN")} verified stay{stayCount === 1 ? "" : "s"}
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* ── Score breakdown — 2-col grid ── */}
-        {cats.length > 0 && (
-          <div className="grid grid-cols-1 gap-x-8 gap-y-2 border-b border-[#f2f2f2] py-4 sm:grid-cols-2">
-            {cats.map((c) => <Bar key={c.label} label={c.label} score={c.score} />)}
+          <div className="lg:text-center">
+            <p className="leading-none">
+              <span className="text-[40px] font-black tracking-[-0.04em] text-[#1c2430]">
+                {overallNum > 0 ? overallNum.toFixed(1) : "—"}
+              </span>
+              <span className="ml-1 text-[15px] font-medium text-[#9aa09a]">/5</span>
+            </p>
+            <div className="mt-2">
+              <Stars value={overallNum} size={16} />
+            </div>
+            {overallNum > 0 ? (
+              <span className="mt-2 inline-flex rounded-full bg-[#E8F8EE] px-2.5 py-0.5 text-[12px] font-semibold text-[#15803D]">
+                {scoreLabel(overallNum)}
+              </span>
+            ) : null}
           </div>
-        )}
 
-        {/* ── Write a review — collapsible ── */}
-        <div className="border-b border-[#f2f2f2] py-3">
-          <button
-            type="button"
-            onClick={() => setWriteOpen((v) => !v)}
-            className="flex items-center gap-1.5 text-[12px] font-semibold text-[#424242] hover:text-[#EF6614]"
-          >
-            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", writeOpen && "rotate-180")} aria-hidden />
-            Write a review
-          </button>
-          {writeOpen && (
-            <div className="mt-3">
-              <HotelWriteReviewPanel
-                hotel={hotel}
-                onReviewSubmitted={(review) => {
-                  setUserReviews((c) => [review, ...c]);
-                  setShowAll(true);
-                  setWriteOpen(false);
-                }}
+          {overallNum > 0 ? (
+            <div className="space-y-3">
+              <ScoreBar
+                icon={<BedDouble className="h-4 w-4" aria-hidden />}
+                label="Cleanliness"
+                score={cleanliness}
+              />
+              <ScoreBar
+                icon={<Moon className="h-4 w-4" aria-hidden />}
+                label="Sleep Quality"
+                score={sleep}
               />
             </div>
-          )}
+          ) : null}
         </div>
 
-        {/* ── Reviews list ── */}
-        <ul className="mt-1 divide-y divide-[#f5f5f5]">
-          {visible.map((r) => <Card key={r.id} r={r} />)}
-        </ul>
-
-        {reviews.length > INITIAL_VISIBLE && (
+        <div className="flex flex-col gap-3 border-b border-[#f3ece6] py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter reviews by rating">
+            <FilterPill active={starFilter == null} onClick={() => setStarFilter(null)}>
+              All Reviews ({reviews.length})
+            </FilterPill>
+            {STAR_FILTERS.map((stars) => (
+              <FilterPill
+                key={stars}
+                active={starFilter === stars}
+                onClick={() => setStarFilter(stars)}
+              >
+                {stars}★ ({counts[stars]})
+              </FilterPill>
+            ))}
+          </div>
           <button
             type="button"
-            onClick={() => setShowAll((v) => !v)}
-            className="mt-1 border-t border-[#f2f2f2] pt-3 text-[12px] font-semibold text-[#424242] underline-offset-2 hover:text-[#EF6614] hover:underline"
+            onClick={() => setWriteOpen((open) => !open)}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#EF6614] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#E65100]"
           >
-            {showAll ? "Show fewer" : `View all ${reviews.length} reviews`}
+            <PenLine className="h-4 w-4" aria-hidden />
+            Write a Review
           </button>
-        )}
+        </div>
 
+        {writeOpen ? (
+          <div className="border-b border-[#f3ece6] py-4">
+            <HotelWriteReviewPanel
+              hotel={hotel}
+              onReviewSubmitted={(review) => {
+                setUserReviews((current) => [review, ...current]);
+                setStarFilter(null);
+                setWriteOpen(false);
+              }}
+            />
+          </div>
+        ) : null}
+
+        {visible.length > 0 ? (
+          <ul className="divide-y divide-[#f3ece6]">
+            {visible.map((review) => (
+              <ReviewRow key={review.id} review={review} />
+            ))}
+          </ul>
+        ) : (
+          <p className="py-8 text-center text-[13px] text-[#8b938c]">No reviews in this rating.</p>
+        )}
       </div>
     </section>
+  );
+}
+
+function FilterPill({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-3 py-1.5 text-[12px] font-semibold transition",
+        active
+          ? "border-[#EF6614] bg-white text-[#EF6614]"
+          : "border-[#ece7e2] bg-white text-[#5c6570] hover:border-[#EF6614]/40",
+      )}
+    >
+      {children}
+    </button>
   );
 }

@@ -83,11 +83,10 @@ export function HotelGridCard({ hotel }: HotelGridCardProps) {
     [hotel.originalPrice, hotel.price],
   );
   const savings = Math.max(0, hotel.originalPrice - hotel.price);
-  const showLastRoom = hotel.dealOfDay || hotel.roomOptionsCount <= 1;
 
-  // Show max 3 amenity pills + overflow count
-  const shownAmenities = hotel.amenities.slice(0, 3);
-  const overflowCount = Math.max(0, hotel.amenities.length - 3);
+  // Show max 4 amenity pills + overflow count (property amenities only — never invent)
+  const shownAmenities = hotel.amenities.slice(0, 4);
+  const overflowCount = Math.max(0, hotel.amenities.length - 4);
 
   const slidePrev = useCallback(
     (e: React.MouseEvent) => {
@@ -153,13 +152,6 @@ export function HotelGridCard({ hotel }: HotelGridCardProps) {
             </SwiperSlide>
           ))}
         </Swiper>
-
-        {/* Badges & controls overlay */}
-        {showLastRoom && (
-          <span className="pointer-events-none absolute left-2.5 top-2.5 z-20 rounded bg-primary px-2 py-0.5 text-[11px] font-bold text-white shadow-sm">
-            Our last room!
-          </span>
-        )}
 
         <button
           type="button"

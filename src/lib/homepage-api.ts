@@ -73,7 +73,8 @@ function roomTaxes(price: number): number {
 export function mapHomepageHotelCard(h: HomepageHotelCard): HotelListing {
   const citySlug = citySlugFromName(h.city);
   const price    = Math.round(h.starting_price);
-  const original = Math.round(price * 1.15);
+  // Never invent a "was" price — only show strikethrough when the API provides one.
+  const original = price;
   const tagLower = h.tags.map((t) => t.toLowerCase());
   const images   = h.thumbnail_url ? [h.thumbnail_url] : [];
 

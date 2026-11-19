@@ -83,8 +83,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: `Hotel | ${TRAVEL_HOME_BRAND.name}` };
   }
 
+  // Layout title template appends `| UNO Trips` — omit brand here to avoid "… | UNO Trips | UNO Trips".
   return {
-    title: `${bundle.hotel.name} | Hotels in ${bundle.city.name} | ${TRAVEL_HOME_BRAND.name}`,
+    title: `${bundle.hotel.name} | Hotels in ${bundle.city.name}`,
     description: `Book ${bundle.hotel.name} — room options, photos, reviews and lowest price on ${TRAVEL_HOME_BRAND.name}.`,
     openGraph: bundle.hotel.images[0]
       ? { images: [{ url: bundle.hotel.images[0] }] }
@@ -115,6 +116,7 @@ export default async function HotelDetailPage({ params, searchParams }: PageProp
         hotel={bundle.hotel}
         roomTypes={bundle.roomTypes}
         policies={bundle.policies}
+        hotelPolicies={bundle.hotelPolicies}
         apiReviews={bundle.reviews}
         nearbyAttractions={bundle.nearbyAttractions}
         photoCategories={bundle.photoCategories}

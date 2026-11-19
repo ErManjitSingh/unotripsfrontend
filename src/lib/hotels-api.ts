@@ -260,7 +260,10 @@ export type HotelDetailBundle = {
   city: HotelCity;
   hotel: HotelListing;
   roomTypes: HotelRoomType[];
+  /** Legacy bullet strings for older UI. */
   policies: string[];
+  /** Structured policies from the hotel API (cancellation, children, etc.). */
+  hotelPolicies: ApiHotelPolicies;
   reviews: ApiReview[];
   nearbyAttractions: string[];
   photoCategories: HotelPhotoCategory[];
@@ -466,21 +469,32 @@ async function apiFetch<T>(path: string, init?: RequestInit & { next?: { revalid
   return result.data;
 }
 
+/** Photos saved under another property id are a second listing, not this hotel. */
+function photoBelongsToHotel(url: string, hotelId: string): boolean {
+  const folder = url.match(/\/photos\/([0-9a-f-]{36})\//i)?.[1];
+  if (!folder || !hotelId) return true;
+  return folder === hotelId;
+}
+
+function hotelPhotoList(urls: Array<string | null | undefined>, hotelId: string): string[] {
+  const unique = [...new Set(urls.map((url) => url?.trim()).filter((url): url is string => Boolean(url)))];
+  return unique.filter((url) => photoBelongsToHotel(url, hotelId));
+}
+
 function collectHotelImages(h: ApiHotel): string[] {
-  const fromList       = (h.images ?? []).map((u) => u.trim()).filter(Boolean);
-  const fromCategories = (h.photo_categories ?? []).flatMap((c) =>
-    (c.images ?? []).map((u) => u.trim()).filter(Boolean),
-  );
-  const unique = [...new Set([...fromList, ...fromCategories])];
+  const fromList       = h.images ?? [];
+  const fromCategories = (h.photo_categories ?? []).flatMap((c) => c.images ?? []);
+  const unique = hotelPhotoList([...fromList, ...fromCategories], h.id);
   if (unique.length > 0) return unique;
-  if (h.thumbnail_url?.trim()) return [h.thumbnail_url.trim()];
+  if (h.thumbnail_url?.trim() && photoBelongsToHotel(h.thumbnail_url, h.id)) return [h.thumbnail_url.trim()];
   return [];
 }
 
 export function mapApiHotelToListing(h: ApiHotel): HotelListing {
   const citySlug  = citySlugFromName(h.city);
   const price     = Math.round(h.starting_price);
-  const original  = Math.round(price * 1.15);
+  // Never invent a "was" price — only show strikethrough when the API provides one.
+  const original  = price;
   const images    = collectHotelImages(h);
   const tagLower  = h.tags.map((t) => t.toLowerCase());
   const area      = h.locality_name?.trim() || hotelAreaFromAddress(h.address, h.city);
@@ -541,7 +555,7 @@ export function mapApiRoomsToHotelRoomTypes(
   return rooms
     .filter((r) => r.available && (r.price_per_night > 0 || (r.rates?.website?.room?.ep ?? 0) > 0))
     .map((room) => {
-      const image = room.images[0] ?? hotel.images[0] ?? "";
+      const image = hotelPhotoList(room.images, hotel.id)[0] ?? hotel.images[0] ?? "";
       const tags  = [
         room.bed_type  ? `${room.bed_type} bed`    : "Bed",
         room.size_sqft ? `${room.size_sqft} Sq Ft` : null,
@@ -1036,14 +1050,23 @@ export async function getHotelDetailBundle(
     );
     if (minEp > 0) hotel = { ...hotel, price: minEp };
   }
-  const policies   = mapApiPoliciesToBullets(detail.policies);
+  const policies = mapApiPoliciesToBullets(detail.policies);
+  const hotelPolicies: ApiHotelPolicies = detail.policies ?? {
+    check_in_time: detail.check_in_time ?? "",
+    check_out_time: detail.check_out_time ?? "",
+    cancellation: "",
+    children: "",
+    pets: "",
+    smoking: "",
+    extra_bed: "",
+  };
 
   const photoCategories: HotelPhotoCategory[] = (
     detail.photo_categories ?? []
   ).map((c) => ({
     category: c.category,
     label:    c.label,
-    images:   c.images ?? [],
+    images:   hotelPhotoList(c.images ?? [], detail.id),
   }));
 
   const roomPhotoCount =
@@ -1058,11 +1081,14 @@ export async function getHotelDetailBundle(
       roomOptionsCount: roomTypes.length,
       defaultRoomType:  roomTypes[0]?.name ?? hotel.defaultRoomType,
       nearbyLandmark:   detail.nearby_attractions?.[0] ?? hotel.nearbyLandmark,
-      propertyPhotoCount: detail.images?.length ?? hotel.propertyPhotoCount,
+      checkInTime:      detail.check_in_time,
+      checkOutTime:     detail.check_out_time,
+      propertyPhotoCount: hotel.propertyPhotoCount,
       roomPhotoCount,
     },
     roomTypes,
     policies,
+    hotelPolicies,
     reviews:          detail.reviews           ?? [],
     nearbyAttractions: detail.nearby_attractions ?? [],
     photoCategories,

@@ -27,13 +27,14 @@ import Link from "next/link";
 import {
   hotelBookingHref,
   hotelListingKey,
+  mealPlanLabel,
   type HotelBookingQueryParams,
   type HotelCity,
   type HotelListing,
   type HotelRoomRatePlan,
   type HotelRoomType,
 } from "@/lib/hotels-catalog";
-import { cn, formatInrAmount } from "@/lib/utils";
+import { cn, formatGstEquation, formatInrAmount } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -73,12 +74,7 @@ function nightCount(checkIn?: string, checkOut?: string): number {
 }
 
 function getMealLabel(plan: HotelRoomRatePlan): string {
-  const n = plan.packageName.toLowerCase();
-  if (n.includes("room only") || n.includes("(ep)")) return "Room Only";
-  if (n.includes("breakfast") && !n.includes("dinner") && !n.includes("lunch")) return "Breakfast Included";
-  if (n.includes("map") || (n.includes("breakfast") && n.includes("dinner") && !n.includes("lunch"))) return "Breakfast + Dinner";
-  if (n.includes("full board") || n.includes("(ap)") || (n.includes("lunch") && n.includes("dinner"))) return "All Meals Included";
-  return plan.packageName;
+  return mealPlanLabel(plan.packageName);
 }
 
 function getMealDescription(plan: HotelRoomRatePlan): string {
@@ -135,6 +131,15 @@ function groupAmenities(amenities: string[]): AmenityGroup[] {
 
 // ── RoomTypeCard ──────────────────────────────────────────────────────────────
 
+function titleCaseAmenity(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  if (/^wifi$|^wi-fi$/i.test(trimmed)) return "Wi-Fi";
+  if (/^tv$|^television$/i.test(trimmed)) return "TV";
+  if (/^cctv$/i.test(trimmed)) return "CCTV";
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
 function RoomTypeCard({
   roomType,
   hotel,
@@ -145,6 +150,7 @@ function RoomTypeCard({
   roomIndex,
   isExpanded,
   onToggle,
+  showDescription,
 }: {
   roomType: HotelRoomType;
   hotel: HotelListing;
@@ -155,6 +161,8 @@ function RoomTypeCard({
   roomIndex: number;
   isExpanded: boolean;
   onToggle: () => void;
+  /** False when every room shares the same hotel blurb — don't pretend they differ. */
+  showDescription: boolean;
 }) {
   const [selectedPlanId, setSelectedPlanId] = useState(roomType.ratePlans[0]?.id ?? "");
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -165,7 +173,18 @@ function RoomTypeCard({
   );
 
   const fromPrice    = lowestNightlyPrice(roomType.ratePlans);
-  const amenities    = roomType.amenities ?? [];
+  const amenities    = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const raw of [...(roomType.amenities ?? []), ...hotel.amenities]) {
+      const label = titleCaseAmenity(raw);
+      const key = label.toLowerCase();
+      if (!label || seen.has(key)) continue;
+      seen.add(key);
+      out.push(label);
+    }
+    return out;
+  }, [roomType.amenities, hotel.amenities]);
   const nights       = nightCount(bookingContext?.check_in, bookingContext?.check_out);
   const roomsCount   = bookingContext?.rooms ?? 1;
   const pricePerNight = selectedPlan ? selectedPlan.price : 0;
@@ -198,6 +217,14 @@ function RoomTypeCard({
     : "#";
 
   const specs        = parseRoomSpecs(roomType.tags);
+  const extraTags    = roomType.tags.filter((tag) => (
+    tag !== specs.bed
+    && tag !== specs.size
+    && tag !== specs.view
+    && tag !== specs.smoking
+    && !/guest/i.test(tag)
+  )).slice(0, 2);
+  const sleepCount   = roomType.maxOccupancy > 0 ? roomType.maxOccupancy : 2;
   const amenityGroups = groupAmenities(amenities);
   const guests       = bookingContext?.guests ?? 2;
   const lowestOriginalPrice = Math.min(...roomType.ratePlans.map(p => p.originalPrice || p.price));
@@ -270,7 +297,7 @@ function RoomTypeCard({
               )}
               <span className="flex items-center gap-1.5">
                 <Users className="h-3.5 w-3.5 shrink-0 text-[#9E9E9E]" />
-                Sleeps {roomType.maxOccupancy}
+                Sleeps {sleepCount} {sleepCount === 1 ? "guest" : "guests"}
               </span>
               {specs.view && (
                 <span className="text-[#616161]">{specs.view}</span>
@@ -278,13 +305,13 @@ function RoomTypeCard({
               {specs.smoking && (
                 <span className="text-[#9E9E9E]">{specs.smoking}</span>
               )}
-              {roomType.tags.filter(t => t !== specs.bed && t !== specs.size && t !== specs.view && t !== specs.smoking).slice(0, 2).map(t => (
-                <span key={t} className="text-[#616161]">{t}</span>
+              {extraTags.map((tag) => (
+                <span key={tag} className="text-[#616161]">{tag}</span>
               ))}
             </div>
 
-            {/* Description */}
-            {roomType.description && (
+            {/* Description — only when this room has its own copy */}
+            {showDescription && roomType.description && (
               <div className="mt-1.5 hidden sm:block">
                 <p className={cn(
                   "text-[12px] leading-relaxed text-[#757575]",
@@ -329,7 +356,7 @@ function RoomTypeCard({
           </div>
 
           {/* Pricing + expand */}
-          <div className="flex w-full shrink-0 items-center justify-between gap-3 border-t border-[#f1f1f1] pt-3 text-left sm:block sm:w-auto sm:border-0 sm:pt-0 sm:text-right">
+          <div className="flex w-full shrink-0 flex-col gap-2 border-t border-[#f1f1f1] pt-3 text-left sm:block sm:w-auto sm:gap-0 sm:border-0 sm:pt-0 sm:text-right">
             {hasDiscount && (
               <p className="text-[11px] text-[#9E9E9E] line-through">
                 ₹{formatInrAmount(nights > 1
@@ -344,11 +371,24 @@ function RoomTypeCard({
             <p className="text-[22px] font-extrabold leading-tight text-[#1a1a1a]">
               ₹{formatInrAmount(fromPriceTotal)}
             </p>
-            <p className="text-[10px] text-[#9E9E9E]">
-              {nights > 1 ? `incl. taxes · ${roomsCount} room${roomsCount > 1 ? "s" : ""}` : "per night + taxes"}
+            <p className="hidden text-[12px] font-semibold text-[#1a1a1a] sm:block">{getMealLabel(cheapestPlan)}</p>
+            <p className="text-[11px] font-medium leading-snug text-[#3f3f46]">
+              {formatGstEquation(cheapestPlan.price, cheapestPlan.taxes)
+                ?? (nights > 1 ? `incl. taxes · ${roomsCount} room${roomsCount > 1 ? "s" : ""}` : "per night + taxes")}
             </p>
+            <ul className="mt-1 w-full divide-y divide-[#f3f3f3] border-t border-[#f3f3f3] sm:ml-auto sm:mt-2 sm:max-w-[220px] sm:border-0">
+              {roomType.ratePlans.map((plan) => {
+                const nightly = Math.round(plan.price) + Math.round(plan.taxes || 0);
+                return (
+                  <li key={plan.id} className="flex items-center justify-between gap-3 py-2 text-[13px] sm:py-1.5 sm:text-[12px]">
+                    <span className="whitespace-nowrap font-semibold text-[#1a1a1a]">{getMealLabel(plan)}</span>
+                    <span className="shrink-0 font-bold tabular-nums text-[#1a1a1a]">₹{formatInrAmount(nightly || plan.price)}</span>
+                  </li>
+                );
+              })}
+            </ul>
             <button type="button" onClick={onToggle} className={cn(
-              "mt-0 inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-[12px] font-bold transition sm:mt-2.5",
+              "mt-1 inline-flex w-full items-center justify-center gap-1 rounded-lg border px-3 py-2.5 text-[12px] font-bold transition sm:mt-2.5 sm:w-auto sm:justify-end sm:py-2",
               isExpanded
                 ? "border-[#EF6614] text-[#EF6614]"
                 : "border-[#e0e0e0] text-[#424242] hover:border-[#EF6614] hover:text-[#EF6614]"
@@ -458,7 +498,9 @@ function RoomTypeCard({
                           <p className="text-[11px] text-[#9E9E9E] line-through">₹{formatInrAmount(plan.originalPrice)}</p>
                         )}
                         <p className="text-[16px] font-extrabold text-[#1a1a1a]">₹{formatInrAmount(plan.price)}</p>
-                        <p className="text-[10px] text-[#9E9E9E]">per room / night</p>
+                        <p className="text-[10px] leading-snug text-[#6b7280]">
+                          {formatGstEquation(plan.price, plan.taxes) ?? "per room / night"}
+                        </p>
                         {plan.discountAmount > 0 && (
                           <p className="mt-0.5 text-[11px] font-semibold text-[#2E7D32]">
                             Save ₹{formatInrAmount(plan.discountAmount)}/nt
@@ -656,6 +698,15 @@ export function HotelDetailRoomsTable({
     roomTypes.length === 1 ? (roomTypes[0]?.id ?? null) : null,
   );
 
+  // When 2+ rooms share one identical blurb, hide it — don't invent unique copy.
+  const roomsWithDescription = roomTypes.filter((r) => r.description?.trim());
+  const uniqueDescriptions = new Set(
+    roomsWithDescription.map((r) => r.description!.trim()),
+  );
+  const showRoomDescriptions = !(
+    roomsWithDescription.length >= 2 && uniqueDescriptions.size === 1
+  );
+
   if (roomTypes.length === 0) {
     return (
       <div className={cn("rounded-lg border border-[#e0e0e0] bg-white p-8 text-center", className)}>
@@ -682,6 +733,7 @@ export function HotelDetailRoomsTable({
           roomIndex={index + 1}
           isExpanded={expandedId === roomType.id}
           onToggle={() => setExpandedId((cur) => (cur === roomType.id ? null : roomType.id))}
+          showDescription={showRoomDescriptions}
         />
       ))}
     </div>
