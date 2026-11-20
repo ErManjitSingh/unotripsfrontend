@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BedDouble,
   BookOpen,
@@ -112,6 +112,79 @@ function travelDate(value?: string | null) {
       });
 }
 
+/** Calendar label for itinerary day N (1-indexed), offset from the chosen travel date. */
+function travelDateForDay(value: string | null | undefined, dayNum: number) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const d = new Date(parsed);
+  d.setDate(d.getDate() + Math.max(0, dayNum - 1));
+  return d.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/** Prefer itinerary-derived nights when durationNights is off by one. */
+function resolveDisplayNights(durationNights: number | undefined, itineraryLen: number) {
+  const fromItinerary = Math.max(1, itineraryLen - 1);
+  const fromTour = Number(durationNights) || 0;
+  if (!fromTour) return fromItinerary;
+  if (Math.abs(fromTour - fromItinerary) === 1) return fromItinerary;
+  return fromTour;
+}
+
+const HIMACHAL_SNOW_HERO =
+  "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1600&q=80";
+
+function isHimachalWinterPackage(tour: { title?: string | null; location?: string | null }) {
+  const hay = `${tour.title ?? ""} ${tour.location ?? ""}`.toLowerCase();
+  return /himachal|shimla|manali|kufri|solang|spiti|kullu/.test(hay);
+}
+
+function highlightCaptionsForTour(tour: { title?: string | null; location?: string | null }) {
+  const hay = `${tour.title ?? ""} ${tour.location ?? ""}`.toLowerCase();
+  if (/kerala|alleppey|munnar|kochi|backwater/.test(hay)) {
+    return [
+      "Backwater cruise",
+      "Tea plantations",
+      "Houseboat stay",
+      "Spice gardens",
+      "Coastal villages",
+      "Tropical lagoons",
+    ];
+  }
+  if (/rajasthan|jaipur|udaipur|jodhpur|desert/.test(hay)) {
+    return [
+      "Palace cities",
+      "Desert dunes",
+      "Fort views",
+      "Heritage streets",
+      "Sunset lakes",
+      "Local markets",
+    ];
+  }
+  if (isHimachalWinterPackage(tour)) {
+    return [
+      "Snow in Kufri & Solang",
+      "Pine forests",
+      "Mountain valleys",
+      "Hill-station towns",
+      "Alpine views",
+      "Adventure activities",
+    ];
+  }
+  return [
+    "Scenic landscapes",
+    "Local culture",
+    "Handpicked stays",
+    "Guided experiences",
+    "Regional cuisine",
+    "Photo moments",
+  ];
+}
+
 /** "2:00 PM" from a "14:00" Hotel Master time. Empty string when unset. */
 function clockLabel(hhmm?: string | null): string {
   if (!hhmm) return "";
@@ -215,9 +288,16 @@ export function GlacialStylePackageDetail({
     0,
   );
   const travellerLabel = travellerSummary(travellerRooms);
-  const heroImages = images.length ? images : [tour.image].filter(Boolean);
+  const himachalWinter = isHimachalWinterPackage(tour);
+  const baseHeroImages = images.length ? images : [tour.image].filter(Boolean);
+  const heroImages =
+    himachalWinter && !baseHeroImages.some((src) => src.includes("1506905925346"))
+      ? [HIMACHAL_SNOW_HERO, ...baseHeroImages]
+      : baseHeroImages;
   const heroImage = heroImages[imageIndex] ?? tour.image;
-  const nights = tour.durationNights || Math.max(1, itinerary.length - 1);
+  const highlightCaptions = highlightCaptionsForTour(tour);
+  const nights = resolveDisplayNights(tour.durationNights, itinerary.length);
+  const displayDays = Math.max(tour.durationDays || 0, nights + 1);
   const getStayForDay = (day: number) => {
     let startDay = 1;
 
@@ -294,6 +374,13 @@ export function GlacialStylePackageDetail({
     let cancelled = false;
     setJourneyImagesReady(false);
 
+    const markReady = () => {
+      if (!cancelled) setJourneyImagesReady(true);
+    };
+
+    // Cap preload so a hung image never leaves "Loading your itinerary" stuck.
+    const timeout = window.setTimeout(markReady, 2500);
+
     Promise.all(
       itineraryImageSources.map(
         (source) =>
@@ -304,12 +391,11 @@ export function GlacialStylePackageDetail({
             image.src = source;
           }),
       ),
-    ).then(() => {
-      if (!cancelled) setJourneyImagesReady(true);
-    });
+    ).then(markReady);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
   }, [itineraryImageKey, itineraryImageSources, loadingJourney]);
 
@@ -331,8 +417,27 @@ export function GlacialStylePackageDetail({
     [cab?.name, nights],
   );
 
-  const selectImage = (next: number) =>
+  const selectImage = (next: number) => {
+    if (!heroImages.length) return;
     setImageIndex((next + heroImages.length) % heroImages.length);
+  };
+  const thumbStripRef = useRef<HTMLDivElement>(null);
+  const touchStartX = useRef<number | null>(null);
+
+  useEffect(() => {
+    const strip = thumbStripRef.current;
+    if (!strip) return;
+    const active = strip.querySelector<HTMLElement>("[data-active='true']");
+    active?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [imageIndex]);
+
+  useEffect(() => {
+    if (heroImages.length <= 1) return;
+    const id = window.setInterval(() => {
+      setImageIndex((i) => (i + 1) % heroImages.length);
+    }, 4500);
+    return () => window.clearInterval(id);
+  }, [heroImages.length]);
 
   return (
     <main className="min-h-screen bg-[#f6f7f9] pb-28 pt-0 text-[#172033] md:pt-[92px] xl:pb-16">
@@ -408,7 +513,7 @@ export function GlacialStylePackageDetail({
             <div className="basis-full flex items-center justify-between gap-4 rounded-b-2xl border-t border-[#edf0f3] bg-[#fbfcfd] px-5 py-2 text-[11px] text-[#657080]">
               <div className="flex items-center gap-4">
                 <span className="font-semibold text-[#3f4856]">
-                  {nights} Nights / {tour.durationDays} Days
+                  {nights} Nights / {displayDays} Days
                 </span>
                 <span className="h-3.5 w-px bg-[#dfe4e9]" />
                 <span>Private transfers &amp; hotel stays included</span>
@@ -432,50 +537,50 @@ export function GlacialStylePackageDetail({
         </div>
       </section>
 
-      <div className="mx-auto w-full max-w-[1320px] px-3 py-4 sm:px-0 sm:py-5">
+      <div className="mx-auto w-full max-w-[1320px] px-3 py-3 sm:px-0 sm:py-4">
         <nav className="hidden" aria-hidden="true">
           <Link href="/" tabIndex={-1}>
             Home
           </Link>
         </nav>
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
-          <div className="min-w-0 space-y-5">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-4">
             <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-              <div className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-6 sm:px-5 sm:py-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded bg-primary px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wide text-white">
-                      {tour.packageType?.replace(/_/g, " ") || "Domestic tour"}
-                    </span>
-                    <span className="rounded bg-orange-50 px-2.5 py-1 text-xs font-bold text-primary">
-                      {nights}N/{tour.durationDays}D
-                    </span>
-                    <span className="text-sm font-medium text-slate-500">
-                      Curated holiday package
-                    </span>
-                  </div>
-                  <h1 className="mt-2 text-2xl font-extrabold leading-tight tracking-[-0.035em] text-[#162034] sm:text-[1.8rem]">
-                    {packageTitle}
-                  </h1>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-500 sm:justify-end">
-                  <span className="flex items-center gap-2 font-semibold text-slate-700">
-                    <MapPin className="h-4 w-4 text-primary" />
-                    {tour.location || "Himachal Pradesh, India"}
+              <div className="space-y-1.5 px-3 py-2.5 sm:px-4 sm:py-3">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="rounded bg-primary px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white">
+                    {tour.packageType?.replace(/_/g, " ") || "Domestic tour"}
                   </span>
-                  <span className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-primary" />
+                  <span className="rounded bg-orange-50 px-2 py-0.5 text-[10px] font-bold text-primary">
+                    {nights}N/{displayDays}D
+                  </span>
+                  {himachalWinter ? (
+                    <span className="rounded bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">
+                      Snow in Kufri & Solang
+                    </span>
+                  ) : null}
+                </div>
+                <h1 className="text-lg font-extrabold leading-snug tracking-[-0.03em] text-[#162034] sm:text-xl">
+                  {packageTitle}
+                </h1>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+                  <span className="flex min-w-0 max-w-full items-center gap-1.5 font-semibold text-slate-700 sm:max-w-[70%]">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span className="truncate">
+                      {tour.location || "Himachal Pradesh, India"}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-primary" />
                     {roomsLabel}
                   </span>
                   {/* Only show a score when one actually exists. Rendering
                       `0.0 ★` for an unrated package read as "customers scored
-                      this zero" — worse for trust than showing nothing. Falls
-                      back to an honest "New" chip and swaps itself out the
-                      moment a real rating arrives. */}
+                      this zero" — worse for trust than showing nothing. */}
                   {tour.rating > 0 ? (
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 font-bold text-slate-700">
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-700">
                       {tour.rating.toFixed(1)}{" "}
-                      <Star className="inline h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                      <Star className="inline h-3 w-3 fill-amber-400 text-amber-400" />
                     </span>
                   ) : null}
                   {tour.reviewCount > 0 && (
@@ -485,7 +590,7 @@ export function GlacialStylePackageDetail({
                   )}
                 </div>
               </div>
-              <div className="relative aspect-[1.48/1] overflow-hidden bg-slate-200 sm:aspect-[2.75/1]">
+              <div className="relative aspect-[1.7/1] overflow-hidden bg-slate-200 sm:aspect-[3.1/1]">
                 {heroImage && (
                   <Image
                     src={heroImage}
@@ -606,16 +711,7 @@ export function GlacialStylePackageDetail({
                       />
                     </div>
                     <p className="mt-1.5 truncate text-center text-[10px] font-semibold text-slate-600">
-                      {
-                        [
-                          "Scenic mountains",
-                          "Pine forests",
-                          "Beautiful waterfalls",
-                          "Local culture",
-                          "Peaceful landscapes",
-                          "Adventure activities",
-                        ][index]
-                      }
+                      {highlightCaptions[index] ?? highlightCaptions[highlightCaptions.length - 1]}
                     </p>
                   </div>
                 ))}
@@ -761,11 +857,17 @@ export function GlacialStylePackageDetail({
                               {item.title}
                             </h3>
                           </div>
-                          {initialDate && (
-                            <div className="rounded-full border border-slate-100 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm">
-                              {travelDate(initialDate)}
-                            </div>
-                          )}
+                          {(() => {
+                            const dayLabel = travelDateForDay(
+                              selectedTravelDate || initialDate,
+                              item.day,
+                            );
+                            return dayLabel ? (
+                              <div className="rounded-full border border-slate-100 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm">
+                                {dayLabel}
+                              </div>
+                            ) : null;
+                          })()}
                           <div className="flex items-center gap-2 rounded-xl border border-slate-100 bg-white px-3 py-2 text-slate-500 shadow-sm">
                             <Car className="h-4 w-4 text-[#344054]" />
                             <div>
@@ -1176,7 +1278,7 @@ export function GlacialStylePackageDetail({
                   <CalendarDays className="h-7 w-7 shrink-0 text-[#FF5A00]" />
                   <div className="min-w-0">
                     <p className="whitespace-nowrap text-sm font-bold text-[#172033]">
-                      {tour.durationNights} Nights / {tour.durationDays} Days
+                      {nights} Nights / {displayDays} Days
                     </p>
                     <p className="mt-1 whitespace-nowrap text-[10px] text-[#667085]">
                       Starting from: <b className="text-[#344054]">New Delhi</b>

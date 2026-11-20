@@ -45,16 +45,16 @@ export function SummerEscapesSection({
           <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h2 className="flex items-center gap-2 text-[21px] font-black leading-tight tracking-tight text-slate-900 sm:text-2xl lg:text-[1.75rem]">
-                <span className="text-2xl leading-none">🌴</span>
-                Summer Escapes
+                <span className="text-2xl leading-none">❄</span>
+                Winter Getaways
                 <span className="text-lg text-primary leading-none">✦</span>
               </h2>
               <p className="mt-1 text-[15px] text-slate-500 sm:text-[0.9375rem]">
-                Handpicked destinations for your next getaway.
+                Handpicked destinations ready to book this season.
               </p>
               <div className="mt-2 flex items-center gap-1.5 text-[13px] font-semibold text-primary sm:text-sm">
                 <Tag className="h-3.5 w-3.5 shrink-0" strokeWidth={2.5} />
-                Up to 40% OFF on unforgettable experiences
+                Up to 35% OFF on winter escapes
               </div>
             </div>
 

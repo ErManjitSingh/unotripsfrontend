@@ -183,7 +183,7 @@ export const DEMO_HOTELS: DestinationHotels[] = [
     opts: [
       {
         id: "demo-s1",
-        name: "Budget 3★",
+        name: "3★ or similar",
         desc: "Clean central guesthouse",
         stars: 3,
         extra: 0,
@@ -192,7 +192,7 @@ export const DEMO_HOTELS: DestinationHotels[] = [
       },
       {
         id: "demo-s2",
-        name: "Standard 3★",
+        name: "3★ or similar",
         desc: "Mall Road hotel · mountain views",
         stars: 3,
         extra: 1800,
@@ -201,7 +201,7 @@ export const DEMO_HOTELS: DestinationHotels[] = [
       },
       {
         id: "demo-s3",
-        name: "Deluxe 4★",
+        name: "4★ or similar",
         desc: "Heritage property, scenic garden",
         stars: 4,
         extra: 4200,
@@ -212,11 +212,11 @@ export const DEMO_HOTELS: DestinationHotels[] = [
   },
   {
     dest: "Manali",
-    nights: 3,
+    nights: 2,
     opts: [
       {
         id: "demo-m1",
-        name: "Budget 3★",
+        name: "3★ or similar",
         desc: "River-view guesthouse near bazaar",
         stars: 3,
         extra: 0,
@@ -225,7 +225,7 @@ export const DEMO_HOTELS: DestinationHotels[] = [
       },
       {
         id: "demo-m2",
-        name: "Standard 4★",
+        name: "4★ or similar",
         desc: "Snowline valley view resort",
         stars: 4,
         extra: 2700,
@@ -234,7 +234,7 @@ export const DEMO_HOTELS: DestinationHotels[] = [
       },
       {
         id: "demo-m3",
-        name: "Deluxe 4★",
+        name: "4★ or similar",
         desc: "Premium Himalayan retreat",
         stars: 4,
         extra: 6300,
@@ -249,7 +249,7 @@ export const DEMO_HOTELS: DestinationHotels[] = [
     opts: [
       {
         id: "demo-d1",
-        name: "Budget 3★",
+        name: "3★ or similar",
         desc: "City centre stay, basic comfort",
         stars: 3,
         extra: 0,
@@ -258,7 +258,7 @@ export const DEMO_HOTELS: DestinationHotels[] = [
       },
       {
         id: "demo-d2",
-        name: "Standard 3★",
+        name: "3★ or similar",
         desc: "McLeod Ganj view hotel",
         stars: 3,
         extra: 900,
@@ -267,7 +267,7 @@ export const DEMO_HOTELS: DestinationHotels[] = [
       },
       {
         id: "demo-d3",
-        name: "Deluxe 4★",
+        name: "4★ or similar",
         desc: "Boutique retreat, Kangra valley",
         stars: 4,
         extra: 2100,

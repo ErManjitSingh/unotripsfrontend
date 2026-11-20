@@ -27,13 +27,6 @@ const BANNER_SHELL =
 
 const PROMO_SLIDES = [
   {
-    src: "/images/promo/diwali-special.png",
-    alt: "Diwali Special Tour Offers — Celebrate the festival of lights with unforgettable journeys",
-    href: "/packages",
-    width: 1024,
-    height: 341,
-  },
-  {
     src: "/images/promo/winter-spiti.png",
     alt: "Winter Spiti 4x4 — A thrilling winter escape to snowy valleys, ancient monasteries and raw Himalayan beauty",
     href: "/packages/spiti-valley-expedition-from-chandigarh",

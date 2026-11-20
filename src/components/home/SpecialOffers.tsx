@@ -34,15 +34,15 @@ export function SpecialOffers({ className }: SpecialOffersProps) {
           <div className="relative z-10 px-8 py-10 sm:px-12 sm:py-14 lg:px-16 lg:py-16">
             <div className="max-w-xl">
               <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-primary">
-                Limited Suites &nbsp;·&nbsp; Honeymoon &amp; Anniversary
+                Winter honeymoons &nbsp;·&nbsp; Limited suites
               </p>
               <h2 className="mt-4 font-display text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl">
                 Complimentary upgrades on select
-                <br className="hidden sm:block" /> Maldives &amp; Europe departures
+                <br className="hidden sm:block" /> Himachal &amp; Kerala honeymoons
               </h2>
               <p className="mt-4 max-w-lg text-sm leading-relaxed text-white/80 sm:text-base">
                 Confirm before{" "}
-                <span className="font-semibold text-primary">31 July 2026</span> to unlock
+                <span className="font-semibold text-primary">31 Dec 2026</span> to unlock
                 room upgrades, airport fast-track, and a private sunset experience.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">

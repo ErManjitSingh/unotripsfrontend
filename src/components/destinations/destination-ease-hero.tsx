@@ -58,11 +58,12 @@ export function DestinationEaseHero({
   }, [dateIso]);
 
   useEffect(() => {
+    // Use `click` (not mousedown) so option mousedown/select can finish first.
     const h = (e: MouseEvent) => {
       if (toRef.current && !toRef.current.contains(e.target as Node)) setToOpen(false);
     };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
+    document.addEventListener("click", h);
+    return () => document.removeEventListener("click", h);
   }, []);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -100,7 +101,7 @@ export function DestinationEaseHero({
 
   return (
     <section
-      className={cn("relative z-10 w-full overflow-hidden bg-slate-900", className)}
+      className={cn("relative z-30 w-full overflow-visible bg-slate-900", className)}
       aria-label={title}
     >
       {/* Taller than before (248→308 mobile, 360→470 desktop) to seat the trust
@@ -108,11 +109,16 @@ export function DestinationEaseHero({
           and search-card dimensions are unchanged.
           Mobile came back down from 368 when the strip collapsed to a single
           42px row — holding 368 would have left ~60px of empty image above the
-          search card. */}
-      <div className="relative h-[308px] w-full sm:h-[470px]">
-        {/* Background */}
-        <Image src={image} alt="" fill priority unoptimized sizes="100vw" className="object-cover object-center" />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/70" />
+          search card.
+          overflow-visible: the destination autocomplete must escape the hero
+          height; overflow-hidden clipped it and made clicks miss the options. */}
+      <div className="relative h-[308px] w-full overflow-visible sm:h-[470px]">
+        {/* Clip photo/gradient only — keep search/dropdown outside overflow:hidden
+            so autocomplete can paint over the listing below. */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <Image src={image} alt="" fill priority unoptimized sizes="100vw" className="object-cover object-center" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/20 to-black/70" />
+        </div>
 
         {/* Title */}
         {/* The site navbar overlays this hero on desktop. Reserve that space so
@@ -132,7 +138,7 @@ export function DestinationEaseHero({
 
         {/* Search card + trust strip — one centered column so both share the
             900px measure and read as a single unit against the photograph. */}
-        <div className="absolute inset-x-0 bottom-0 z-20 flex flex-col items-center gap-3 px-3 pb-4 sm:gap-5 sm:px-6 sm:pb-8">
+        <div className="absolute inset-x-0 bottom-0 z-40 flex flex-col items-center gap-3 px-3 pb-4 sm:gap-5 sm:px-6 sm:pb-8">
           {/* Warm translucent glass instead of pure white: at 92% alpha the
               photograph tints through just enough that the card reads as part
               of the hero rather than a white block dropped on top of it. The
@@ -144,7 +150,7 @@ export function DestinationEaseHero({
               slab. Capping the card at phone width keeps every element in
               proportion there. No effect at 375 (card is 351px anyway) and the
               900px desktop measure is untouched. */}
-          <div className="relative z-30 w-full max-w-[420px] overflow-visible rounded-[26px] border border-white/50 bg-[rgba(255,248,241,0.92)] shadow-[0_20px_60px_-12px_rgba(0,0,0,0.35),0_8px_28px_-10px_rgba(234,88,12,0.22)] backdrop-blur-md sm:max-w-[900px]">
+          <div className="relative z-50 w-full max-w-[420px] overflow-visible rounded-[26px] border border-white/50 bg-[rgba(255,248,241,0.92)] shadow-[0_20px_60px_-12px_rgba(0,0,0,0.35),0_8px_28px_-10px_rgba(234,88,12,0.22)] backdrop-blur-md sm:max-w-[900px]">
             {/* No `divide-y` on mobile. It compiles to
                 `& > :not([hidden]) ~ :not([hidden])`, which keys on the hidden
                 ATTRIBUTE — the "Traveling From" cell is hidden by the `hidden`
@@ -193,24 +199,41 @@ export function DestinationEaseHero({
                     )}
                   </div>
                 </div>
-                {/* City dropdown */}
+                {/* City dropdown — high z + max-height so it clears the trust
+                    strip and listing below; mousedown selects before the
+                    outside-click listener can steal the interaction. */}
                 {toOpen && cityHits.length > 0 && (
-                  <ul className="absolute left-0 top-full z-[200] mt-2 w-full min-w-[240px] overflow-hidden rounded-xl border border-slate-100 bg-white py-1 shadow-xl">
-                    {cityHits.map((h, i) => (
-                      <li key={i}>
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-orange-50"
-                          onClick={() => { setTo(`${h.name}${h.country ? `, ${h.country}` : ""}`); setToOpen(false); setCityHits([]); }}
-                        >
-                          <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={2} />
-                          <div>
-                            <p className="text-sm font-semibold text-slate-800">{h.name}</p>
-                            <p className="text-xs text-slate-400">{[h.state, h.country].filter(Boolean).join(", ")}</p>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
+                  <ul className="absolute left-0 top-full z-[9999] mt-2 max-h-64 w-full min-w-[260px] overflow-y-auto rounded-xl border border-slate-100 bg-white py-1 shadow-[0_16px_40px_-12px_rgba(15,23,42,0.35)]">
+                    {cityHits.map((h, i) => {
+                      const label = [h.name, h.state, h.country].filter(Boolean).join(", ");
+                      const select = () => {
+                        // Prefer city name for package `q` — country suffix
+                        // made searches like "Manali, India" miss packages.
+                        setTo(h.name);
+                        setToOpen(false);
+                        setCityHits([]);
+                      };
+                      return (
+                        <li key={`${h.name}-${h.state}-${h.country}-${i}`}>
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-orange-50"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              select();
+                            }}
+                            onClick={select}
+                          >
+                            <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={2} />
+                            <div>
+                              <p className="text-sm font-semibold text-slate-800">{h.name}</p>
+                              <p className="text-xs text-slate-400">{label.replace(`${h.name}, `, "")}</p>
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
