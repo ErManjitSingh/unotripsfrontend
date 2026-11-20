@@ -17,6 +17,8 @@ import { cn, formatInrAmount } from "@/lib/utils";
 type TripBrochureModalProps = {
   open: boolean;
   onClose: () => void;
+  /** Closes the brochure and continues into package checkout / book flow. */
+  onBook?: () => void;
   tour: TourPackage;
   stays?: Array<{ name: string; location?: string; image?: string }>;
 };
@@ -239,7 +241,7 @@ function PrintBrochureDocument({
   );
 }
 
-export function TripBrochureModal({ open, onClose, tour, stays = [] }: TripBrochureModalProps) {
+export function TripBrochureModal({ open, onClose, onBook, tour, stays = [] }: TripBrochureModalProps) {
   const [activePage, setActivePage] = useState(1);
   const [zoom, setZoom] = useState(1);
   const [isFilmstripOpen, setIsFilmstripOpen] = useState(false);
@@ -462,7 +464,18 @@ export function TripBrochureModal({ open, onClose, tour, stays = [] }: TripBroch
                 <span className="grid h-9 w-[64px] shrink-0 place-items-center sm:h-11 sm:w-[76px]"><img src={UNO_TRIPS_LOGO} alt="UNO Trips" className="h-auto w-full" /></span>
                 <div className="min-w-0"><h2 className="font-brochure-display text-lg font-bold tracking-[-0.035em] text-[#1f2937] sm:text-xl">Trip Brochure</h2><p className="truncate text-[10px] font-semibold text-slate-500 sm:text-[11px]">{title} <span className="hidden sm:inline">• {duration}</span></p></div>
               </div>
-              <button type="button" onClick={close} aria-label="Close trip brochure" className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-[#e97334] hover:text-[#d95f24] focus:outline-none focus:ring-2 focus:ring-[#e97334] sm:h-11 sm:w-11"><X className="h-5 w-5" /></button>
+              <div className="flex shrink-0 items-center gap-2">
+                {onBook ? (
+                  <button
+                    type="button"
+                    onClick={onBook}
+                    className="rounded-full bg-[#EF6614] px-3.5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-[0_8px_18px_-8px_rgba(239,102,20,0.7)] transition hover:bg-[#d94d04] sm:px-5 sm:text-xs"
+                  >
+                    Book now
+                  </button>
+                ) : null}
+                <button type="button" onClick={close} aria-label="Close trip brochure" className="grid h-10 w-10 place-items-center rounded-full border border-stone-200 bg-white text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-[#e97334] hover:text-[#d95f24] focus:outline-none focus:ring-2 focus:ring-[#e97334] sm:h-11 sm:w-11"><X className="h-5 w-5" /></button>
+              </div>
             </header>
 
             <div className="relative flex min-h-0 flex-1 overflow-hidden bg-[radial-gradient(circle_at_50%_40%,#fffdf9_0%,#eee9df_75%)]">
@@ -575,7 +588,7 @@ export function TripBrochureModal({ open, onClose, tour, stays = [] }: TripBroch
                       </BrochurePage>
 
                       <BrochurePage pageNumber={planPage} cover className="bg-[#412214] text-white">
-                        <img src={visuals[0]} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" /><div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(47,25,14,.93),rgba(124,45,18,.66))]" /><div className="relative flex h-full flex-col justify-between p-9"><img src={UNO_TRIPS_LOGO} alt="UNO Trips" className="h-auto w-[104px] brightness-0 invert drop-shadow-md" /><div><p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#ffc79f]">Ready when you are</p><h3 className="font-brochure-display mt-4 text-5xl leading-[0.84] tracking-[-0.07em]">Plan this trip<br />your way.</h3><p className="mt-6 max-w-[17rem] text-[12px] leading-5 text-orange-50/85">A travel expert can shape every stay, pause, and detail around you.</p></div><div>{priceIsUsable && <><p className="text-[10px] text-orange-100">Starting from</p><p className="font-brochure-display mt-1 text-[2.1rem] leading-none tracking-[-0.04em]">₹{formatInrAmount(tour.priceINR)}</p></>}</div></div>
+                        <img src={visuals[0]} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" /><div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(47,25,14,.93),rgba(124,45,18,.66))]" /><div className="relative flex h-full flex-col justify-between p-9"><img src={UNO_TRIPS_LOGO} alt="UNO Trips" className="h-auto w-[104px] brightness-0 invert drop-shadow-md" /><div><p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[#ffc79f]">Ready when you are</p><h3 className="font-brochure-display mt-4 text-5xl leading-[0.84] tracking-[-0.07em]">Plan this trip<br />your way.</h3><p className="mt-6 max-w-[17rem] text-[12px] leading-5 text-orange-50/85">A travel expert can shape every stay, pause, and detail around you.</p></div><div className="space-y-4">{priceIsUsable && <><p className="text-[10px] text-orange-100">Starting from</p><p className="font-brochure-display mt-1 text-[2.1rem] leading-none tracking-[-0.04em]">₹{formatInrAmount(tour.priceINR)}</p></>}{onBook ? <button type="button" onClick={onBook} className="mt-2 inline-flex rounded-full bg-[#EF6614] px-6 py-3 text-xs font-extrabold uppercase tracking-wide text-white shadow-[0_10px_24px_-10px_rgba(239,102,20,0.85)] transition hover:bg-[#d94d04]">Book now</button> : null}</div></div>
                       </BrochurePage>
                     </HTMLFlipBook>
                     <AnimatePresence>
@@ -609,7 +622,18 @@ export function TripBrochureModal({ open, onClose, tour, stays = [] }: TripBroch
             <footer className="flex min-h-[58px] shrink-0 items-center justify-between gap-2 border-t border-stone-200 bg-white px-3 sm:min-h-[66px] sm:gap-3 sm:px-7">
               <div className="hidden items-center gap-2 sm:flex"><button type="button" onClick={() => setZoom((value) => Math.max(0.82, Number((value - 0.08).toFixed(2))))} aria-label="Zoom out" className="rounded-lg p-2 text-slate-500 hover:bg-stone-100 hover:text-[#d95f24]"><Minus className="h-4 w-4" /></button><input aria-label="Brochure zoom" type="range" min="0.82" max="1.08" step="0.02" value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="h-1 w-24 cursor-pointer accent-[#e97334]" /><button type="button" onClick={() => setZoom((value) => Math.min(1.08, Number((value + 0.08).toFixed(2))))} aria-label="Zoom in" className="rounded-lg p-2 text-slate-500 hover:bg-stone-100 hover:text-[#d95f24]"><Plus className="h-4 w-4" /></button></div>
               <span className="rounded-full border border-stone-200 bg-[#fffdf9] px-4 py-2 text-[11px] font-bold text-slate-600 shadow-sm">{readerLabel}</span>
-              <div className="flex items-center gap-1"><button type="button" onClick={() => setIsFilmstripOpen((value) => !value)} aria-label="Show pages" title="Show page filmstrip" className="rounded-lg p-2.5 text-slate-500 hover:bg-stone-100 hover:text-[#d95f24]"><Grid2X2 className="h-4 w-4" /></button><button type="button" onClick={() => window.print()} aria-label="Download brochure PDF" title="Download brochure PDF" className="rounded-lg p-2.5 text-slate-500 hover:bg-stone-100 hover:text-[#d95f24]"><ArrowDownToLine className="h-4 w-4" /></button><button type="button" onClick={toggleFullscreen} aria-label="Toggle fullscreen" title="Toggle fullscreen" className="rounded-lg p-2.5 text-slate-500 hover:bg-stone-100 hover:text-[#d95f24]"><Expand className="h-4 w-4" /></button></div>
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                {onBook ? (
+                  <button
+                    type="button"
+                    onClick={onBook}
+                    className="rounded-full bg-[#EF6614] px-3.5 py-2 text-[11px] font-extrabold uppercase tracking-wide text-white shadow-sm transition hover:bg-[#d94d04] sm:px-5 sm:text-xs"
+                  >
+                    Book now
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => setIsFilmstripOpen((value) => !value)} aria-label="Show pages" title="Show page filmstrip" className="rounded-lg p-2.5 text-slate-500 hover:bg-stone-100 hover:text-[#d95f24]"><Grid2X2 className="h-4 w-4" /></button><button type="button" onClick={() => window.print()} aria-label="Download brochure PDF" title="Download brochure PDF" className="rounded-lg p-2.5 text-slate-500 hover:bg-stone-100 hover:text-[#d95f24]"><ArrowDownToLine className="h-4 w-4" /></button><button type="button" onClick={toggleFullscreen} aria-label="Toggle fullscreen" title="Toggle fullscreen" className="rounded-lg p-2.5 text-slate-500 hover:bg-stone-100 hover:text-[#d95f24]"><Expand className="h-4 w-4" /></button>
+              </div>
             </footer>
           </motion.div>
         </motion.div>

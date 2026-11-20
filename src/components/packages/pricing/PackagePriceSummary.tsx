@@ -83,7 +83,7 @@ export function PackagePriceSummary({
         aria-busy="true"
         data-testid="price-summary-loading"
       >
-        <span className="sr-only">Calculating your price…</span>
+        <span className="hidden">Calculating your price…</span>
         {[0, 1, 2].map((i) => (
           <div key={i} className="flex justify-between">
             <span className="h-3 w-24 rounded bg-slate-100 motion-safe:animate-pulse" />

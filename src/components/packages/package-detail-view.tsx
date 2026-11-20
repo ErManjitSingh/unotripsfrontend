@@ -375,7 +375,19 @@ export function PackageDetailView({
   const [changeHotelMode, setChangeHotelMode] = useState<"hotel" | "room">("hotel");
   const [changeVehicleOpen, setChangeVehicleOpen] = useState(false);
   const [showBrochure, setShowBrochure] = useState(false);
+  const brochureAutoOpenedRef = useRef(false);
   const tabBarRef = useRef<HTMLDivElement>(null);
+
+  // Soft-open the trip brochure once, 10s after landing.
+  useEffect(() => {
+    if (brochureAutoOpenedRef.current) return;
+    const timer = window.setTimeout(() => {
+      if (brochureAutoOpenedRef.current) return;
+      brochureAutoOpenedRef.current = true;
+      setShowBrochure(true);
+    }, 10_000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // ── Booking ───────────────────────────────────────────────────────────────
   const { state: bookState, book: doBook, payBalance, reset: resetBook } = usePackageBooking(slug);
@@ -662,7 +674,8 @@ export function PackageDetailView({
     let cursor = 1;
     for (const dest of hotelGroups) {
       const end = cursor + dest.nights;
-      if (dayNum >= cursor && dayNum <= end) return dest;
+      // Stay covers nights [cursor, end); day `end` is checkout / next leg.
+      if (dayNum >= cursor && dayNum < end) return dest;
       cursor = end;
     }
     return hotelGroups[hotelGroups.length - 1];
@@ -944,7 +957,10 @@ export function PackageDetailView({
           addonsTotal={addonsTotal}
           gstResult={priceRaw?.gst_result ?? null}
           onBook={goToPackageCheckout}
-          onViewBrochure={() => setShowBrochure(true)}
+          onViewBrochure={() => {
+            brochureAutoOpenedRef.current = true;
+            setShowBrochure(true);
+          }}
           onEnquire={() => setShowLoginModal(true)}
           onChangeHotel={(index) => { setChangeHotelMode("hotel"); setChangeHotelDestIdx(index); }}
           onChangeRoom={(index) => { setChangeHotelMode("room"); setChangeHotelDestIdx(index); }}
@@ -1079,6 +1095,10 @@ export function PackageDetailView({
       <TripBrochureModal
         open={showBrochure}
         onClose={() => setShowBrochure(false)}
+        onBook={() => {
+          setShowBrochure(false);
+          goToPackageCheckout();
+        }}
         tour={tour}
         stays={hotelGroups.map((group) => ({
           name: group?.opts?.[staySelectionIndex(selectedHotels[hotelGroups.indexOf(group)], group)]?.name ?? group?.dest ?? "",

@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Dancing_Script, Playfair_Display, Roboto } from "next/font/google";
 import { AppProviders } from "@/components/providers/app-providers";
 import { TopBanner } from "@/components/layout/top-banner";
+import { WhatsAppFab } from "@/components/layout/whatsapp-fab";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { MarketingTracking } from "@/components/marketing/MarketingTracking";
 import { HERO_SLIDES, SITE } from "@/lib/constants";
@@ -145,6 +146,7 @@ export default function RootLayout({
         <AppProviders>
           <TopBanner />
           {children}
+          <WhatsAppFab />
         </AppProviders>
         {/* Temporarily disabled: the consent dialog was obstructing mobile CTA controls. */}
         {/* <CookieConsentBanner /> */}

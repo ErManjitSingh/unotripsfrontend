@@ -134,7 +134,9 @@ export function PackageListingView({
       {/* The USP trust strip now lives INSIDE this hero, directly under the
           search card — see destination-ease-hero.tsx. */}
       {easeHero ? <DestinationEaseHero {...easeHero} /> : null}
-      <div className="min-h-screen bg-[#f4f6f8]">
+      {/* z-0 keeps this stacking context under the hero (z-30) so the
+          destination autocomplete can paint and receive clicks over the list. */}
+      <div className="relative z-0 min-h-screen bg-[#f4f6f8]">
         {/* Centered column + viewport gutters once (avoid edge-to-edge + avoid double padding) */}
         <div
           className={cn(

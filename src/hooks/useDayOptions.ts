@@ -34,6 +34,7 @@ import {
   type CabOption,
   type AddonOption,
 } from "@/lib/package-customizer-data";
+import { resolveMediaUrl, resolveMediaUrls } from "@/lib/media-url";
 
 // ── API shapes (mirror backend PackageDayOptionsOut) ─────────────────────────
 
@@ -428,7 +429,9 @@ function buildHotelGroupsFromStays(
             hotelId: hotel.hotel_id,
             hotelSlug: hotel.hotel_slug ?? undefined,
             pop: isIncludedHotel || index === 0,
-            img: resolvedImg,
+            // CDN host often 404s for Hotel Master photos that still only
+            // exist on the Supabase public bucket — rewrite before render.
+            img: resolveMediaUrl(resolvedImg),
             // Gallery for the stay card's thumbnail strip. Same cascade as
             // `img`: option-level gallery first, then default_hotel_info for
             // the included hotel, then whatever single image we resolved.
@@ -438,10 +441,9 @@ function buildHotelGroupsFromStays(
                 : isIncludedHotel && defaultInfo?.images?.length
                   ? defaultInfo.images
                   : [];
-              const cleaned = gallery.filter(
-                (url): url is string => typeof url === "string" && url.trim().length > 0,
-              );
-              return cleaned.length ? cleaned : resolvedImg ? [resolvedImg] : [];
+              const cleaned = resolveMediaUrls(gallery);
+              const hero = resolveMediaUrl(resolvedImg);
+              return cleaned.length ? cleaned : hero ? [hero] : [];
             })(),
             roomType:
               hotel.default_room_type_name ||
