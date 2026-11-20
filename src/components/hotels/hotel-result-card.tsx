@@ -32,7 +32,14 @@ function formatDistanceKm(distance?: number | null): string | null {
 
 export function HotelResultCard({ hotel, bookingContext, className }: HotelResultCardProps) {
   const router = useRouter();
-  const amenityLine = [...hotel.amenities, `+ ${hotel.amenityMoreCount} More`].join(" • ");
+  const amenityPreview = hotel.amenities.slice(0, 4).map((a) =>
+    a.replace(/^wifi$/i, "Wi-Fi").replace(/^./, (c) => c.toUpperCase()),
+  );
+  const amenityOverflow = Math.max(0, hotel.amenities.length - 4);
+  const amenityLine = [
+    ...amenityPreview,
+    ...(amenityOverflow > 0 ? [`+${amenityOverflow} more`] : []),
+  ].join(" • ");
   const cityLabel = cityLabelFromSlug(hotel.citySlug);
   const detailBaseHref = hotelDetailHref(hotel.citySlug, hotelListingKey(hotel));
   const bookingQuery = new URLSearchParams();
@@ -132,7 +139,9 @@ export function HotelResultCard({ hotel, bookingContext, className }: HotelResul
           </div>
 
           <div className="text-right lg:mt-auto">
-            <p className="text-[12px] text-[#9E9E9E] line-through">₹ {formatInrAmount(hotel.originalPrice)}</p>
+            {hotel.originalPrice > hotel.price ? (
+              <p className="text-[12px] text-[#9E9E9E] line-through">₹ {formatInrAmount(hotel.originalPrice)}</p>
+            ) : null}
             <p className="text-xl font-bold text-[#212121] sm:text-2xl">
               ₹ {formatInrAmount(hotel.price)}
             </p>

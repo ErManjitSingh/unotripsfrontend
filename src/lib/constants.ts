@@ -30,7 +30,7 @@ export const FAQ_ITEMS = [
 
 export const SITE = {
   name: "UNO Trips",
-  tagline: "Luxury travel, distilled — curated journeys across India and the world.",
+  tagline: "Travel made simple — curated journeys across India and the world.",
   url: resolveSiteUrl(),
   phone: "+91 8353057000",
   /** For `https://wa.me/{digits}` — India country code + 10-digit mobile, no plus. */
@@ -38,7 +38,7 @@ export const SITE = {
   email: "info@unotrips.com",
   /** Office address shown in footer, schema.org, and contact blocks. */
   address:
-    "Verma Building, Kamla Nagar, sanjauli, Shimla, Himachal Pradesh 171006",
+    "Verma Building, Kamla Nagar, Sanjauli, Shimla, Himachal Pradesh 171006",
   /** UNO Trips brand mark — dark-background artwork; used in Navbar + inner header. */
   logoUrl: "https://travelwithuno.com/img/logo.png",
 } as const;

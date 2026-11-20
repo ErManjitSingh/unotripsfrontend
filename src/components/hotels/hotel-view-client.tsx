@@ -79,6 +79,7 @@ export function HotelViewClient() {
       hotel={bundle.hotel}
       roomTypes={bundle.roomTypes}
       policies={bundle.policies}
+      hotelPolicies={bundle.hotelPolicies}
       apiReviews={bundle.reviews}
     />
   );

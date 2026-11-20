@@ -8,18 +8,28 @@ import { useSearchParams } from "next/navigation";
 import {
   ArrowUp,
   BedDouble,
+  CalendarDays,
+  Car,
   Check,
   ChevronDown,
   ChevronRight,
   ChevronsDown,
+  Coffee,
   ExternalLink,
+  Headphones,
+  Home,
   MapPin,
   Play,
   Search,
   Share2,
   ShieldCheck,
+  Sparkles,
   Star,
   Users,
+  Utensils,
+  Wifi,
+  Zap,
+  type LucideIcon,
 } from "lucide-react";
 import { Footer } from "@/components/layout/Footer";
 import type { RoomSelection } from "@/components/hotels/hotel-detail-rooms-table";
@@ -27,9 +37,10 @@ import { HeroGlassNavbar } from "@/components/home/hero-glass-navbar";
 import { TravelMobileTopShell } from "@/components/home/HeroSection";
 import { HotelDetailTabs, type HotelDetailTabId } from "@/components/hotels/hotel-detail-tabs";
 import { HotelDetailReviews } from "@/components/hotels/hotel-detail-reviews";
-import { HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booking-policy";
+import { clockLabel, HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booking-policy";
+import { siteTelHref, siteWhatsAppChatUrl } from "@/lib/site-contact";
 import { HotelDetailDeferredSimilarHotels } from "@/components/hotels/hotel-detail-deferred-similar-hotels";
-import type { ApiReview } from "@/lib/hotels-api";
+import type { ApiHotelPolicies, ApiReview } from "@/lib/hotels-api";
 import {
   addDaysToIso,
   formatHotelDateFromIso,
@@ -40,13 +51,16 @@ import {
   hotelBookingHref,
   hotelHref,
   hotelListingKey,
+  hotelMapsLink,
+  hotelPostalAddress,
+  mealPlanLabel,
   type HotelBookingQueryParams,
   type HotelCity,
   type HotelListing,
   type HotelPhotoCategory,
   type HotelRoomType,
 } from "@/lib/hotels-catalog";
-import { cn, formatInrAmount } from "@/lib/utils";
+import { cn, formatGstEquation, formatInrAmount } from "@/lib/utils";
 
 const HotelPhotoGalleryModal = dynamic(() =>
   import("@/components/hotels/hotel-photo-gallery-modal").then((mod) => mod.HotelPhotoGalleryModal),
@@ -57,10 +71,36 @@ type HotelDetailViewProps = {
   hotel: HotelListing;
   roomTypes?: HotelRoomType[];
   policies?: string[];
+  hotelPolicies?: ApiHotelPolicies | null;
   apiReviews?: ApiReview[];
   nearbyAttractions?: string[];
   photoCategories?: HotelPhotoCategory[];
 };
+
+function titleCaseAmenityLabel(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return trimmed;
+  if (/^wifi$|^wi-fi$/i.test(trimmed)) return "Wi-Fi";
+  if (/^tv$|^television$/i.test(trimmed)) return "TV";
+  if (/^cctv$/i.test(trimmed)) return "CCTV";
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
+/** Property amenity chips from the hotel record only — never invent winter extras. */
+function hotelAmenityChips(hotel: HotelListing): string[] {
+  const chips: string[] = [];
+  if (hotel.freeCancellation) chips.push("Free cancellation");
+  if (hotel.freeBreakfast) chips.push("Breakfast included");
+  for (const raw of hotel.amenities) {
+    const label = titleCaseAmenityLabel(raw);
+    if (!label) continue;
+    if (chips.some((c) => c.toLowerCase() === label.toLowerCase())) continue;
+    // Prefer "Parking" from amenities over a separate Free parking flag when both exist
+    if (/^parking$/i.test(label) && chips.some((c) => /parking/i.test(c))) continue;
+    chips.push(label);
+  }
+  return chips;
+}
 
 function parseBookingContextFromParams(
   searchParams: URLSearchParams,
@@ -439,7 +479,7 @@ function DetailGallery({
   const photoCount = photos.length || hotel.propertyPhotoCount;
   const [activeSlide, setActiveSlide] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
-  const carouselPhotos = photos.slice(0, Math.min(photos.length, 10));
+  const carouselPhotos = photos;
 
   return (
     <div id="photos">
@@ -477,7 +517,7 @@ function DetailGallery({
           {activeSlide + 1}/{carouselPhotos.length}
         </div>
         {/* Dot indicators */}
-        {carouselPhotos.length > 1 && (
+        {carouselPhotos.length > 1 && carouselPhotos.length <= 8 && (
           <div className="pointer-events-none absolute bottom-3 left-0 right-0 flex justify-center gap-1">
             {carouselPhotos.map((_, i) => (
               <div key={i} className={cn("h-1 rounded-full transition-all duration-300", i === activeSlide ? "w-5 bg-white" : "w-1.5 bg-white/50")} />
@@ -547,13 +587,147 @@ function DetailGallery({
   );
 }
 
-function GallerySidebarLayout({ gallery, sidebar }: { gallery: React.ReactNode; sidebar: React.ReactNode }) {
+function hotelDisplayShortName(name: string, cityName?: string): string {
+  let short = name.trim().replace(/^hotel\s+/i, "");
+  if (cityName) {
+    const city = cityName.trim();
+    if (city && short.toLowerCase().endsWith(city.toLowerCase())) {
+      short = short.slice(0, -city.length).trim();
+    }
+  }
+  return short || name;
+}
+
+function whyStayFeatures(hotel: HotelListing): { icon: LucideIcon; label: string }[] {
+  const amenities = hotel.amenities.map((a) => a.toLowerCase());
+  const has = (re: RegExp) => amenities.some((a) => re.test(a));
+  const features: { icon: LucideIcon; label: string }[] = [
+    { icon: MapPin, label: "Prime Location" },
+  ];
+  if (has(/wifi|wi-fi|internet/)) features.push({ icon: Wifi, label: "Free Wi-Fi" });
+  if (hotel.freeBreakfast) features.push({ icon: Coffee, label: "Breakfast Included" });
+  else if (has(/restaurant|dining/)) features.push({ icon: Utensils, label: "Restaurant" });
+  if (hotel.freeParking || has(/park/)) features.push({ icon: Car, label: "Parking" });
+  if (has(/room.?service/)) features.push({ icon: Sparkles, label: "Room Service" });
+  if (features.length < 4) features.push({ icon: Home, label: "Clean & Comfortable" });
+  return features.slice(0, 4);
+}
+
+function WhyStayMountains({ className }: { className?: string }) {
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:gap-5">
-      <div className="min-w-0 flex-1 overflow-hidden rounded-xl">{gallery}</div>
+    <svg
+      viewBox="0 0 420 220"
+      fill="none"
+      className={className}
+      aria-hidden
+      preserveAspectRatio="xMaxYMax meet"
+    >
+      <defs>
+        <linearGradient id="whyStayPeakA" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#e8d5c4" stopOpacity="0.95" />
+          <stop offset="100%" stopColor="#d4bba6" stopOpacity="0.35" />
+        </linearGradient>
+        <linearGradient id="whyStayPeakB" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f0e2d4" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#cbb39c" stopOpacity="0.25" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M40 220 L120 95 L155 130 L210 55 L270 118 L310 78 L380 160 L420 130 L420 220 Z"
+        fill="url(#whyStayPeakA)"
+      />
+      <path
+        d="M0 220 L70 140 L115 175 L175 100 L230 155 L290 110 L350 170 L420 145 L420 220 Z"
+        fill="url(#whyStayPeakB)"
+      />
+      <circle cx="340" cy="48" r="18" fill="#f6e7d8" fillOpacity="0.55" />
+      <circle cx="340" cy="48" r="10" fill="#fff7ef" fillOpacity="0.7" />
+    </svg>
+  );
+}
+
+function WhyStayBanner({ hotel, cityName }: { hotel: HotelListing; cityName: string }) {
+  const shortName = hotelDisplayShortName(hotel.name, cityName);
+  const features = whyStayFeatures(hotel);
+
+  return (
+    <section className="relative hidden overflow-hidden rounded-xl border border-[#eadfce] sm:block">
+      <div className="absolute inset-0 bg-[linear-gradient(115deg,#fff9f3_0%,#f7eee4_55%,#efe3d6_100%)]" aria-hidden />
+      <WhyStayMountains className="pointer-events-none absolute -bottom-1 right-0 h-[130%] w-[38%] max-w-none opacity-80" />
+
+      <div className="relative flex flex-col gap-2.5 px-4 py-3 sm:px-5">
+        <div className="min-w-0 pr-[18%]">
+          <h2 className="text-[15px] font-extrabold leading-tight tracking-[-0.02em] text-[#1c1917]">
+            Why stay at <span className="text-[#ef6614]">{shortName}</span>?
+          </h2>
+          <p className="mt-0.5 text-[11px] leading-snug text-[#7a7168]">
+            Comfortable hill stay in the heart of {cityName}.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-4 gap-2">
+          {features.map(({ icon: Icon, label }) => (
+            <div
+              key={label}
+              className="flex items-center gap-1.5 rounded-lg border border-white/80 bg-white/75 px-2 py-1.5 backdrop-blur-sm"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#fff1e6] text-[#ef6614]">
+                <Icon className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
+              </span>
+              <span className="truncate text-[11px] font-bold text-[#2f2a26]">{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HotelTrustStrip({ hotel }: { hotel: HotelListing }) {
+  const items = [
+    { icon: ShieldCheck, label: "Secure & Safe Booking", tone: "text-[#15803d]" },
+    { icon: Zap, label: "Instant Confirmation", tone: "text-[#2563eb]" },
+    hotel.freeCancellation
+      ? { icon: CalendarDays, label: "Free Cancellation*", tone: "text-[#2563eb]" }
+      : { icon: Check, label: "Verified Property", tone: "text-[#2563eb]" },
+    { icon: Headphones, label: "24×7 Support", tone: "text-[#ea580c]" },
+  ];
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-xl border border-[#ebe7e1] bg-white px-3.5 py-2">
+      {items.map(({ icon: Icon, label, tone }) => (
+        <div key={label} className="flex items-center gap-1.5 text-[11px] font-semibold text-[#3f3f46]">
+          <Icon className={cn("h-3.5 w-3.5 shrink-0", tone)} strokeWidth={2.2} aria-hidden />
+          {label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GallerySidebarLayout({
+  gallery,
+  belowGallery,
+  sidebar,
+}: {
+  gallery: React.ReactNode;
+  belowGallery?: React.ReactNode;
+  sidebar: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-5">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="overflow-hidden rounded-xl">{gallery}</div>
+        {belowGallery}
+      </div>
       <div
-        className="hidden lg:block w-full shrink-0 lg:w-[300px] xl:w-[320px] lg:sticky lg:top-24 lg:self-start"
-        style={{ borderRadius: "0.75rem", border: "1px solid #e0e0e0", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}
+        className="hidden w-full shrink-0 lg:sticky lg:top-24 lg:block lg:w-[300px] lg:self-start xl:w-[320px]"
+        style={{
+          borderRadius: "0.75rem",
+          border: "1px solid #e0e0e0",
+          background: "#fff",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+        }}
       >
         {sidebar}
       </div>
@@ -567,6 +741,8 @@ function BookingSummary({
   onViewRooms,
   onApply,
   bookNowHref,
+  bookNowMeal,
+  bookNowRoom,
 }: {
   hotel: HotelListing;
   selection: RoomSelection | null;
@@ -574,6 +750,8 @@ function BookingSummary({
   onViewRooms: () => void;
   onApply?: (ctx: HotelBookingQueryParams) => void;
   bookNowHref?: string;
+  bookNowMeal?: string;
+  bookNowRoom?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [checkIn, setCheckIn]   = useState(bookingContext.check_in ?? "");
@@ -626,9 +804,13 @@ function BookingSummary({
   const nights      = nightCount(bookingContext.check_in, bookingContext.check_out);
   const roomsCount  = normalizedRooms;
   const summary = hotel.startingPriceSummary;
-  const baseTotal = (summary?.subtotal ?? hotel.price * nights) * roomsCount;
-  const taxesTotal = (summary?.taxes ?? 0) * roomsCount;
-  const grandTotal = (summary?.total ?? hotel.price * nights) * roomsCount;
+  const nightBase = Math.round(summary?.price ?? hotel.price);
+  const nightTax = Math.round(summary?.taxes ?? 0);
+  const nightTotal = nightBase + nightTax;
+  const baseTotal = nightBase * nights * roomsCount;
+  const taxesTotal = nightTax * nights * roomsCount;
+  const grandTotal = nightTotal * nights * roomsCount;
+  const headlineEquation = formatGstEquation(nightBase, nightTax);
 
   return (
     <div>
@@ -637,22 +819,26 @@ function BookingSummary({
         <div className="rounded-t-xl bg-gradient-to-br from-[#fff8f3] to-[#fdf5ef] px-4 py-4">
           <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#b8b8b8]">Starting from</p>
           <p className="mt-0.5 text-[26px] font-extrabold leading-none text-[#EF6614]">
-            ₹{formatInrAmount(hotel.price)}
+            ₹{formatInrAmount(nightTotal)}
             <span className="ml-1 text-[13px] font-medium text-[#9E9E9E]">/night</span>
           </p>
+          {headlineEquation ? (
+            <p className="mt-1 text-[12px] font-semibold leading-snug text-[#1a1a1a]">{headlineEquation}</p>
+          ) : null}
+          <p className="mt-1 text-[12px] font-semibold text-[#1a1a1a]">{bookNowMeal ?? "Room only"}</p>
           <p className="mt-0.5 text-[10px] text-[#b8b8b8]">per room · {roomsCount} room{roomsCount !== 1 ? "s" : ""} · {bookingContext?.guests ?? 2} guest{(bookingContext?.guests ?? 2) !== 1 ? "s" : ""}</p>
 
           {/* Total stay cost */}
           <div className="mt-3 rounded-xl border border-[#f0d9c8] bg-white/60 px-3 py-2.5">
             <div className="flex items-center justify-between">
               <p className="text-[11px] text-[#9E9E9E]">
-                ₹{formatInrAmount(hotel.price)} × {nights} night{nights !== 1 ? "s" : ""}{roomsCount > 1 ? ` × ${roomsCount} rooms` : ""}
+                ₹{formatInrAmount(nightBase)} × {nights} night{nights !== 1 ? "s" : ""}{roomsCount > 1 ? ` × ${roomsCount} rooms` : ""}
               </p>
               <p className="text-[13px] font-bold text-[#212121]">₹{formatInrAmount(baseTotal)}</p>
             </div>
             {taxesTotal > 0 && (
               <div className="mt-1 flex items-center justify-between">
-                <p className="text-[11px] text-[#9E9E9E]">Taxes &amp; fees</p>
+                <p className="text-[11px] text-[#9E9E9E]">GST</p>
                 <p className="text-[12px] font-medium text-[#616161]">₹{formatInrAmount(taxesTotal)}</p>
               </div>
             )}
@@ -775,13 +961,31 @@ function BookingSummary({
             )}
           </div>
           {bookNowHref ? (
-            <p className="-mt-1 text-center text-[10px] font-medium text-[#77808d]">Book now selects the lowest-priced room and meal plan.</p>
+            <p className="-mt-1 text-center text-[11px] font-medium text-[#3f3f46]">
+              Book now takes {bookNowRoom ? `${bookNowRoom}, ` : ""}{bookNowMeal ?? "Room only"}.
+            </p>
           ) : null}
+          <p className="flex items-center justify-center gap-3 text-[12px]">
+            <a href={siteTelHref()} className="inline-flex items-center gap-1.5 font-semibold text-[#1a1a1a]">
+              <CallLogo className="h-3.5 w-3.5" />
+              Call
+            </a>
+            <span className="text-[#e5e7eb]" aria-hidden>|</span>
+            <a
+              href={siteWhatsAppChatUrl(`Hi, I'd like to book ${hotel.name}.`)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 font-semibold text-[#25D366]"
+            >
+              <WhatsAppLogo className="h-3.5 w-3.5" />
+              WhatsApp
+            </a>
+          </p>
           {/* Check-in / Check-out times */}
-          <div className="flex items-center justify-between text-[11px] text-[#9E9E9E]">
-            <span>Check-in: <span className="font-semibold text-[#424242]">2:00 PM</span></span>
-            <span className="text-[#d5d5d5]">|</span>
-            <span>Check-out: <span className="font-semibold text-[#424242]">12:00 PM</span></span>
+          <div className="flex items-center justify-between gap-2 text-[11px] text-[#9E9E9E]">
+            <span>Check-in: <span className="font-semibold text-[#424242]">{clockLabel(hotel.checkInTime) || "2:00 PM"}</span></span>
+            <span className="shrink-0 px-1 text-[#d5d5d5]" aria-hidden>·</span>
+            <span>Check-out: <span className="font-semibold text-[#424242]">{clockLabel(hotel.checkOutTime) || "11:00 AM"}</span></span>
           </div>
         </div>
 
@@ -790,80 +994,99 @@ function BookingSummary({
   );
 }
 
+function CallLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M6.62 10.79a15.05 15.05 0 0 0 6.59 6.59l2.2-2.2a1 1 0 0 1 1.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.85 21 3 13.15 3 3a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.58a1 1 0 0 1-.25 1.01l-2.2 2.2z" />
+    </svg>
+  );
+}
+
+function WhatsAppLogo({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z" />
+    </svg>
+  );
+}
+
 function MobileBookingBar({
   hotel,
   onViewRooms,
   bookingHref,
   bookNowHref,
+  bookNowMeal,
   selectedRoomName,
 }: {
   hotel: HotelListing;
   onViewRooms: () => void;
   bookingHref?: string;
   bookNowHref?: string;
+  bookNowMeal?: string;
   selectedRoomName?: string;
 }) {
   const hasSelection = !!bookingHref && bookingHref !== "#";
+  const whatsappHref = siteWhatsAppChatUrl(`Hi, I'd like to book ${hotel.name}.`);
 
   return (
-    <div
-      className={cn(
-        "fixed bottom-0 left-0 right-0 z-50 border-t border-[#e8e8e8] bg-white px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] transition-transform duration-300 lg:hidden",
-        "translate-y-0",
-      )}
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#e8e8e8] bg-white px-3 py-2 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] lg:hidden">
+      <div className="flex items-center gap-2.5">
+        <div className="min-w-0 flex-1">
           {hasSelection ? (
             <>
-              <p className="text-[10px] font-medium text-[#9E9E9E]">Selected room</p>
-              <p className="truncate text-[13px] font-bold text-[#212121]">{selectedRoomName}</p>
+              <p className="text-[9px] font-medium text-[#9E9E9E]">Selected</p>
+              <p className="truncate text-[12px] font-bold leading-tight text-[#212121]">{selectedRoomName}</p>
             </>
           ) : (
             <>
-              <p className="text-[10px] font-medium text-[#9E9E9E]">Starting from</p>
-              <p className="text-[18px] font-extrabold leading-tight text-[#212121]">
-                ₹{formatInrAmount(hotel.price)}
-                <span className="ml-1 text-[11px] font-normal text-[#9E9E9E]">/night</span>
+              <p className="text-[9px] font-medium leading-none text-[#9E9E9E]">Starting from</p>
+              <p className="mt-0.5 text-[16px] font-extrabold leading-none text-[#212121]">
+                ₹{formatInrAmount(Math.round((hotel.startingPriceSummary?.price ?? hotel.price) + (hotel.startingPriceSummary?.taxes ?? 0)))}
+                <span className="ml-0.5 text-[10px] font-normal text-[#9E9E9E]">/night</span>
               </p>
-              {hotel.freeCancellation && (
-                <p className="text-[10px] font-semibold text-[#166534]">✓ Free cancellation</p>
-              )}
+              <p className="mt-0.5 text-[10px] font-semibold leading-none text-[#616161]">{bookNowMeal ?? "Room only"}</p>
             </>
           )}
         </div>
 
+        <a
+          href={siteTelHref()}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#e8e8e8] bg-[#f7f7f7] text-[#1a1a1a] active:scale-95"
+          aria-label="Call"
+        >
+          <CallLogo className="h-4 w-4" />
+        </a>
+        <a
+          href={whatsappHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#25D366] text-white active:scale-95"
+          aria-label="WhatsApp"
+        >
+          <WhatsAppLogo className="h-[18px] w-[18px]" />
+        </a>
+
         {hasSelection ? (
           <Link
             href={bookingHref!}
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-b from-[#e8651c] to-[#c94e0a] px-5 py-3 text-[13px] font-extrabold text-white shadow-[0_3px_10px_rgba(201,78,10,0.38)] active:scale-[0.98]"
+            className="flex h-10 shrink-0 items-center gap-1 rounded-xl bg-gradient-to-b from-[#e8651c] to-[#c94e0a] px-3.5 text-[12px] font-extrabold text-white shadow-[0_2px_8px_rgba(201,78,10,0.35)] active:scale-[0.98]"
           >
-            Proceed →
+            Proceed <ChevronRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
         ) : bookNowHref ? (
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              type="button"
-              onClick={onViewRooms}
-              className="rounded-xl border border-[#e1e4e8] bg-white px-3 py-3 text-[12px] font-bold text-[#4b5563]"
-            >
-              Rooms
-            </button>
-            <Link
-              href={bookNowHref}
-              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-b from-[#f06a1c] to-[#d94d04] px-4 py-3 text-[13px] font-extrabold text-white shadow-[0_3px_10px_rgba(201,78,10,0.38)] active:scale-[0.98]"
-            >
-              Book now <ChevronRight className="h-4 w-4" aria-hidden />
-            </Link>
-          </div>
+          <Link
+            href={bookNowHref}
+            className="flex h-10 shrink-0 items-center gap-1 rounded-xl bg-gradient-to-b from-[#f06a1c] to-[#d94d04] px-3.5 text-[12px] font-extrabold text-white shadow-[0_2px_8px_rgba(201,78,10,0.35)] active:scale-[0.98]"
+          >
+            Book now <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
         ) : (
           <button
             type="button"
             onClick={onViewRooms}
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-b from-[#e8651c] to-[#c94e0a] px-5 py-3 text-[13px] font-extrabold text-white shadow-[0_3px_10px_rgba(201,78,10,0.38)] active:scale-[0.98]"
+            className="flex h-10 shrink-0 items-center gap-1 rounded-xl bg-gradient-to-b from-[#e8651c] to-[#c94e0a] px-3.5 text-[12px] font-extrabold text-white shadow-[0_2px_8px_rgba(201,78,10,0.35)] active:scale-[0.98]"
           >
-            View Rooms
-            <BedDouble className="h-4 w-4" aria-hidden />
+            Book now <ChevronRight className="h-3.5 w-3.5" aria-hidden />
           </button>
         )}
       </div>
@@ -876,6 +1099,7 @@ export function HotelDetailView({
   hotel,
   roomTypes,
   policies,
+  hotelPolicies,
   apiReviews,
   nearbyAttractions = [],
   photoCategories = [],
@@ -934,7 +1158,7 @@ export function HotelDetailView({
 
   // Fast booking defaults to the lowest-priced room and lowest-priced meal
   // plan, so the reservation page opens with the best available entry price.
-  const bookNowHref = useMemo(() => {
+  const bookNowOffer = useMemo(() => {
     const roomWithPlan = (roomTypes ?? [])
       .filter((room) => room.ratePlans.length > 0)
       .map((room) => ({
@@ -950,14 +1174,19 @@ export function HotelDetailView({
 
     if (!roomWithPlan) return undefined;
 
-    return hotelBookingHref(
-      city.slug,
-      hotelListingKey(hotel),
-      roomWithPlan.room.id,
-      roomWithPlan.plan.id,
-      bookingContext,
-    );
+    return {
+      href: hotelBookingHref(
+        city.slug,
+        hotelListingKey(hotel),
+        roomWithPlan.room.id,
+        roomWithPlan.plan.id,
+        bookingContext,
+      ),
+      roomName: roomWithPlan.room.name.trim(),
+      meal: mealPlanLabel(roomWithPlan.plan.packageName),
+    };
   }, [bookingContext, city.slug, hotel, roomTypes]);
+  const bookNowHref = bookNowOffer?.href;
 
   const openPhoto = useCallback(() => {
     if (allPhotos.length === 0) return;
@@ -985,21 +1214,22 @@ export function HotelDetailView({
     });
   }, []);
 
-  const handleTabChange = useCallback(
-    (tab: HotelDetailTabId) => {
-      setActiveTab(tab);
-      if (tab === "policy") scrollToSection("booking-policy");
-    },
-    [scrollToSection],
-  );
+  const handleTabChange = useCallback((tab: HotelDetailTabId) => {
+    setActiveTab(tab);
+    requestAnimationFrame(() => {
+      const el = document.getElementById("hotel-tabs");
+      if (!el) return;
+      const offset = window.innerWidth >= 1024 ? 80 : 130;
+      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: "smooth" });
+    });
+  }, []);
 
   const scrollToReviews = useCallback(() => {
     scrollToSection("guest-reviews");
   }, [scrollToSection]);
 
-  const mapsUrl = hotel.latitude && hotel.longitude
-    ? `https://www.google.com/maps?q=${hotel.latitude},${hotel.longitude}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${hotel.name}, ${city.name}`)}`;
+  const mapsUrl = hotelMapsLink(hotel, city.name);
+  const postalAddress = hotelPostalAddress(hotel, city.name);
 
   const bookingMeta = (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -1018,19 +1248,24 @@ export function HotelDetailView({
         <span className="hidden h-3.5 w-px bg-[#dfe4e9] sm:block" aria-hidden />
         <span className="flex min-w-0 items-center gap-1 text-[#687180]">
           <MapPin className="h-3.5 w-3.5 shrink-0 text-[#ef5a0a]" strokeWidth={2.2} aria-hidden />
-          <span className="truncate">{hotel.area}, {city.name}</span>
-          {hotel.nearbyLandmark ? <span className="hidden text-[#9aa1ad] lg:inline">· {hotel.nearbyLandmark}</span> : null}
+          <span className="truncate">{postalAddress}</span>
         </span>
         <div className="flex flex-wrap items-center gap-1.5">
-          {hotel.freeCancellation ? (
-            <span className="rounded-full bg-[#ecfdf3] px-2 py-0.5 text-[10px] font-semibold text-[#18723a]">Free cancellation</span>
-          ) : null}
-          {hotel.freeBreakfast ? (
-            <span className="rounded-full bg-[#fff8df] px-2 py-0.5 text-[10px] font-semibold text-[#8a5a00]">Breakfast included</span>
-          ) : null}
-          {hotel.freeParking ? (
-            <span className="rounded-full bg-[#eef2ff] px-2 py-0.5 text-[10px] font-semibold text-[#3f46a7]">Free parking</span>
-          ) : null}
+          {hotelAmenityChips(hotel).slice(0, 8).map((label) => (
+            <span
+              key={label}
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                /cancellation/i.test(label)
+                  ? "bg-[#ecfdf3] text-[#18723a]"
+                  : /breakfast/i.test(label)
+                    ? "bg-[#fff8df] text-[#8a5a00]"
+                    : "bg-[#f3f4f6] text-[#374151]",
+              )}
+            >
+              {label}
+            </span>
+          ))}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
@@ -1115,17 +1350,30 @@ export function HotelDetailView({
             </div>
             <p className="mt-2 flex items-center gap-1 truncate text-[11px] text-[#6b7280]">
               <MapPin className="h-3.5 w-3.5 shrink-0 text-[#ef5a0a]" aria-hidden />
-              {hotel.area}, {city.name}
+              {postalAddress}
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {hotel.freeCancellation ? <span className="rounded-full bg-[#ecfdf3] px-2 py-0.5 text-[10px] font-semibold text-[#18723a]">Free cancellation</span> : null}
-              {hotel.freeBreakfast ? <span className="rounded-full bg-[#fff8df] px-2 py-0.5 text-[10px] font-semibold text-[#8a5a00]">Breakfast included</span> : null}
-              {hotel.freeParking ? <span className="rounded-full bg-[#eef2ff] px-2 py-0.5 text-[10px] font-semibold text-[#3f46a7]">Free parking</span> : null}
+              {hotelAmenityChips(hotel).slice(0, 8).map((label) => (
+                <span
+                  key={label}
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                    /cancellation/i.test(label)
+                      ? "bg-[#ecfdf3] text-[#18723a]"
+                      : /breakfast/i.test(label)
+                        ? "bg-[#fff8df] text-[#8a5a00]"
+                        : "bg-[#f3f4f6] text-[#374151]",
+                  )}
+                >
+                  {label}
+                </span>
+              ))}
             </div>
           </section>
 
           <GallerySidebarLayout
             gallery={<DetailGallery hotel={hotel} photos={allPhotos} onOpenPhoto={openPhoto} />}
+            belowGallery={<WhyStayBanner hotel={hotel} cityName={city.name} />}
             sidebar={
               <BookingSummary
                 hotel={hotel}
@@ -1134,46 +1382,20 @@ export function HotelDetailView({
                 onViewRooms={scrollToRooms}
                 onApply={handleApplySearch}
                 bookNowHref={bookNowHref}
+                bookNowMeal={bookNowOffer?.meal}
+                bookNowRoom={bookNowOffer?.roomName}
               />
             }
           />
-          <div className="mt-5 space-y-5 sm:mt-6 sm:space-y-6">
-            {/* Trust badges */}
-            <div className="grid grid-cols-2 gap-2 rounded-xl border border-[#e8e8e8] bg-white px-3 py-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-4 sm:px-4 sm:py-3">
-              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#424242]">
-                <ShieldCheck className="h-4 w-4 text-[#008009]" aria-hidden />
-                Secure booking
-              </div>
-              <span className="hidden text-[#e0e0e0] sm:inline">|</span>
-              <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#424242]">
-                <Check className="h-4 w-4 text-[#2196F3]" aria-hidden />
-                Instant confirmation
-              </div>
-              {hotel.reviewCount > 0 && (
-                <>
-                  <span className="hidden text-[#e0e0e0] sm:inline">|</span>
-                  <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#424242]">
-                    <Users className="h-4 w-4 text-[#EF6614]" aria-hidden />
-                    {hotel.reviewCount}+ guests reviewed
-                  </div>
-                </>
-              )}
-              {hotel.freeCancellation && (
-                <>
-                  <span className="hidden text-[#e0e0e0] sm:inline">|</span>
-                  <div className="flex items-center gap-1.5 text-[12px] font-semibold text-[#166534]">
-                    <Check className="h-4 w-4" aria-hidden />
-                    Free cancellation
-                  </div>
-                </>
-              )}
-            </div>
+          <div className="mt-4 space-y-5 sm:mt-5 sm:space-y-6">
+            <HotelTrustStrip hotel={hotel} />
             <HotelDetailTabs
               hotel={hotel}
               city={city}
               roomTypes={roomTypes}
               bookingContext={bookingContext}
               policies={policies}
+              hotelPolicies={hotelPolicies}
               nearbyAttractions={nearbyAttractions}
               photoCategories={photoCategories}
               activeTab={activeTab}
@@ -1185,7 +1407,7 @@ export function HotelDetailView({
             {belowFoldReady ? (
               <>
                 <HotelDetailReviews hotel={hotel} cityName={city.name} apiReviews={apiReviews} />
-                <HotelDetailBookingPolicy hotel={hotel} policies={policies} />
+                <HotelDetailBookingPolicy hotel={hotel} hotelPolicies={hotelPolicies} policies={policies} />
                 <HotelDetailDeferredSimilarHotels hotelId={hotel.id} city={city} />
               </>
             ) : (
@@ -1204,7 +1426,7 @@ export function HotelDetailView({
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-[76px] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-[#EF6614] text-white shadow-lg transition hover:bg-[#c94e0a] sm:right-6 lg:bottom-6"
+          className="fixed bottom-[60px] right-4 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-[#EF6614] text-white shadow-lg transition hover:bg-[#c94e0a] sm:right-6 lg:bottom-6"
           aria-label="Scroll to top"
         >
           <ArrowUp className="h-5 w-5" strokeWidth={2.5} aria-hidden />
@@ -1214,6 +1436,7 @@ export function HotelDetailView({
           onViewRooms={scrollToRooms}
           bookingHref={roomSelection?.bookingHref}
           bookNowHref={bookNowHref}
+          bookNowMeal={bookNowOffer?.meal}
           selectedRoomName={roomSelection ? `${roomSelection.roomName} · ${roomSelection.planCode}` : undefined}
         />
       </main>

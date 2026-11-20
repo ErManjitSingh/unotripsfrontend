@@ -6,6 +6,7 @@ import { HotelDetailAmenitiesGrid } from "@/components/hotels/hotel-detail-ameni
 import { HotelDetailBookingPolicy } from "@/components/hotels/hotel-detail-booking-policy";
 import { HotelDetailLocation } from "@/components/hotels/hotel-detail-location";
 import { HotelDetailRoomsTable, type RoomSelection } from "@/components/hotels/hotel-detail-rooms-table";
+import type { ApiHotelPolicies } from "@/lib/hotels-api";
 import type {
   HotelBookingQueryParams,
   HotelCity,
@@ -37,6 +38,7 @@ type HotelDetailTabsProps = {
   roomTypes?: HotelRoomType[];
   bookingContext?: HotelBookingQueryParams;
   policies?: string[];
+  hotelPolicies?: ApiHotelPolicies | null;
   nearbyAttractions?: string[];
   photoCategories?: HotelPhotoCategory[];
   className?: string;
@@ -52,6 +54,7 @@ export function HotelDetailTabs({
   roomTypes,
   bookingContext,
   policies,
+  hotelPolicies,
   nearbyAttractions,
   photoCategories,
   activeTab,
@@ -108,6 +111,7 @@ export function HotelDetailTabs({
         {activeTab === "policy" ? (
           <HotelDetailBookingPolicy
             hotel={hotel}
+            hotelPolicies={hotelPolicies}
             policies={policies}
             className="rounded-none border-0 shadow-none"
           />

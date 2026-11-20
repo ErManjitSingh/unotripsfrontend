@@ -23,7 +23,7 @@ function SimilarHotelCard({ hotel, city }: { hotel: HotelListing; city: HotelCit
   return (
     <Link
       href={hotelDetailHref(hotel.citySlug, hotelListingKey(hotel))}
-      className="group flex w-[min(100%,240px)] shrink-0 flex-col overflow-hidden rounded-lg border border-[#e0e0e0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-md sm:w-[240px]"
+      className="group flex w-[80%] shrink-0 snap-start flex-col overflow-hidden rounded-lg border border-[#e0e0e0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.06)] transition-shadow hover:shadow-md lg:w-auto lg:min-w-0 lg:shrink"
     >
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-neutral-200">
         {image ? (
@@ -33,7 +33,7 @@ function SimilarHotelCard({ hotel, city }: { hotel: HotelListing; city: HotelCit
             fill
             unoptimized
             className="object-cover transition-transform duration-300 group-hover:scale-105"
-            sizes="240px"
+            sizes="(max-width: 640px) 80vw, 25vw"
           />
         ) : null}
         {hotel.dealOfDay ? (
@@ -69,7 +69,9 @@ function SimilarHotelCard({ hotel, city }: { hotel: HotelListing; city: HotelCit
             </p>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-[10px] text-[#9E9E9E] line-through">₹ {formatInrAmount(hotel.originalPrice)}</p>
+            {hotel.originalPrice > hotel.price ? (
+              <p className="text-[10px] text-[#9E9E9E] line-through">₹ {formatInrAmount(hotel.originalPrice)}</p>
+            ) : null}
             <p className="text-base font-bold text-[#212121]">₹ {formatInrAmount(hotel.price)}</p>
             <p className="mt-0.5 text-[9px] leading-tight text-[#757575]">
               + ₹{formatInrAmount(hotel.taxes)} taxes &amp; fees
@@ -89,7 +91,7 @@ export function HotelDetailSimilarHotels({ hotels, city, className }: HotelDetai
   return (
     <section className={cn("rounded-lg border border-[#e0e0e0] bg-white p-5 shadow-sm sm:p-6", className)}>
       <h2 className="text-sm font-bold uppercase tracking-[0.08em] text-[#212121]">Similar Hotels</h2>
-      <div className="mt-4 flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-4 [&::-webkit-scrollbar]:hidden">
+      <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:grid lg:grid-cols-4 lg:gap-4 lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden">
         {hotels.map((hotel) => (
           <SimilarHotelCard key={hotel.id} hotel={hotel} city={city} />
         ))}

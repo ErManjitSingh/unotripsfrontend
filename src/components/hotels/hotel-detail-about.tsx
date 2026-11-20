@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Clock, MapPin, Star } from "lucide-react";
+import { clockLabel } from "@/components/hotels/hotel-detail-booking-policy";
 import type { HotelCity, HotelListing, HotelPhotoCategory } from "@/lib/hotels-catalog";
 import { cn } from "@/lib/utils";
 
@@ -68,7 +69,9 @@ export function HotelDetailAbout({ hotel, city, photoCategories, className }: Ho
           </div>
           <div className="flex items-center gap-1.5 rounded-lg border border-[#eee] bg-[#fafafa] px-3 py-2">
             <Clock className="h-3.5 w-3.5 text-[#757575]" aria-hidden />
-            <span className="text-[12px] text-[#424242]">Check-in 2:00 PM · Check-out 12:00 PM</span>
+            <span className="text-[12px] text-[#424242]">
+              Check-in {clockLabel(hotel.checkInTime) || "2:00 PM"} · Check-out {clockLabel(hotel.checkOutTime) || "11:00 AM"}
+            </span>
           </div>
         </div>
 
