@@ -288,7 +288,7 @@ export function HotelsResultsSearchStrip({
 
   return (
     <section
-      className={cn("relative isolate w-full overflow-visible", className)}
+      className={cn("relative z-30 isolate w-full overflow-visible", className)}
       style={{ minHeight: "400px" }}
     >
       {/* Background */}
