@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useLayoutEffect, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import {
   format,
   startOfMonth,
@@ -337,9 +338,32 @@ type DatePickerPopoverProps = {
   compact?: boolean;
   placement?: "top" | "bottom";
   singleDate?: boolean;
+  /**
+   * Opt-in: position the popover against this element instead of its parent.
+   *
+   * The panel is rendered into document.body and placed with position:fixed
+   * from the anchor's bounding rect. Use it when an ancestor would otherwise
+   * clip or bury the calendar:
+   *   - overflow: hidden / clip / auto        → clips an absolute child
+   *   - z-index on a positioned ancestor      → traps the child's z-index
+   *   - backdrop-filter / filter / transform  → becomes the containing block
+   *     for position:fixed, so `fixed` alone does NOT escape it
+   * The portal takes the panel out of all three. It opens below the anchor,
+   * flips above when there is more room there, and clamps to the viewport.
+   * Omit to keep the default in-flow absolute positioning.
+   */
+  anchorRef?: RefObject<HTMLElement | null>;
 };
 
-export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClose, compact = false, placement = "bottom", singleDate = false }: DatePickerPopoverProps) {
+/** Gap between anchor and panel; minimum distance kept from viewport edges. */
+const POPOVER_GAP  = 8;
+const POPOVER_EDGE = 8;
+
+// Layout effect on the client (measure before paint, no flash), plain effect
+// during SSR so callers that render this on the server don't warn.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClose, compact = false, placement = "bottom", singleDate = false, anchorRef }: DatePickerPopoverProps) {
   const handleChange = (nextCheckIn: string, nextCheckOut: string) => {
     onChange(nextCheckIn, nextCheckOut);
     if (singleDate) {
@@ -348,6 +372,8 @@ export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClos
     }
   };
   const ref = useRef<HTMLDivElement>(null);
+  const anchored = Boolean(anchorRef);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -357,16 +383,55 @@ export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClos
     return () => document.removeEventListener("mousedown", handler);
   }, [onClose]);
 
-  return (
+  // Anchored mode only: keep the fixed panel attached to its anchor through
+  // page scroll, scrolling ancestors, resize, and its own height changes
+  // (month navigation can add a week row).
+  useIsomorphicLayoutEffect(() => {
+    if (!anchorRef) return;
+    const update = () => {
+      const anchor = anchorRef.current;
+      const panel  = ref.current;
+      if (!anchor || !panel) return;
+      const a  = anchor.getBoundingClientRect();
+      const h  = panel.offsetHeight;
+      const w  = panel.offsetWidth;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const spaceBelow = vh - a.bottom - POPOVER_GAP;
+      const spaceAbove = a.top - POPOVER_GAP;
+      // Prefer below; flip only when it doesn't fit and above has more room.
+      const openAbove = h > spaceBelow && spaceAbove > spaceBelow;
+      const rawTop = openAbove ? a.top - POPOVER_GAP - h : a.bottom + POPOVER_GAP;
+      const top  = Math.max(POPOVER_EDGE, Math.min(rawTop, vh - h - POPOVER_EDGE));
+      const left = Math.max(POPOVER_EDGE, Math.min(a.left, vw - w - POPOVER_EDGE));
+      setCoords((prev) => (prev && prev.top === top && prev.left === left ? prev : { top, left }));
+    };
+    update();
+    window.addEventListener("resize", update);
+    // Capture phase so scrolling inside any scrollable ancestor also updates.
+    window.addEventListener("scroll", update, true);
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    if (observer && ref.current) observer.observe(ref.current);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+      observer?.disconnect();
+    };
+  }, [anchorRef]);
+
+  const panel = (
     <div
       ref={ref}
       className={cn(
-        "absolute left-0 z-[9999] max-w-[calc(100vw-1rem)] overflow-auto rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_8px_40px_-8px_rgba(0,0,0,0.18)]",
-        placement === "top" ? "bottom-full mb-2" : "top-full mt-2",
+        anchored ? "fixed" : "absolute left-0",
+        "z-[9999] max-w-[calc(100vw-1rem)] overflow-auto rounded-2xl border border-[#e8e8e8] bg-white shadow-[0_8px_40px_-8px_rgba(0,0,0,0.18)]",
+        !anchored && (placement === "top" ? "bottom-full mb-2" : "top-full mt-2"),
         compact
           ? "max-h-[min(42vh,16rem)] w-[min(290px,calc(100vw-1rem))] p-2"
           : "max-h-[min(62vh,24rem)] w-[min(360px,calc(100vw-1rem))] p-2.5 sm:p-3",
       )}
+      // Hidden until first measured, so the panel never flashes at 0,0.
+      style={anchored ? { top: coords?.top ?? 0, left: coords?.left ?? 0, visibility: coords ? "visible" : "hidden" } : undefined}
     >
       {/* Responsive: 1 month on <640px, 2 months on ≥640px */}
       <div className="hidden sm:block">
@@ -409,4 +474,9 @@ export function DatePickerPopover({ checkIn, checkOut, onChange, onApply, onClos
       ) : null}
     </div>
   );
+
+  if (anchored) {
+    return typeof document === "undefined" ? null : createPortal(panel, document.body);
+  }
+  return panel;
 }

@@ -40,11 +40,23 @@ export function DestinationEaseHero({
   const router = useRouter();
 
   const [to, setTo]           = useState(destinationName !== "All Destinations" ? destinationName : "");
+  // The suggestion the guest picked, kept apart from the input text:
+  //   label → what the input shows      ("Shimla, India")
+  //   value → what the search receives  ("Shimla")
+  // /packages forwards `q` to the listing endpoint's `search` filter, a
+  // case-insensitive substring match on each package's name / destination /
+  // state / country columns. No single column holds "Shimla, India", so
+  // submitting the display label matched nothing. Cleared on every edit so a
+  // previous pick can never be submitted under different visible text.
+  const [selectedTo, setSelectedTo] = useState<{ label: string; value: string } | null>(null);
   const [toOpen, setToOpen]   = useState(false);
   const [cityHits, setCityHits] = useState<CityHit[]>([]);
   const [dateIso, setDateIso] = useState(initialDate ?? "");
   const [dateOpen, setDateOpen] = useState(false);
   const toRef = useRef<HTMLDivElement>(null);
+  // Anchor for the date popover, which renders in a portal so the hero's
+  // overflow-hidden section and the card's backdrop-filter can't clip it.
+  const dateAnchorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!dateIso) {
@@ -87,13 +99,19 @@ export function DestinationEaseHero({
   useEffect(() => {
     const q = to.trim();
     if (!q || q.length < 2) { setCityHits([]); return; }
+    // A suggestion was just picked and the input holds its display label —
+    // don't re-query the geocoder with "Shimla, India".
+    if (selectedTo && selectedTo.label === to) return;
     const id = setTimeout(() => fetchCities(q), 300);
     return () => clearTimeout(id);
-  }, [to, fetchCities]);
+  }, [to, fetchCities, selectedTo]);
 
   const onSubmit = () => {
     const p = new URLSearchParams();
-    if (to.trim()) p.set("q",    to.trim());
+    // Picked suggestion → its canonical value; otherwise the typed text, as
+    // before. The label comparison is a second guard against stale state.
+    const destination = selectedTo && selectedTo.label === to ? selectedTo.value : to.trim();
+    if (destination) p.set("q", destination);
     if (fromCity)  p.set("from", fromCity);
     if (dateIso)   p.set("date", dateIso);
     router.push(`/packages?${p.toString()}`);
@@ -187,13 +205,13 @@ export function DestinationEaseHero({
                   <div className="flex items-center gap-1">
                     <input
                       value={to}
-                      onChange={e => { setTo(e.target.value); setToOpen(true); }}
+                      onChange={e => { setTo(e.target.value); setSelectedTo(null); setToOpen(true); }}
                       onFocus={() => to.trim().length >= 2 && setToOpen(true)}
                       placeholder="Where to?"
                       className="min-w-0 flex-1 bg-transparent text-[15px] font-bold text-slate-800 placeholder:font-normal placeholder:text-slate-400 focus:outline-none"
                     />
                     {to && (
-                      <button type="button" onClick={() => { setTo(""); setCityHits([]); setToOpen(false); }}>
+                      <button type="button" onClick={() => { setTo(""); setSelectedTo(null); setCityHits([]); setToOpen(false); }}>
                         <X className="h-4 w-4 text-slate-400 hover:text-slate-600" />
                       </button>
                     )}
@@ -210,6 +228,7 @@ export function DestinationEaseHero({
                         // Prefer city name for package `q` — country suffix
                         // made searches like "Manali, India" miss packages.
                         setTo(h.name);
+                        setSelectedTo({ label: h.name, value: h.name.trim() });
                         setToOpen(false);
                         setCityHits([]);
                       };
@@ -244,7 +263,7 @@ export function DestinationEaseHero({
                   Chrome would only open it when the click landed on its
                   (invisible) calendar icon. This is the same DatePickerPopover
                   the package detail page already uses, in singleDate mode. */}
-              <div className="relative flex items-center border-t border-[#F1E7DC] sm:border-t-0">
+              <div ref={dateAnchorRef} className="relative flex items-center border-t border-[#F1E7DC] sm:border-t-0">
                 <button
                   type="button"
                   onClick={() => setDateOpen(true)}
@@ -274,6 +293,7 @@ export function DestinationEaseHero({
                     onClose={() => setDateOpen(false)}
                     compact
                     singleDate
+                    anchorRef={dateAnchorRef}
                   />
                 )}
               </div>
